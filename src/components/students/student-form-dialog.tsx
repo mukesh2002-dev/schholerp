@@ -64,7 +64,8 @@ export function StudentFormDialog({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setClasses(mockDb.getClasses());
+    const loadedClasses = mockDb.getClasses();
+    setClasses(loadedClasses);
     if (studentToEdit) {
       setFormData({
         firstName: studentToEdit.firstName,
@@ -94,8 +95,8 @@ export function StudentFormDialog({
         dateOfBirth: "2010-06-15",
         bloodGroup: "O+",
         branchId: activeBranchId !== "all" ? activeBranchId : "br-apex-01",
-        classId: classes[0]?.id || "cls-g10",
-        sectionId: classes[0]?.sections[0]?.id || "sec-g10-a",
+        classId: loadedClasses[0]?.id || "cls-g10",
+        sectionId: loadedClasses[0]?.sections[0]?.id || "sec-g10-a",
         status: "ACTIVE",
         guardianName: "",
         guardianRelation: "Father",
@@ -108,7 +109,7 @@ export function StudentFormDialog({
         emergencyContact: "+1 (555) 234-9988",
       });
     }
-  }, [studentToEdit, open, activeBranchId, classes]);
+  }, [studentToEdit, open, activeBranchId]);
 
   const selectedClass = classes.find((c) => c.id === formData.classId) || classes[0];
 

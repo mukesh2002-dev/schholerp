@@ -40,54 +40,65 @@ export function ERPProvider({ children }: { children: React.ReactNode }) {
     setActiveBranchIdState(loadedSession.branchId || "all");
   }, []);
 
-  const refreshBranches = () => {
+  const refreshBranches = React.useCallback(() => {
     const loadedBranches = mockDb.getBranches();
     setBranches(loadedBranches);
-  };
+  }, []);
 
-  const setActiveBranchId = (id: string) => {
+  const setActiveBranchId = React.useCallback((id: string) => {
     setActiveBranchIdState(id);
-    const updated = { ...session, branchId: id };
-    setSession(updated);
-    mockDb.saveSession(updated);
-  };
+    setSession((prev) => {
+      const updated = { ...prev, branchId: id };
+      mockDb.saveSession(updated);
+      return updated;
+    });
+  }, []);
 
-  const setRole = (role: Role) => {
+  const setRole = React.useCallback((role: Role) => {
     const roleConfig = demoRolesList.find((r) => r.role === role);
-    const updated: UserSession = {
-      ...session,
-      role,
-      roleLabel: roleConfig ? roleConfig.label : role,
-      branchId: roleConfig?.branchId || "all",
-    };
-    setSession(updated);
-    setActiveBranchIdState(updated.branchId);
-    mockDb.saveSession(updated);
-  };
+    setSession((prev) => {
+      const updated: UserSession = {
+        ...prev,
+        role,
+        roleLabel: roleConfig ? roleConfig.label : role,
+        branchId: roleConfig?.branchId || "all",
+      };
+      setActiveBranchIdState(updated.branchId);
+      mockDb.saveSession(updated);
+      return updated;
+    });
+  }, []);
 
-  const saveBranch = (branchData: Omit<Branch, "id" | "createdAt" | "updatedAt"> & { id?: string }) => {
+  const saveBranch = React.useCallback((branchData: Omit<Branch, "id" | "createdAt" | "updatedAt"> & { id?: string }) => {
     const saved = mockDb.saveBranch(branchData);
-    refreshBranches();
+    const loadedBranches = mockDb.getBranches();
+    setBranches(loadedBranches);
     return saved;
-  };
+  }, []);
 
-  const deleteBranch = (id: string) => {
+  const deleteBranch = React.useCallback((id: string) => {
     const result = mockDb.deleteBranch(id);
     if (result) {
-      if (activeBranchId === id) {
-        setActiveBranchId("all");
-      }
-      refreshBranches();
+      setActiveBranchIdState((prev) => (prev === id ? "all" : prev));
+      const loadedBranches = mockDb.getBranches();
+      setBranches(loadedBranches);
     }
     return result;
-  };
+  }, []);
 
-  const triggerBiometricSync = () => {
+  const triggerBiometricSync = React.useCallback(() => {
     return mockDb.triggerBiometricSync();
-  };
+  }, []);
 
-  const activeBranch = activeBranchId === "all" ? null : branches.find((b) => b.id === activeBranchId) || null;
-  const stats = mockDb.getAggregatedStats(activeBranchId);
+  const activeBranch = React.useMemo(
+    () => (activeBranchId === "all" ? null : branches.find((b) => b.id === activeBranchId) || null),
+    [activeBranchId, branches]
+  );
+
+  const stats = React.useMemo(
+    () => mockDb.getAggregatedStats(activeBranchId),
+    [activeBranchId]
+  );
 
   // Global keyboard shortcut for search (Cmd+K / Ctrl+K)
   useEffect(() => {
@@ -101,24 +112,41 @@ export function ERPProvider({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
+  const value = React.useMemo(
+    () => ({
+      activeBranchId,
+      setActiveBranchId,
+      activeBranch,
+      branches,
+      session,
+      setRole,
+      refreshBranches,
+      saveBranch,
+      deleteBranch,
+      searchOpen,
+      setSearchOpen,
+      stats,
+      triggerBiometricSync,
+    }),
+    [
+      activeBranchId,
+      setActiveBranchId,
+      activeBranch,
+      branches,
+      session,
+      setRole,
+      refreshBranches,
+      saveBranch,
+      deleteBranch,
+      searchOpen,
+      setSearchOpen,
+      stats,
+      triggerBiometricSync,
+    ]
+  );
+
   return (
-    <ERPContext.Provider
-      value={{
-        activeBranchId,
-        setActiveBranchId,
-        activeBranch,
-        branches,
-        session,
-        setRole,
-        refreshBranches,
-        saveBranch,
-        deleteBranch,
-        searchOpen,
-        setSearchOpen,
-        stats,
-        triggerBiometricSync,
-      }}
-    >
+    <ERPContext.Provider value={value}>
       {children}
     </ERPContext.Provider>
   );

@@ -129,16 +129,21 @@ interface SidebarProps {
 export function Sidebar({ collapsed = false, onToggle, onNavigate }: SidebarProps) {
   const pathname = usePathname();
   const { session } = useERP();
+  const [pendingHref, setPendingHref] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    setPendingHref(null);
+  }, [pathname]);
 
   return (
     <aside
       className={cn(
-        "flex flex-col h-full bg-sidebar border-r border-sidebar-border transition-all duration-300 z-30 select-none",
+        "flex flex-col h-full bg-sidebar border-r border-sidebar-border transition-all duration-300 z-30 select-none gpu-accelerated",
         collapsed ? "w-20" : "w-64"
       )}
     >
       {/* Brand Header */}
-      <div className="flex h-16 items-center justify-between px-4 border-b border-sidebar-border">
+      <div className="flex h-16 items-center justify-between px-4 border-b border-sidebar-border shrink-0">
         {!collapsed ? (
           <Link href="/" className="flex items-center gap-3 group" onClick={onNavigate}>
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white shadow-md shadow-primary/20 group-hover:scale-105 transition-transform">
@@ -174,7 +179,7 @@ export function Sidebar({ collapsed = false, onToggle, onNavigate }: SidebarProp
       </div>
 
       {/* Navigation Groups */}
-      <div className="flex-1 overflow-y-auto px-3 py-4 space-y-6">
+      <div className="flex-1 overflow-y-auto px-3 py-4 space-y-6 scrollbar-thin scrollbar-thumb-muted">
         {navGroups.map((group, idx) => (
           <div key={idx} className="space-y-1">
             {!collapsed && (
@@ -183,29 +188,34 @@ export function Sidebar({ collapsed = false, onToggle, onNavigate }: SidebarProp
               </h4>
             )}
             {group.items.map((item) => {
-              const isActive =
+              const currentMatches =
                 item.href !== "#" &&
                 (pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href)));
+              const isActive = pendingHref !== null ? pendingHref === item.href : currentMatches;
               const Icon = item.icon;
 
               return (
                 <Link
                   key={item.title}
                   href={item.href}
+                  prefetch={true}
                   onClick={(e) => {
                     if (item.isPhaseFuture) {
                       e.preventDefault();
                       toast.info(`${item.title} — ${item.badge} module coming soon`, {
                         description: "This feature is planned for a future release. Stay tuned!",
                       });
-                    } else if (onNavigate) {
-                      onNavigate();
+                    } else {
+                      setPendingHref(item.href);
+                      if (onNavigate) {
+                        onNavigate();
+                      }
                     }
                   }}
                   className={cn(
-                    "flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200 group relative",
+                    "flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-150 group relative active:scale-[0.98]",
                     isActive
-                      ? "bg-primary text-primary-foreground shadow-sm shadow-primary/25"
+                      ? "bg-primary text-primary-foreground shadow-sm shadow-primary/25 font-semibold"
                       : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground",
                     item.isPhaseFuture && "opacity-75 hover:opacity-100 cursor-default",
                     collapsed && "justify-center px-0 py-2.5"

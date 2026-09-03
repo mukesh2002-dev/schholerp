@@ -185,8 +185,7 @@ export default function TeachersPage() {
           ))}
         </div>
       ) : (
-        <div className="rounded-xl border border-border/80 bg-card overflow-hidden shadow-2xs">
-          <Table>
+        <Table>
             <TableHeader>
               <TableRow>
                 <TableHead className="w-[100px]">Employee ID</TableHead>
@@ -262,8 +261,7 @@ export default function TeachersPage() {
               ))}
             </TableBody>
           </Table>
-        </div>
-      )}
+        )}
 
       {/* Add / Edit Teacher Dialog */}
       <TeacherFormDialog

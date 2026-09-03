@@ -99,8 +99,7 @@ export default function FeesPage() {
             </div>
             <Badge variant="outline" className="text-xs">{filteredInvoices.length} records</Badge>
           </div>
-          <div className="rounded-xl border border-border/80 bg-card overflow-hidden">
-            <Table>
+          <Table>
               <TableHeader><TableRow><TableHead>Invoice</TableHead><TableHead>Student</TableHead><TableHead>Period</TableHead><TableHead>Total</TableHead><TableHead>Paid</TableHead><TableHead>Balance</TableHead><TableHead>Status</TableHead><TableHead>Due Date</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
               <TableBody>
                 {filteredInvoices.map((inv) => (
@@ -121,7 +120,6 @@ export default function FeesPage() {
                 ))}
               </TableBody>
             </Table>
-          </div>
         </TabsContent>
 
         <TabsContent value="structures" className="space-y-4">
@@ -141,8 +139,7 @@ export default function FeesPage() {
         </TabsContent>
 
         <TabsContent value="assignments" className="space-y-4">
-          <div className="rounded-xl border border-border/80 bg-card overflow-hidden">
-            <Table>
+          <Table>
               <TableHeader><TableRow><TableHead>Student</TableHead><TableHead>Structure</TableHead><TableHead>Assigned</TableHead><TableHead>Paid</TableHead><TableHead>Pending</TableHead><TableHead>Overdue</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Reminder</TableHead></TableRow></TableHeader>
               <TableBody>
                 {assignments.map((a) => (
@@ -159,13 +156,11 @@ export default function FeesPage() {
                 ))}
               </TableBody>
             </Table>
-          </div>
           {duesCount > 0 && <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400 text-xs"><AlertTriangle className="h-4 w-4" /> {duesCount} students have pending/overdue dues — reminders can be sent via SMS/Email.</div>}
         </TabsContent>
 
         <TabsContent value="payments" className="space-y-4">
-          <div className="rounded-xl border border-border/80 bg-card overflow-hidden">
-            <Table>
+          <Table>
               <TableHeader><TableRow><TableHead>Receipt</TableHead><TableHead>Student</TableHead><TableHead>Invoice</TableHead><TableHead>Amount</TableHead><TableHead>Method</TableHead><TableHead>Date</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
               <TableBody>
                 {payments.map((p) => (
@@ -181,7 +176,6 @@ export default function FeesPage() {
                 ))}
               </TableBody>
             </Table>
-          </div>
           <Card className="border-border/70 bg-gradient-to-r from-blue-500/5 to-indigo-500/5"><CardContent className="p-4 flex items-center justify-between"><div><h4 className="text-sm font-bold">Online Payment Gateway</h4><p className="text-xs text-muted-foreground">UPI / Card / NetBanking / Wallet — Razorpay & PayU integrated (demo).</p></div><Button variant="gradient" className="gap-2" onClick={() => toast.success("Payment gateway test — simulated success", { description: "All methods operational in demo." })}><CreditCard className="h-4 w-4" /> Test Gateway</Button></CardContent></Card>
         </TabsContent>
       </Tabs>

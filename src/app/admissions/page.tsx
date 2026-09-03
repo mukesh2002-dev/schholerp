@@ -198,8 +198,7 @@ export default function AdmissionsPage() {
           onAction={() => setDialogOpen(true)}
         />
       ) : (
-        <div className="rounded-xl border border-border/80 bg-card overflow-hidden shadow-2xs">
-          <Table>
+        <Table>
             <TableHeader>
               <TableRow>
                 <TableHead className="w-[120px]">Application #</TableHead>
@@ -275,8 +274,7 @@ export default function AdmissionsPage() {
               })}
             </TableBody>
           </Table>
-        </div>
-      )}
+        )}
 
       {/* New Application Dialog */}
       <AdmissionFormDialog

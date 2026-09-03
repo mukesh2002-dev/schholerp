@@ -98,8 +98,7 @@ export default function AttendancePage() {
           <TabsTrigger value="summary" className="gap-1.5"><Calendar className="h-3.5 w-3.5" /> Day Summaries</TabsTrigger>
         </TabsList>
         <TabsContent value="daily" className="space-y-4">
-          <div className="rounded-xl border border-border/80 bg-card overflow-hidden">
-            <Table>
+          <Table>
               <TableHeader><TableRow><TableHead>Person</TableHead><TableHead>Branch/Class</TableHead><TableHead>Status</TableHead><TableHead>Check-In</TableHead><TableHead>Check-Out</TableHead><TableHead>Marked By</TableHead></TableRow></TableHeader>
               <TableBody>
                 {filtered.map((r) => (
@@ -114,12 +113,10 @@ export default function AttendancePage() {
                 ))}
               </TableBody>
             </Table>
-          </div>
           {filtered.length === 0 && <div className="text-center py-8 text-muted-foreground text-sm">No records for this filter.</div>}
         </TabsContent>
         <TabsContent value="reports" className="space-y-4">
-          <div className="rounded-xl border border-border/80 bg-card overflow-hidden">
-            <Table>
+          <Table>
               <TableHeader><TableRow><TableHead>Person</TableHead><TableHead>Total Days</TableHead><TableHead>Present</TableHead><TableHead>Late</TableHead><TableHead>Absent</TableHead><TableHead>Leave</TableHead><TableHead>Rate</TableHead></TableRow></TableHeader>
               <TableBody>
                 {report.map((e) => (
@@ -135,7 +132,6 @@ export default function AttendancePage() {
                 ))}
               </TableBody>
             </Table>
-          </div>
         </TabsContent>
         <TabsContent value="summary" className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

@@ -189,8 +189,7 @@ export default function StudentsPage() {
           ))}
         </div>
       ) : (
-        <div className="rounded-xl border border-border/80 bg-card overflow-hidden shadow-2xs">
-          <Table>
+        <Table>
             <TableHeader>
               <TableRow>
                 <TableHead className="w-[100px]">Roll #</TableHead>
@@ -267,8 +266,7 @@ export default function StudentsPage() {
               ))}
             </TableBody>
           </Table>
-        </div>
-      )}
+        )}
 
       {/* Add / Edit Student Dialog */}
       <StudentFormDialog

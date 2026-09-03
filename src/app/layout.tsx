@@ -3,8 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { ERPProvider } from "@/components/providers/erp-provider";
-import { Sidebar } from "@/components/layout/sidebar";
-import { Topbar } from "@/components/layout/topbar";
+import { AppLayoutShell } from "@/components/layout/app-layout-shell";
 import { Toaster } from "sonner";
 
 const inter = Inter({
@@ -25,21 +24,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} font-sans antialiased min-h-screen bg-background text-foreground flex`}>
+      <body className={`${inter.variable} font-sans antialiased min-h-screen bg-background text-foreground`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <ERPProvider>
-            {/* Desktop Persistent Sidebar */}
-            <div className="hidden lg:block shrink-0">
-              <Sidebar />
-            </div>
-
-            {/* Main Application Column */}
-            <div className="flex flex-col flex-1 min-w-0 min-h-screen overflow-x-hidden">
-              <Topbar />
-              <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto space-y-6">
-                {children}
-              </main>
-            </div>
+            <AppLayoutShell>{children}</AppLayoutShell>
             <Toaster richColors position="top-right" closeButton />
           </ERPProvider>
         </ThemeProvider>

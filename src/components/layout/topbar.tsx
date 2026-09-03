@@ -18,6 +18,8 @@ import {
   LogOut,
   User,
   HelpCircle,
+  PanelLeftClose,
+  PanelLeft,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -33,7 +35,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 
-export function Topbar() {
+interface TopbarProps {
+  sidebarCollapsed?: boolean;
+  onToggleSidebar?: () => void;
+}
+
+export function Topbar({ sidebarCollapsed = false, onToggleSidebar }: TopbarProps) {
   const { session, setSearchOpen, triggerBiometricSync } = useERP();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -51,9 +58,9 @@ export function Topbar() {
 
   return (
     <>
-      <header className="sticky top-0 z-20 flex h-16 w-full items-center justify-between border-b border-border bg-card/85 backdrop-blur-md px-4 sm:px-6">
-        {/* Left Side: Mobile Menu + Campus Switcher */}
-        <div className="flex items-center gap-3">
+      <header className="sticky top-0 z-20 flex h-16 w-full items-center justify-between border-b border-border bg-card/85 backdrop-blur-md px-3 sm:px-6">
+        {/* Left Side: Desktop Toggle / Mobile Menu + Campus Switcher */}
+        <div className="flex items-center gap-2 sm:gap-3">
           {/* Mobile Menu Drawer Trigger */}
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger asChild>
@@ -66,6 +73,19 @@ export function Topbar() {
               <Sidebar onNavigate={() => setMobileOpen(false)} />
             </SheetContent>
           </Sheet>
+
+          {/* Desktop Sidebar Toggle Button */}
+          {onToggleSidebar && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onToggleSidebar}
+              className="hidden lg:flex h-9 w-9 text-muted-foreground hover:text-foreground"
+              title={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+            >
+              {sidebarCollapsed ? <PanelLeft className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
+            </Button>
+          )}
 
           {/* Campus Context Selector */}
           <BranchSelector />
@@ -100,13 +120,13 @@ export function Topbar() {
             <Search className="h-4 w-4" />
           </Button>
 
-          {/* Biometric Gateway Pulse Action */}
+          {/* Biometric Gateway Pulse Action (Hidden per user request, code retained) */}
           <Button
             variant="outline"
             size="sm"
             onClick={handleSyncClick}
             disabled={isSyncing}
-            className="hidden sm:inline-flex h-9 px-2.5 text-xs font-medium gap-1.5 border-dashed border-border hover:border-emerald-500/50"
+            className="hidden h-9 px-2.5 text-xs font-medium gap-1.5 border-dashed border-border hover:border-emerald-500/50"
             title="Simulated Biometric Sync"
           >
             <Fingerprint className={`h-3.5 w-3.5 ${isSyncing ? "animate-pulse text-amber-500" : "text-emerald-500"}`} />
