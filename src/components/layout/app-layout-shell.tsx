@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
 import { NavigationProgress } from "@/components/layout/navigation-progress";
@@ -25,7 +25,9 @@ export function AppLayoutShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen w-full bg-background text-foreground">
-      <NavigationProgress />
+      <Suspense fallback={null}>
+        <NavigationProgress />
+      </Suspense>
       
       {/* Desktop Persistent Sidebar */}
       <div className="hidden lg:block shrink-0 h-screen sticky top-0">
