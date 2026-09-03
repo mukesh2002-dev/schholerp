@@ -1,0 +1,42 @@
+import { LibraryBook, BookIssue, LibraryFine } from "@/types";
+
+export const initialLibraryBooks: LibraryBook[] = [
+  {
+    id: "lib-001", title: "Advanced Physics — Concepts & Applications", author: "Dr. R.K. Verma", isbn: "978-93-85965-01-2", publisher: "Apex Academic Press", category: "TEXTBOOK", branchId: "br-apex-01", branchName: "Apex Global Campus", shelfLocation: "A-Block / Shelf 12", totalCopies: 35, availableCopies: 24, issuedCopies: 11, price: 680, publishedYear: 2022, language: "English", status: "AVAILABLE", description: "Comprehensive physics textbook for Grade 11–12 covering mechanics, optics and modern physics.", addedDate: "2025-08-10", createdAt: "2025-08-10T00:00:00Z", updatedAt: "2026-01-15T00:00:00Z",
+  },
+  {
+    id: "lib-002", title: "Mathematics — Algebra & Geometry Mastery", author: "Prof. Helen Carter", isbn: "978-93-85965-02-9", publisher: "STEM Publications", category: "TEXTBOOK", branchId: "br-west-02", branchName: "Westside STEM & Innovation Academy", shelfLocation: "B-Wing / Shelf 04", totalCopies: 40, availableCopies: 18, issuedCopies: 22, price: 550, publishedYear: 2023, language: "English", status: "AVAILABLE", description: "Grade 9–10 mathematics with solved examples and practice sets.", addedDate: "2025-07-01", createdAt: "2025-07-01T00:00:00Z", updatedAt: "2026-02-01T00:00:00Z",
+  },
+  {
+    id: "lib-003", title: "The Story of Science — From Galileo to Hawking", author: "James Whitfield", isbn: "978-0-553-38450-4", publisher: "Random Readers", category: "NON_FICTION", branchId: "br-apex-01", branchName: "Apex Global Campus", shelfLocation: "Library Hall / Shelf 08", totalCopies: 12, availableCopies: 9, issuedCopies: 3, price: 420, publishedYear: 2021, language: "English", status: "AVAILABLE", description: "Popular science narrative for young readers.", addedDate: "2025-09-12", createdAt: "2025-09-12T00:00:00Z", updatedAt: "2026-03-10T00:00:00Z",
+  },
+  {
+    id: "lib-004", title: "To Kill a Mockingbird", author: "Harper Lee", isbn: "978-0-06-112008-4", publisher: "Harper Perennial", category: "FICTION", branchId: "br-green-04", branchName: "Green Valley International School", shelfLocation: "Fiction Corner / Shelf 02", totalCopies: 20, availableCopies: 14, issuedCopies: 6, price: 350, publishedYear: 1960, language: "English", status: "AVAILABLE", description: "Classic novel for literature curriculum.", addedDate: "2025-06-20", createdAt: "2025-06-20T00:00:00Z", updatedAt: "2026-01-20T00:00:00Z",
+  },
+  {
+    id: "lib-005", title: "Chemistry Lab Manual — Grade 10", author: "Ayesha Rahman & Carlos Mendez", isbn: "978-93-85965-09-8", publisher: "Apex Academic Press", category: "REFERENCE", branchId: "br-apex-01", branchName: "Apex Global Campus", shelfLocation: "Lab Reference / Shelf 01", totalCopies: 25, availableCopies: 0, issuedCopies: 25, price: 320, publishedYear: 2024, language: "English", status: "ISSUED", description: "Practical lab manual with experiments and safety guidelines.", addedDate: "2025-08-15", createdAt: "2025-08-15T00:00:00Z", updatedAt: "2026-08-15T00:00:00Z",
+  },
+  {
+    id: "lib-006", title: "Digital Learning — AI in Education", author: "Sarah Lin & Eleanor Voss", isbn: "978-93-85965-11-1", publisher: "TechEdu Press", category: "DIGITAL", branchId: "br-apex-01", branchName: "Apex Global Campus", shelfLocation: "Digital / E-Library", totalCopies: 5, availableCopies: 5, issuedCopies: 0, price: 899, publishedYear: 2024, language: "English", status: "AVAILABLE", description: "Guide to integrating AI tools in classroom teaching.", addedDate: "2026-01-05", createdAt: "2026-01-05T00:00:00Z", updatedAt: "2026-01-05T00:00:00Z",
+  },
+  {
+    id: "lib-007", title: "National Geographic — Space Encyclopaedia", author: "NatGeo Editors", isbn: "978-1-4262-2197-3", publisher: "National Geographic", category: "JOURNAL", branchId: "br-north-03", branchName: "Northpoint Montessori & Prep", shelfLocation: "Kids Zone / Shelf 05", totalCopies: 15, availableCopies: 12, issuedCopies: 3, price: 1200, publishedYear: 2023, language: "English", status: "AVAILABLE", description: "Illustrated space encyclopaedia for primary learners.", addedDate: "2025-09-01", createdAt: "2025-09-01T00:00:00Z", updatedAt: "2025-09-01T00:00:00Z",
+  },
+  {
+    id: "lib-008", title: "Oxford Dictionary — Advanced Learner", author: "Oxford University Press", isbn: "978-0-19-479848-8", publisher: "Oxford UP", category: "REFERENCE", branchId: "br-river-06", branchName: "Riverdale Arts & Sports Academy", shelfLocation: "Reference / Shelf 10", totalCopies: 18, availableCopies: 15, issuedCopies: 3, price: 650, publishedYear: 2022, language: "English", status: "AVAILABLE", description: "Standard dictionary for language development.", addedDate: "2025-07-15", createdAt: "2025-07-15T00:00:00Z", updatedAt: "2025-07-15T00:00:00Z",
+  },
+];
+
+export const initialBookIssues: BookIssue[] = [
+  { id: "iss-001", bookId: "lib-001", bookTitle: "Advanced Physics — Concepts & Applications", bookIsbn: "978-93-85965-01-2", studentId: "stu-01", studentName: "Liam Chen", studentRoll: "STU-1042", className: "Grade 10", branchId: "br-apex-01", branchName: "Apex Global Campus", issuedDate: "2026-08-10", dueDate: "2026-08-24", status: "ISSUED", fineAmount: 0, finePaid: 0, issuedBy: "Librarian — Ms. Patel", createdAt: "2026-08-10T10:00:00Z", updatedAt: "2026-08-10T10:00:00Z" },
+  { id: "iss-002", bookId: "lib-002", bookTitle: "Mathematics — Algebra & Geometry Mastery", bookIsbn: "978-93-85965-02-9", studentId: "stu-02", studentName: "Maya Patel", studentRoll: "STU-1043", className: "Grade 10", branchId: "br-west-02", branchName: "Westside STEM & Innovation Academy", issuedDate: "2026-07-25", dueDate: "2026-08-08", returnedDate: "2026-08-05", status: "RETURNED", fineAmount: 0, finePaid: 0, issuedBy: "Librarian — Mr. Kumar", createdAt: "2026-07-25T10:00:00Z", updatedAt: "2026-08-05T10:00:00Z" },
+  { id: "iss-003", bookId: "lib-005", bookTitle: "Chemistry Lab Manual — Grade 10", bookIsbn: "978-93-85965-09-8", studentId: "stu-03", studentName: "Ethan Hawthorne", studentRoll: "STU-0912", className: "Grade 9", branchId: "br-apex-01", branchName: "Apex Global Campus", issuedDate: "2026-07-01", dueDate: "2026-07-15", status: "OVERDUE", fineAmount: 180, finePaid: 0, issuedBy: "Librarian — Ms. Patel", createdAt: "2026-07-01T10:00:00Z", updatedAt: "2026-08-20T10:00:00Z" },
+  { id: "iss-004", bookId: "lib-004", bookTitle: "To Kill a Mockingbird", bookIsbn: "978-0-06-112008-4", studentId: "stu-04", studentName: "Sophie Dubois", studentRoll: "STU-1108", className: "Grade 11", branchId: "br-green-04", branchName: "Green Valley International School", issuedDate: "2026-08-12", dueDate: "2026-08-26", status: "ISSUED", fineAmount: 0, finePaid: 0, issuedBy: "Librarian — Ms. Green", createdAt: "2026-08-12T10:00:00Z", updatedAt: "2026-08-12T10:00:00Z" },
+  { id: "iss-005", bookId: "lib-001", bookTitle: "Advanced Physics — Concepts & Applications", bookIsbn: "978-93-85965-01-2", studentId: "stu-06", studentName: "Zoe Alvarez", studentRoll: "STU-1055", className: "Grade 10", branchId: "br-apex-01", branchName: "Apex Global Campus", issuedDate: "2026-06-10", dueDate: "2026-06-24", returnedDate: "2026-07-02", status: "RETURNED", fineAmount: 80, finePaid: 80, issuedBy: "Librarian — Ms. Patel", createdAt: "2026-06-10T10:00:00Z", updatedAt: "2026-07-02T10:00:00Z", notes: "8 days overdue — fine paid" },
+  { id: "iss-006", bookId: "lib-003", bookTitle: "The Story of Science — From Galileo to Hawking", bookIsbn: "978-0-553-38450-4", studentId: "stu-05", studentName: "Lucas Moretti", studentRoll: "STU-0015", className: "Montessori Primary", branchId: "br-apex-01", branchName: "Apex Global Campus", issuedDate: "2026-08-18", dueDate: "2026-09-01", status: "ISSUED", fineAmount: 0, finePaid: 0, issuedBy: "Librarian — Ms. Patel", createdAt: "2026-08-18T10:00:00Z", updatedAt: "2026-08-18T10:00:00Z" },
+];
+
+export const initialLibraryFines: LibraryFine[] = [
+  { id: "fine-001", issueId: "iss-003", bookId: "lib-005", bookTitle: "Chemistry Lab Manual — Grade 10", studentId: "stu-03", studentName: "Ethan Hawthorne", reason: "OVERDUE", amount: 180, paidAmount: 0, status: "PENDING", dueDate: "2026-07-15", createdAt: "2026-07-16T00:00:00Z" },
+  { id: "fine-002", issueId: "iss-005", bookId: "lib-001", bookTitle: "Advanced Physics — Concepts & Applications", studentId: "stu-06", studentName: "Zoe Alvarez", reason: "OVERDUE", amount: 80, paidAmount: 80, status: "PAID", dueDate: "2026-06-24", createdAt: "2026-06-25T00:00:00Z" },
+];

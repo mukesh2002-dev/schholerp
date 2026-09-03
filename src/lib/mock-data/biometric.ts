@@ -1,0 +1,131 @@
+import { BiometricEnrolledUser, BiometricSyncLog } from "@/types";
+
+export const initialEnrolledUsers: BiometricEnrolledUser[] = [
+  {
+    id: "be-01", personId: "stu-01", personName: "Liam Chen",
+    personAvatar: "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80",
+    category: "STUDENT", deviceId: "bio-gw-01", deviceName: "Main Gate Alpha",
+    branchId: "br-apex-01", branchName: "Apex Global Campus",
+    fingerprintId: "FP-1042-L", enrolledAt: "2024-08-16T10:00:00.000Z", lastScan: "2026-09-02T08:12:00.000Z", status: "ACTIVE",
+  },
+  {
+    id: "be-02", personId: "stu-02", personName: "Maya Patel",
+    personAvatar: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80",
+    category: "STUDENT", deviceId: "bio-gw-01", deviceName: "Main Gate Alpha",
+    branchId: "br-apex-01", branchName: "Apex Global Campus",
+    fingerprintId: "FP-1043-L", enrolledAt: "2024-08-16T10:15:00.000Z", lastScan: "2026-09-02T08:08:00.000Z", status: "ACTIVE",
+  },
+  {
+    id: "be-03", personId: "stu-03", personName: "Ethan Hawthorne",
+    personAvatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
+    category: "STUDENT", deviceId: "bio-gw-02", deviceName: "STEM Lab Entrance",
+    branchId: "br-west-02", branchName: "Westside STEM & Innovation Academy",
+    fingerprintId: "FP-0912-L", enrolledAt: "2025-08-19T09:30:00.000Z", lastScan: "2026-09-01T08:20:00.000Z", status: "ACTIVE",
+  },
+  {
+    id: "be-04", personId: "stu-04", personName: "Sophie Dubois",
+    personAvatar: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=150&auto=format&fit=crop&q=80",
+    category: "STUDENT", deviceId: "bio-gw-03", deviceName: "International Wing Gate",
+    branchId: "br-green-04", branchName: "Green Valley International School",
+    fingerprintId: "FP-1108-L", enrolledAt: "2023-08-21T11:00:00.000Z", lastScan: "2026-09-02T07:55:00.000Z", status: "ACTIVE",
+  },
+  {
+    id: "be-05", personId: "tch-01", personName: "Dr. Eleanor Voss",
+    personAvatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80",
+    category: "TEACHER", deviceId: "bio-gw-01", deviceName: "Main Gate Alpha",
+    branchId: "br-apex-01", branchName: "Apex Global Campus",
+    fingerprintId: "FP-TCH048-L", enrolledAt: "2023-01-10T09:00:00.000Z", lastScan: "2026-09-02T07:45:00.000Z", status: "ACTIVE",
+  },
+  {
+    id: "be-06", personId: "tch-02", personName: "Prof. James Whitmore",
+    personAvatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80",
+    category: "TEACHER", deviceId: "bio-gw-01", deviceName: "Main Gate Alpha",
+    branchId: "br-apex-01", branchName: "Apex Global Campus",
+    fingerprintId: "FP-TCH052-L", enrolledAt: "2022-06-15T09:00:00.000Z", lastScan: "2026-09-02T07:50:00.000Z", status: "ACTIVE",
+  },
+  {
+    id: "be-07", personId: "stf-01", personName: "Robert Matthews",
+    category: "STAFF", deviceId: "bio-gw-04", deviceName: "Admin Block Entry",
+    branchId: "br-apex-01", branchName: "Apex Global Campus",
+    fingerprintId: "FP-STF001-L", enrolledAt: "2023-03-01T10:00:00.000Z", lastScan: "2026-09-02T08:00:00.000Z", status: "ACTIVE",
+  },
+  {
+    id: "be-08", personId: "wrk-01", personName: "David Kumar",
+    category: "WORKER", deviceId: "bio-gw-05", deviceName: "Service Gate B",
+    branchId: "br-apex-01", branchName: "Apex Global Campus",
+    fingerprintId: "FP-WRK001-L", enrolledAt: "2024-01-15T08:00:00.000Z", lastScan: "2026-09-02T06:30:00.000Z", status: "ACTIVE",
+  },
+  {
+    id: "be-09", personId: "stu-05", personName: "Lucas Moretti",
+    personAvatar: "https://images.unsplash.com/photo-1543610892-0b1f7e6d8ac1?w=150&auto=format&fit=crop&q=80",
+    category: "STUDENT", deviceId: "bio-gw-06", deviceName: "Montessori Wing",
+    branchId: "br-north-03", branchName: "Northpoint Montessori & Prep",
+    fingerprintId: "FP-0015-L", enrolledAt: "2025-09-02T10:00:00.000Z", lastScan: "2026-09-01T08:30:00.000Z", status: "ACTIVE",
+  },
+  {
+    id: "be-10", personId: "stu-06", personName: "Zoe Alvarez",
+    personAvatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
+    category: "STUDENT", deviceId: "bio-gw-07", deviceName: "Arts Campus Gate",
+    branchId: "br-river-06", branchName: "Riverdale Arts & Sports Academy",
+    fingerprintId: "FP-1055-L", enrolledAt: "2024-08-16T10:30:00.000Z", lastScan: "2026-09-02T08:22:00.000Z", status: "ACTIVE",
+  },
+];
+
+export const initialSyncLogs: BiometricSyncLog[] = [
+  {
+    id: "sync-01", deviceId: "bio-gw-01", deviceName: "Main Gate Alpha",
+    branchId: "br-apex-01", branchName: "Apex Global Campus",
+    syncType: "AUTO", recordsProcessed: 247, recordsFailed: 0,
+    startedAt: "2026-09-02T08:30:00.000Z", completedAt: "2026-09-02T08:30:12.000Z",
+    status: "SUCCESS", message: "All 247 punch records synchronized successfully.",
+  },
+  {
+    id: "sync-02", deviceId: "bio-gw-02", deviceName: "STEM Lab Entrance",
+    branchId: "br-west-02", branchName: "Westside STEM & Innovation Academy",
+    syncType: "AUTO", recordsProcessed: 189, recordsFailed: 2,
+    startedAt: "2026-09-02T08:30:05.000Z", completedAt: "2026-09-02T08:30:18.000Z",
+    status: "PARTIAL", message: "189 records synced, 2 records failed due to unregistered fingerprints.",
+  },
+  {
+    id: "sync-03", deviceId: "bio-gw-03", deviceName: "International Wing Gate",
+    branchId: "br-green-04", branchName: "Green Valley International School",
+    syncType: "MANUAL", recordsProcessed: 156, recordsFailed: 0,
+    startedAt: "2026-09-01T15:00:00.000Z", completedAt: "2026-09-01T15:00:08.000Z",
+    status: "SUCCESS", message: "Manual sync completed. 156 records processed.",
+  },
+  {
+    id: "sync-04", deviceId: "bio-gw-04", deviceName: "Admin Block Entry",
+    branchId: "br-apex-01", branchName: "Apex Global Campus",
+    syncType: "AUTO", recordsProcessed: 45, recordsFailed: 0,
+    startedAt: "2026-09-02T08:31:00.000Z", completedAt: "2026-09-02T08:31:03.000Z",
+    status: "SUCCESS", message: "Staff attendance sync completed.",
+  },
+  {
+    id: "sync-05", deviceId: "bio-gw-05", deviceName: "Service Gate B",
+    branchId: "br-apex-01", branchName: "Apex Global Campus",
+    syncType: "AUTO", recordsProcessed: 28, recordsFailed: 1,
+    startedAt: "2026-09-02T06:45:00.000Z", completedAt: "2026-09-02T06:45:05.000Z",
+    status: "PARTIAL", message: "28 records synced, 1 unregistered punch rejected.",
+  },
+  {
+    id: "sync-06", deviceId: "bio-gw-01", deviceName: "Main Gate Alpha",
+    branchId: "br-apex-01", branchName: "Apex Global Campus",
+    syncType: "AUTO", recordsProcessed: 312, recordsFailed: 0,
+    startedAt: "2026-09-01T08:30:00.000Z", completedAt: "2026-09-01T08:30:15.000Z",
+    status: "SUCCESS", message: "Morning batch sync: all 312 records OK.",
+  },
+  {
+    id: "sync-07", deviceId: "bio-gw-06", deviceName: "Montessori Wing",
+    branchId: "br-north-03", branchName: "Northpoint Montessori & Prep",
+    syncType: "AUTO", recordsProcessed: 92, recordsFailed: 0,
+    startedAt: "2026-09-01T09:00:00.000Z", completedAt: "2026-09-01T09:00:04.000Z",
+    status: "SUCCESS", message: "Montessori wing sync completed successfully.",
+  },
+  {
+    id: "sync-08", deviceId: "bio-gw-07", deviceName: "Arts Campus Gate",
+    branchId: "br-river-06", branchName: "Riverdale Arts & Sports Academy",
+    syncType: "MANUAL", recordsProcessed: 0, recordsFailed: 0,
+    startedAt: "2026-08-31T14:00:00.000Z", completedAt: "2026-08-31T14:00:02.000Z",
+    status: "FAILED", message: "Device offline — unable to establish connection.",
+  },
+];
