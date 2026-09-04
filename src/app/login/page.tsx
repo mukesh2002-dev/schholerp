@@ -293,8 +293,8 @@ export default function LoginPage() {
       {/* ── Right: cover panel ──────────────────────────────────────────── */}
       <div className="relative hidden lg:block overflow-hidden bg-gradient-to-br from-blue-700 via-indigo-700 to-violet-800">
         <img
-          src="https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=1200&auto=format&fit=crop&q=80"
-          alt="Campus"
+          src="https://images.unsplash.com/photo-1541339907198-e08756dedf3f?auto=format&fit=crop&w=1600&q=80"
+          alt="University campus building"
           className="absolute inset-0 h-full w-full object-cover opacity-30"
           loading="lazy"
         />
