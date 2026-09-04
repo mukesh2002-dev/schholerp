@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useERP } from "@/components/providers/erp-provider";
 import { BranchSelector } from "./branch-selector";
-import { RoleSelector } from "./role-selector";
 import { ThemeToggle } from "./theme-toggle";
 import { NotificationDropdown } from "./notification-dropdown";
 import { GlobalSearchDialog } from "./global-search-dialog";
@@ -41,7 +41,14 @@ interface TopbarProps {
 }
 
 export function Topbar({ sidebarCollapsed = false, onToggleSidebar }: TopbarProps) {
-  const { session, setSearchOpen, triggerBiometricSync } = useERP();
+  const { session, setSearchOpen, triggerBiometricSync, logout } = useERP();
+  const router = useRouter();
+
+  const handleLogout = () => {
+    logout();
+    toast.success("Signed out", { description: "Demo session cleared. See you soon." });
+    router.replace("/login");
+  };
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncFeedback, setSyncFeedback] = useState<string | null>(null);
@@ -134,8 +141,10 @@ export function Topbar({ sidebarCollapsed = false, onToggleSidebar }: TopbarProp
             <span className={`h-2 w-2 rounded-full ${isSyncing ? "bg-amber-500 animate-ping" : "bg-emerald-500"}`} />
           </Button>
 
-          {/* Role Switcher */}
-          <RoleSelector />
+          {/* Active role badge (role comes from login, not a switcher) */}
+          <Badge variant="secondary" className="hidden sm:inline-flex text-[11px] max-w-[220px] truncate">
+            {session.roleLabel}
+          </Badge>
 
           {/* Notifications */}
           <NotificationDropdown />
@@ -182,10 +191,10 @@ export function Topbar({ sidebarCollapsed = false, onToggleSidebar }: TopbarProp
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 className="gap-2 cursor-pointer text-destructive focus:text-destructive"
-                onClick={() => toast.success("Demo session reset", { description: "All local data refreshed from mock store." })}
+                onClick={handleLogout}
               >
                 <LogOut className="h-4 w-4" />
-                <span>Demo Session Reset</span>
+                <span>Sign out</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

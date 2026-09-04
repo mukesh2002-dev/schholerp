@@ -39,6 +39,7 @@ const routeLabels: Record<string, string> = {
   "test-plans": "Test Plans",
   "test-suites": "Test Suites",
   settings: "Settings",
+  login: "Sign In",
 };
 
 export function Breadcrumbs() {
