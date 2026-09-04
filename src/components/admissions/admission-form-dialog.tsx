@@ -238,7 +238,7 @@ export function AdmissionFormDialog({ open, onOpenChange, onSuccess }: Admission
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-6">
         <DialogHeader>
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
               <UserPlus className="h-5 w-5" />
             </div>
@@ -252,7 +252,7 @@ export function AdmissionFormDialog({ open, onOpenChange, onSuccess }: Admission
         </DialogHeader>
 
         {/* Multi-step Header */}
-        <div className="flex items-center justify-center gap-2 border-y border-border py-2.5 my-2">
+        <div className="flex items-center justify-center gap-2 border-y border-border py-2 my-2">
           <button
             type="button"
             onClick={() => setStep(1)}

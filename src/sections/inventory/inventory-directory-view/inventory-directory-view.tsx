@@ -100,9 +100,9 @@ export function InventoryDirectoryView() {
                   <TableHead>Item Name</TableHead>
                   <TableHead>Category</TableHead>
                   <TableHead>Location</TableHead>
-                  <TableHead>Unit Price</TableHead>
-                  <TableHead>Quantity</TableHead>
-                  <TableHead>Min Threshold</TableHead>
+                  <TableHead className="text-right tabular-nums">Unit Price</TableHead>
+                  <TableHead className="text-right tabular-nums">Quantity</TableHead>
+                  <TableHead className="text-right tabular-nums">Min Threshold</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
@@ -121,13 +121,13 @@ export function InventoryDirectoryView() {
                         {item.location}
                       </span>
                     </TableCell>
-                    <TableCell className="text-xs font-mono font-semibold">
+                    <TableCell className="text-right tabular-nums text-xs font-mono font-semibold">
                       {formatCurrency(item.unitPrice)}
                     </TableCell>
-                    <TableCell className="text-xs font-mono font-bold">
+                    <TableCell className="text-right tabular-nums text-xs font-mono font-bold">
                       {item.quantity} units
                     </TableCell>
-                    <TableCell className="text-xs font-mono text-muted-foreground">
+                    <TableCell className="text-right tabular-nums text-xs font-mono text-muted-foreground">
                       {item.minStock} units
                     </TableCell>
                     <TableCell>
@@ -185,7 +185,7 @@ export function InventoryDirectoryView() {
                   <TableHead>PO / Invoice</TableHead>
                   <TableHead>Supplier</TableHead>
                   <TableHead>Item</TableHead>
-                  <TableHead>Total Amount</TableHead>
+                  <TableHead className="text-right tabular-nums">Total Amount</TableHead>
                   <TableHead>Purchase Date</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
@@ -196,7 +196,7 @@ export function InventoryDirectoryView() {
                     <TableCell className="font-mono font-bold text-xs">{p.invoiceNumber || p.id}</TableCell>
                     <TableCell className="text-sm font-semibold">{p.supplierName}</TableCell>
                     <TableCell className="text-xs font-mono">{p.itemName} ({p.quantity} qty)</TableCell>
-                    <TableCell className="text-xs font-mono font-bold text-foreground">
+                    <TableCell className="text-right tabular-nums text-xs font-mono font-bold text-foreground">
                       {formatCurrency(p.totalAmount)}
                     </TableCell>
                     <TableCell className="text-xs">{formatDate(p.purchaseDate)}</TableCell>

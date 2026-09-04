@@ -16,7 +16,7 @@ export function NoticesAndCircularsSkeleton() {
         </CardHeader>
         <CardContent className="space-y-3 px-0 pb-0 pt-1">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="p-3.5 rounded-xl border border-border/70 space-y-2">
+            <div key={i} className="p-4 rounded-xl border border-border/70 space-y-2">
               <div className="flex justify-between">
                 <Skeleton className="h-4 w-40" />
                 <Skeleton className="h-4 w-12 rounded-full" />

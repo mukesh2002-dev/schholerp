@@ -356,7 +356,7 @@ export function EventsDirectoryView() {
                     <TableHead>Date</TableHead>
                     <TableHead>Time</TableHead>
                     <TableHead>Venue</TableHead>
-                    <TableHead>Participants</TableHead>
+                    <TableHead className="text-right tabular-nums">Participants</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Visibility</TableHead>
                   </TableRow>
@@ -401,7 +401,7 @@ export function EventsDirectoryView() {
                       <TableCell className="text-xs text-muted-foreground">
                         {event.venueName || "-"}
                       </TableCell>
-                      <TableCell className="text-xs">
+                      <TableCell className="text-xs text-right tabular-nums">
                         <span className="font-medium text-foreground">
                           {event.participantCount}
                         </span>

@@ -85,7 +85,7 @@ export default function HomeworkDetailPage() {
   }
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
+    <div className="space-y-8 animate-in fade-in duration-300">
       <Breadcrumbs />
 
       {/* Hero Section */}
@@ -215,24 +215,24 @@ export default function HomeworkDetailPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <div className="flex items-center justify-between p-2.5 rounded-lg bg-muted/30 border border-border/60 text-xs">
+                  <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30 border border-border/60 text-xs">
                     <span className="text-muted-foreground">Submitted</span>
                     <span className="font-bold text-foreground">{submissionStats.submitted}</span>
                   </div>
-                  <div className="flex items-center justify-between p-2.5 rounded-lg bg-muted/30 border border-border/60 text-xs">
+                  <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30 border border-border/60 text-xs">
                     <span className="text-muted-foreground">Graded</span>
                     <span className="font-bold text-emerald-600 dark:text-emerald-400">{submissionStats.graded}</span>
                   </div>
-                  <div className="flex items-center justify-between p-2.5 rounded-lg bg-muted/30 border border-border/60 text-xs">
+                  <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30 border border-border/60 text-xs">
                     <span className="text-muted-foreground">Late</span>
                     <span className="font-bold text-amber-600 dark:text-amber-400">{submissionStats.late}</span>
                   </div>
-                  <div className="flex items-center justify-between p-2.5 rounded-lg bg-muted/30 border border-border/60 text-xs">
+                  <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30 border border-border/60 text-xs">
                     <span className="text-muted-foreground">Not Submitted</span>
                     <span className="font-bold text-red-600 dark:text-red-400">{submissionStats.notSubmitted}</span>
                   </div>
                   {submissionStats.graded > 0 && (
-                    <div className="flex items-center justify-between p-2.5 rounded-lg bg-primary/5 border border-primary/20 text-xs">
+                    <div className="flex items-center justify-between p-2 rounded-lg bg-primary/5 border border-primary/20 text-xs">
                       <span className="text-muted-foreground">Avg. Marks</span>
                       <span className="font-bold text-primary">{submissionStats.avgMarks} / {homework.maxMarks}</span>
                     </div>
@@ -266,7 +266,7 @@ export default function HomeworkDetailPage() {
                     <TableHead>Roll Number</TableHead>
                     <TableHead>Submitted On</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Marks</TableHead>
+                    <TableHead className="text-right tabular-nums">Marks</TableHead>
                     <TableHead>Remarks</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -283,7 +283,7 @@ export default function HomeworkDetailPage() {
                           {subStatusConfig[sub.status].label}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-xs font-bold text-foreground">
+                      <TableCell className="text-right tabular-nums text-xs font-bold text-foreground">
                         {sub.marksObtained !== undefined ? `${sub.marksObtained} / ${homework.maxMarks}` : "—"}
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">

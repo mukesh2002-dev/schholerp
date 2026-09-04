@@ -48,7 +48,7 @@ export const TeacherCard = React.memo(function TeacherCard({ teacher, onEdit }: 
 
   return (
     <Card className="group relative overflow-hidden border-border/80 hover:border-primary/40 transition-all duration-200 hover:shadow-md bg-card">
-      <CardContent className="p-5 space-y-3.5">
+      <CardContent className="p-5 space-y-4">
         {/* Header: Avatar, Name, Designation & Action Menu */}
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
@@ -99,7 +99,7 @@ export const TeacherCard = React.memo(function TeacherCard({ teacher, onEdit }: 
         </div>
 
         {/* Department & Campus Pill */}
-        <div className="space-y-1 text-xs text-muted-foreground bg-muted/30 p-2.5 rounded-lg border border-border/40">
+        <div className="space-y-1 text-xs text-muted-foreground bg-muted/30 p-2 rounded-lg border border-border/40">
           <div className="flex items-center justify-between">
             <span className="font-semibold text-foreground truncate">{teacher.department}</span>
             <span className="text-[10px] text-muted-foreground">{teacher.experienceYears}y exp</span>

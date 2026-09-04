@@ -17,7 +17,7 @@ export function InventoryHeader() {
       <Breadcrumbs />
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
+        <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2">
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
               <Package className="h-6 w-6 text-primary" />
@@ -27,7 +27,7 @@ export function InventoryHeader() {
               {items.length} Stock SKUs • {suppliers.length} Approved Vendors
             </Badge>
           </div>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+          <p className="text-xs sm:text-sm text-muted-foreground">
             School assets, lab consumables, uniform stock, vendor orders, and reorder alerts across campuses.
           </p>
         </div>

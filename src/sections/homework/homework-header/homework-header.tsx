@@ -137,7 +137,7 @@ export function HomeworkHeader({ onHomeworkAdded }: { onHomeworkAdded?: () => vo
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleSubmit(handleCreateHomework)} className="space-y-3.5 mt-2">
+          <form onSubmit={handleSubmit(handleCreateHomework)} className="space-y-4 mt-2">
             <div>
               <label className="text-xs font-medium text-foreground mb-1 block">Task Title</label>
               <Input

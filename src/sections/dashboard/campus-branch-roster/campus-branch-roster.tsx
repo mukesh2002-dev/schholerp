@@ -36,7 +36,7 @@ export function CampusBranchRoster() {
           <div
             key={b.id}
             onClick={() => setActiveBranchId(b.id)}
-            className={`p-3.5 rounded-xl border transition-all cursor-pointer group relative overflow-hidden bg-card ${
+            className={`p-4 rounded-xl border transition-all cursor-pointer group relative overflow-hidden bg-card ${
               activeBranchId === b.id
                 ? "border-primary shadow-md ring-2 ring-primary/20"
                 : "border-border/80 hover:border-primary/40 hover:shadow-sm"

@@ -77,7 +77,7 @@ export default function BranchDetailPage() {
                 {branch.code.split("-")[0]}
               </div>
               <div className="space-y-1">
-                <div className="flex items-center gap-2.5 flex-wrap">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-muted text-muted-foreground">
                     {branch.code}
                   </span>
@@ -206,7 +206,7 @@ export default function BranchDetailPage() {
             <CardDescription>Academic and executive administration</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center gap-3.5 p-3.5 rounded-xl bg-muted/40 border border-border/60">
+            <div className="flex items-center gap-4 p-4 rounded-xl bg-muted/40 border border-border/60">
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary font-bold text-base">
                 {branch.principalName.charAt(0)}
               </div>
@@ -219,7 +219,7 @@ export default function BranchDetailPage() {
               </div>
             </div>
 
-            <div className="space-y-2.5 text-xs">
+            <div className="space-y-2 text-xs">
               <div className="flex items-center justify-between p-2 rounded-lg bg-card border border-border/60">
                 <span className="text-muted-foreground">Direct Email:</span>
                 <span className="font-semibold text-foreground font-mono">{branch.principalEmail}</span>
@@ -250,7 +250,7 @@ export default function BranchDetailPage() {
               {branch.departments.map((dept, index) => (
                 <div
                   key={index}
-                  className="p-3.5 rounded-xl border border-border/70 bg-card space-y-1 hover:border-primary/40 transition-colors"
+                  className="p-4 rounded-xl border border-border/70 bg-card space-y-1 hover:border-primary/40 transition-colors"
                 >
                   <div className="flex items-center justify-between">
                     <h5 className="text-xs font-bold text-foreground">{dept.name}</h5>

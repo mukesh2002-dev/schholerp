@@ -26,7 +26,7 @@ export function ExecutiveDashboard() {
   const isGlobal = activeBranchId === "all";
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Top Banner / Welcome Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 rounded-2xl bg-gradient-to-r from-blue-900/10 via-indigo-900/10 to-purple-900/10 border border-border/80 relative overflow-hidden">
         <div className="space-y-1.5 z-10">

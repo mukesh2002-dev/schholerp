@@ -118,7 +118,7 @@ export default function LoginPage() {
     <div className="grid min-h-screen lg:grid-cols-2">
       {/* ── Left: form column (shadcn login-02 pattern) ─────────────────── */}
       <div className="flex flex-col gap-4 p-6 md:p-10 bg-background">
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white shadow-md shadow-primary/20">
             <Sparkles className="h-4 w-4" />
           </div>
@@ -131,7 +131,7 @@ export default function LoginPage() {
         </div>
 
         <div className="flex flex-1 items-center justify-center">
-          <div className="w-full max-w-[420px] space-y-6 py-6">
+          <div className="w-full max-w-[420px] space-y-8 py-6">
             <div className="space-y-2">
               <Badge variant="secondary" className="text-[11px]">
                 Staff Console — Demo Mode
@@ -157,7 +157,7 @@ export default function LoginPage() {
                       type="button"
                       onClick={() => pickRole(account)}
                       className={cn(
-                        "flex items-center gap-2.5 rounded-xl border p-2.5 text-left transition-all active:scale-[0.98]",
+                        "flex items-center gap-2 rounded-xl border p-2 text-left transition-all active:scale-[0.98]",
                         active
                           ? "border-primary bg-primary/5 ring-1 ring-primary/30 shadow-sm"
                           : "border-border bg-card hover:border-primary/40 hover:bg-accent"
@@ -255,7 +255,7 @@ export default function LoginPage() {
 
             {/* Demo credentials hint */}
             <Card className="border-dashed bg-muted/40">
-              <CardContent className="p-3.5 text-xs space-y-2">
+              <CardContent className="p-4 text-xs space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="font-semibold">Demo credentials</span>
                   <button

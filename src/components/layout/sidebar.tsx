@@ -112,7 +112,7 @@ export function Sidebar({ collapsed = false, onToggle, onNavigate }: SidebarProp
                       }
                     }}
                     className={cn(
-                      "flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-150 group relative active:scale-[0.98]",
+                      "flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-150 group relative active:scale-[0.98]",
                       isActive
                         ? "bg-primary text-primary-foreground shadow-sm shadow-primary/25 font-semibold"
                         : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground",

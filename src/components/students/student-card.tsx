@@ -63,7 +63,7 @@ export const StudentCard = React.memo(function StudentCard({ student, onEdit }: 
 
   return (
     <Card className="group relative overflow-hidden border-border/80 hover:border-primary/40 transition-all duration-200 hover:shadow-md bg-card">
-      <CardContent className="p-5 space-y-3.5">
+      <CardContent className="p-5 space-y-4">
         {/* Header: Avatar, Name, Badges & Action Menu */}
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
@@ -118,7 +118,7 @@ export const StudentCard = React.memo(function StudentCard({ student, onEdit }: 
         </div>
 
         {/* Campus & Guardian Info */}
-        <div className="space-y-1.5 text-xs text-muted-foreground bg-muted/30 p-2.5 rounded-lg border border-border/40">
+        <div className="space-y-1.5 text-xs text-muted-foreground bg-muted/30 p-2 rounded-lg border border-border/40">
           <div className="flex items-center justify-between">
             <span className="flex items-center gap-1 text-[11px] font-medium text-foreground truncate">
               <Building2 className="h-3.5 w-3.5 text-primary shrink-0" />

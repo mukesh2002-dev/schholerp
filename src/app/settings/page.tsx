@@ -79,7 +79,7 @@ export default function SettingsPage() {
   }, []);
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300 max-w-4xl">
+    <div className="space-y-8 animate-in fade-in duration-300 max-w-4xl">
       <Breadcrumbs />
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -119,7 +119,7 @@ export default function SettingsPage() {
                 type="button"
                 onClick={() => settings.update({ theme: opt.id })}
                 className={cn(
-                  "flex items-center gap-3 p-3.5 rounded-xl border text-left transition-all",
+                  "flex items-center gap-3 p-4 rounded-xl border text-left transition-all",
                   active
                     ? "border-primary bg-primary/5 ring-1 ring-primary"
                     : "border-border/70 hover:border-primary/40 bg-card"

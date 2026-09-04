@@ -186,7 +186,7 @@ export function AnnouncementsDirectoryView() {
                       <CalendarDays className="h-3.5 w-3.5" />
                       <span>{formatDate(ann.publishDate)}</span>
                     </div>
-                    <div className="flex items-center gap-2.5">
+                    <div className="flex items-center gap-2">
                       <div className="flex items-center gap-1 text-muted-foreground">
                         <Eye className="h-3.5 w-3.5" />
                         <span>{ann.viewCount}</span>

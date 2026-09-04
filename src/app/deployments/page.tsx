@@ -143,7 +143,7 @@ export default function DeploymentsPage() {
   }, [deployments]);
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
+    <div className="space-y-8 animate-in fade-in duration-300">
       <Breadcrumbs />
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -284,13 +284,13 @@ export default function DeploymentsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Deploy #</TableHead>
+                    <TableHead className="text-right tabular-nums">Deploy #</TableHead>
                     <TableHead>Version</TableHead>
-                    <TableHead>Build #</TableHead>
+                    <TableHead className="text-right tabular-nums">Build #</TableHead>
                     <TableHead>Environment</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Deployed By</TableHead>
-                    <TableHead>Duration</TableHead>
+                    <TableHead className="text-right tabular-nums">Duration</TableHead>
                     <TableHead>Date</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -301,17 +301,17 @@ export default function DeploymentsPage() {
                       className="hover:bg-muted/40 cursor-pointer"
                       onClick={() => router.push(`/deployments/${dep.id}`)}
                     >
-                      <TableCell className="font-mono font-bold text-xs text-foreground">#{dep.deploymentNumber}</TableCell>
+                      <TableCell className="font-mono font-bold text-xs text-foreground text-right tabular-nums">#{dep.deploymentNumber}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className="text-[10px] font-mono">
                           {dep.version}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-xs font-mono text-muted-foreground">#{dep.buildNumber}</TableCell>
+                      <TableCell className="text-xs font-mono text-muted-foreground text-right tabular-nums">#{dep.buildNumber}</TableCell>
                       <TableCell>{getEnvironmentBadge(dep.environment)}</TableCell>
                       <TableCell>{getStatusBadge(dep.status)}</TableCell>
                       <TableCell className="text-xs text-foreground">{dep.deployedBy}</TableCell>
-                      <TableCell className="text-xs font-mono text-muted-foreground">{formatDuration(dep.duration)}</TableCell>
+                      <TableCell className="text-xs font-mono text-muted-foreground text-right tabular-nums">{formatDuration(dep.duration)}</TableCell>
                       <TableCell className="text-xs text-muted-foreground">{formatDate(dep.startedAt)}</TableCell>
                     </TableRow>
                   ))}

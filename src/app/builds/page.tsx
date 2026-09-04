@@ -145,7 +145,7 @@ export default function BuildsPage() {
   }, [builds, searchQuery, branchFilter, statusFilter, envFilter]);
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
+    <div className="space-y-8 animate-in fade-in duration-300">
       <Breadcrumbs />
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -297,13 +297,13 @@ export default function BuildsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Build #</TableHead>
+                  <TableHead className="text-right tabular-nums">Build #</TableHead>
                   <TableHead>Branch</TableHead>
                   <TableHead>Commit</TableHead>
                   <TableHead>Author</TableHead>
                   <TableHead>Environment</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Duration</TableHead>
+                  <TableHead className="text-right tabular-nums">Duration</TableHead>
                   <TableHead>Triggered By</TableHead>
                   <TableHead>Date</TableHead>
                 </TableRow>
@@ -322,7 +322,7 @@ export default function BuildsPage() {
                       className="hover:bg-muted/40 cursor-pointer"
                       onClick={() => router.push(`/builds/${build.id}`)}
                     >
-                      <TableCell className="font-mono font-bold text-xs text-primary">#{build.buildNumber}</TableCell>
+                      <TableCell className="font-mono font-bold text-xs text-primary text-right tabular-nums">#{build.buildNumber}</TableCell>
                       <TableCell className="text-xs font-medium text-foreground">
                         <span className="inline-flex items-center gap-1">
                           <GitBranch className="h-3 w-3 text-muted-foreground" />
@@ -337,7 +337,7 @@ export default function BuildsPage() {
                       <TableCell className="text-xs text-muted-foreground">{build.commitAuthor}</TableCell>
                       <TableCell>{getEnvironmentBadge(build.environment)}</TableCell>
                       <TableCell>{getStatusBadge(build.status)}</TableCell>
-                      <TableCell className="text-xs font-mono text-foreground">{formatDuration(build.duration)}</TableCell>
+                      <TableCell className="text-xs font-mono text-foreground text-right tabular-nums">{formatDuration(build.duration)}</TableCell>
                       <TableCell className="text-xs text-muted-foreground">{build.triggeredBy}</TableCell>
                       <TableCell className="text-xs text-muted-foreground">{formatDate(build.startedAt)}</TableCell>
                     </TableRow>

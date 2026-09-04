@@ -236,10 +236,10 @@ export function AttendanceDirectoryView() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Person Name</TableHead>
-                  <TableHead>Total Days</TableHead>
-                  <TableHead>Present</TableHead>
-                  <TableHead>Late</TableHead>
-                  <TableHead>Absent</TableHead>
+                  <TableHead className="text-right tabular-nums">Total Days</TableHead>
+                  <TableHead className="text-right tabular-nums">Present</TableHead>
+                  <TableHead className="text-right tabular-nums">Late</TableHead>
+                  <TableHead className="text-right tabular-nums">Absent</TableHead>
                   <TableHead>Rate</TableHead>
                 </TableRow>
               </TableHeader>
@@ -247,12 +247,12 @@ export function AttendanceDirectoryView() {
                 {report.map((e) => (
                   <TableRow key={e.personId} className="hover:bg-muted/40">
                     <TableCell className="font-semibold text-sm">{e.personName}</TableCell>
-                    <TableCell className="text-xs font-mono">{e.totalDays}</TableCell>
-                    <TableCell className="text-xs font-mono font-bold text-emerald-600">
+                    <TableCell className="text-right tabular-nums text-xs font-mono">{e.totalDays}</TableCell>
+                    <TableCell className="text-right tabular-nums text-xs font-mono font-bold text-emerald-600">
                       {e.present}
                     </TableCell>
-                    <TableCell className="text-xs font-mono text-amber-600">{e.late}</TableCell>
-                    <TableCell className="text-xs font-mono text-rose-600">{e.absent}</TableCell>
+                    <TableCell className="text-right tabular-nums text-xs font-mono text-amber-600">{e.late}</TableCell>
+                    <TableCell className="text-right tabular-nums text-xs font-mono text-rose-600">{e.absent}</TableCell>
                     <TableCell>
                       <Badge
                         variant={e.rate >= 90 ? "success" : e.rate >= 75 ? "warning" : "destructive"}

@@ -21,7 +21,7 @@ export function HrHeader() {
       <Breadcrumbs />
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
+        <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2">
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
               HR, Staff &amp; Worker Directory
@@ -30,7 +30,7 @@ export function HrHeader() {
               {staff.length} Total Personnel
             </Badge>
           </div>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+          <p className="text-xs sm:text-sm text-muted-foreground">
             Employee profiles, leave approval workflows, payroll status, and faculty contracts.
           </p>
         </div>

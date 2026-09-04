@@ -97,7 +97,7 @@ export default function EventDetailPage() {
     : 0;
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
+    <div className="space-y-8 animate-in fade-in duration-300">
       <Breadcrumbs />
 
       <div className="p-6 sm:p-8 rounded-2xl border border-border/80 bg-card shadow-xs space-y-4">

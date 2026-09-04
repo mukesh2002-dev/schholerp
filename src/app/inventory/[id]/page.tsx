@@ -158,7 +158,7 @@ export default function InventoryItemDetailPage() {
                 {item.description}
               </p>
 
-              <div className="pt-2 space-y-2.5 text-xs">
+              <div className="pt-2 space-y-2 text-xs">
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground flex items-center gap-1.5">
                     <Package className="h-3 w-3" />
@@ -359,7 +359,7 @@ export default function InventoryItemDetailPage() {
                         <TableHeader>
                           <TableRow>
                             <TableHead>Type</TableHead>
-                            <TableHead>Quantity</TableHead>
+                            <TableHead className="text-right tabular-nums">Quantity</TableHead>
                             <TableHead>Performed By</TableHead>
                             <TableHead>Recipient</TableHead>
                             <TableHead>Reason</TableHead>
@@ -383,7 +383,7 @@ export default function InventoryItemDetailPage() {
                                   </Badge>
                                 </div>
                               </TableCell>
-                              <TableCell className="text-xs font-medium text-foreground">
+                              <TableCell className="text-right tabular-nums text-xs font-medium text-foreground">
                                 {txn.quantity}
                               </TableCell>
                               <TableCell className="text-xs text-foreground">

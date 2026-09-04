@@ -232,9 +232,9 @@ export function PayrollDirectoryView() {
               <TableRow>
                 <TableHead>Employee</TableHead>
                 <TableHead>Month / Year</TableHead>
-                <TableHead>Gross Salary</TableHead>
-                <TableHead>Deductions</TableHead>
-                <TableHead>Net Salary</TableHead>
+                <TableHead className="text-right tabular-nums">Gross Salary</TableHead>
+                <TableHead className="text-right tabular-nums">Deductions</TableHead>
+                <TableHead className="text-right tabular-nums">Net Salary</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Payment Date</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -259,11 +259,11 @@ export function PayrollDirectoryView() {
                   <TableCell className="text-sm font-medium">
                     {record.month} {record.year}
                   </TableCell>
-                  <TableCell className="text-sm font-semibold">{formatCurrency(record.grossSalary)}</TableCell>
-                  <TableCell className="text-sm font-semibold text-rose-600 dark:text-rose-400">
+                  <TableCell className="text-right tabular-nums text-sm font-semibold">{formatCurrency(record.grossSalary)}</TableCell>
+                  <TableCell className="text-right tabular-nums text-sm font-semibold text-rose-600 dark:text-rose-400">
                     -{formatCurrency(record.totalDeductions)}
                   </TableCell>
-                  <TableCell className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
+                  <TableCell className="text-right tabular-nums text-sm font-bold text-emerald-600 dark:text-emerald-400">
                     {formatCurrency(record.netSalary)}
                   </TableCell>
                   <TableCell>

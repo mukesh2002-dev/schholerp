@@ -204,7 +204,7 @@ export function TimetableGridView() {
           <table className="w-full min-w-[800px] border-collapse">
             <thead>
               <tr>
-                <th className="sticky left-0 z-10 bg-muted/50 border-b border-r border-border/80 px-3 py-2.5 text-left">
+                <th className="sticky left-0 z-10 bg-muted/50 border-b border-r border-border/80 px-3 py-2 text-left">
                   <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
                     Period
                   </span>
@@ -212,7 +212,7 @@ export function TimetableGridView() {
                 {DAYS.map((day) => (
                   <th
                     key={day}
-                    className="bg-muted/50 border-b border-r border-border/80 last:border-r-0 px-3 py-2.5 text-center min-w-[130px]"
+                    className="bg-muted/50 border-b border-r border-border/80 last:border-r-0 px-3 py-2 text-center min-w-[130px]"
                   >
                     <span className="text-xs font-bold text-foreground">{day}</span>
                   </th>

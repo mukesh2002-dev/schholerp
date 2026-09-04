@@ -72,7 +72,7 @@ export default function StudentDetailPage() {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
+    <div className="space-y-8 animate-in fade-in duration-300">
       <Breadcrumbs />
 
       {/* Student Profile Hero Banner */}
@@ -213,15 +213,15 @@ export default function StudentDetailPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between p-2.5 rounded-lg bg-card border border-border/60">
+                  <div className="flex items-center justify-between p-2 rounded-lg bg-card border border-border/60">
                     <span className="text-muted-foreground">Guardian Email:</span>
                     <span className="font-semibold text-foreground font-mono">{student.guardian.email}</span>
                   </div>
-                  <div className="flex items-center justify-between p-2.5 rounded-lg bg-card border border-border/60">
+                  <div className="flex items-center justify-between p-2 rounded-lg bg-card border border-border/60">
                     <span className="text-muted-foreground">Primary Phone:</span>
                     <span className="font-semibold text-foreground font-mono">{student.guardian.phone}</span>
                   </div>
-                  <div className="flex items-center justify-between p-2.5 rounded-lg bg-rose-500/10 border border-rose-500/20">
+                  <div className="flex items-center justify-between p-2 rounded-lg bg-rose-500/10 border border-rose-500/20">
                     <span className="text-rose-600 font-medium">Emergency Line:</span>
                     <span className="font-bold text-rose-600 font-mono">{student.guardian.emergencyContact}</span>
                   </div>

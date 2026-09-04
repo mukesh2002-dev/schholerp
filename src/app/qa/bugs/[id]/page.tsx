@@ -132,7 +132,7 @@ export default function BugDetailPage() {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
+    <div className="space-y-8 animate-in fade-in duration-300">
       <Breadcrumbs />
 
       {/* Hero Section */}
@@ -141,7 +141,7 @@ export default function BugDetailPage() {
         <div className="p-6 sm:p-8 space-y-4">
           <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
             <div className="space-y-3">
-              <div className="flex items-center gap-2.5 flex-wrap">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded ${isCritical ? "bg-red-500/10 text-red-600" : "bg-muted text-muted-foreground"}`}>
                   {bug.id}
                 </span>

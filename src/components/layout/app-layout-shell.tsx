@@ -82,7 +82,7 @@ export function AppLayoutShell({ children }: { children: React.ReactNode }) {
       {/* Main Application Column */}
       <div className="flex flex-col flex-1 min-w-0 min-h-screen overflow-x-hidden">
         <Topbar sidebarCollapsed={collapsed} onToggleSidebar={toggleSidebar} />
-        <main className="flex-1 p-3 sm:p-6 lg:p-8 max-w-[1400px] w-full mx-auto space-y-6">
+        <main className="flex-1 p-3 sm:p-6 lg:p-8 max-w-[1400px] w-full mx-auto space-y-8">
           {children}
         </main>
       </div>

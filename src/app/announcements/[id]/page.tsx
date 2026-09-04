@@ -67,7 +67,7 @@ export default function AnnouncementDetailPage() {
   }
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
+    <div className="space-y-8 animate-in fade-in duration-300">
       <Breadcrumbs />
 
       {/* Hero Section */}
@@ -157,14 +157,14 @@ export default function AnnouncementDetailPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="flex items-center justify-between p-2.5 rounded-lg bg-muted/30 border border-border/60 text-xs">
+          <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30 border border-border/60 text-xs">
             <span className="text-muted-foreground flex items-center gap-1.5">
               <Eye className="h-3.5 w-3.5" />
               View Count
             </span>
             <span className="font-bold text-foreground">{announcement.viewCount}</span>
           </div>
-          <div className="flex items-center justify-between p-2.5 rounded-lg bg-muted/30 border border-border/60 text-xs">
+          <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30 border border-border/60 text-xs">
             <span className="text-muted-foreground flex items-center gap-1.5">
               <CalendarDays className="h-3.5 w-3.5" />
               Published On
@@ -172,7 +172,7 @@ export default function AnnouncementDetailPage() {
             <span className="font-bold text-foreground">{formatDate(announcement.publishDate)}</span>
           </div>
           {announcement.expiryDate && (
-            <div className="flex items-center justify-between p-2.5 rounded-lg bg-muted/30 border border-border/60 text-xs">
+            <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30 border border-border/60 text-xs">
               <span className="text-muted-foreground flex items-center gap-1.5">
                 <AlertTriangle className="h-3.5 w-3.5" />
                 Expires On
@@ -180,21 +180,21 @@ export default function AnnouncementDetailPage() {
               <span className="font-bold text-foreground">{formatDate(announcement.expiryDate)}</span>
             </div>
           )}
-          <div className="flex items-center justify-between p-2.5 rounded-lg bg-muted/30 border border-border/60 text-xs">
+          <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30 border border-border/60 text-xs">
             <span className="text-muted-foreground flex items-center gap-1.5">
               <Users className="h-3.5 w-3.5" />
               Target Audience
             </span>
             <span className="font-bold text-foreground">{targetLabels[announcement.target]}</span>
           </div>
-          <div className="flex items-center justify-between p-2.5 rounded-lg bg-muted/30 border border-border/60 text-xs">
+          <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30 border border-border/60 text-xs">
             <span className="text-muted-foreground flex items-center gap-1.5">
               <User className="h-3.5 w-3.5" />
               Author
             </span>
             <span className="font-bold text-foreground">{announcement.author}</span>
           </div>
-          <div className="flex items-center justify-between p-2.5 rounded-lg bg-muted/30 border border-border/60 text-xs">
+          <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30 border border-border/60 text-xs">
             <span className="text-muted-foreground">Status</span>
             <Badge variant="outline" className={`text-[10px] border ${statusConfig[announcement.status].className}`}>
               {statusConfig[announcement.status].label}

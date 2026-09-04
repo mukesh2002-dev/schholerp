@@ -120,7 +120,7 @@ export function NoticeBoard() {
             {notices.map((n) => (
               <div
                 key={n.id}
-                className="p-3.5 rounded-xl bg-card border border-border/70 hover:border-primary/40 transition-colors space-y-2 shadow-2xs"
+                className="p-4 rounded-xl bg-card border border-border/70 hover:border-primary/40 transition-colors space-y-2 shadow-2xs"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="space-y-0.5">

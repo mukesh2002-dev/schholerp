@@ -135,7 +135,7 @@ export function ExamScheduleView() {
                     <TableHead>Subject</TableHead>
                     <TableHead>Class &amp; Section</TableHead>
                     <TableHead>Hall / Room</TableHead>
-                    <TableHead>Marks (Max/Pass)</TableHead>
+                    <TableHead className="text-right tabular-nums">Marks (Max/Pass)</TableHead>
                     <TableHead>Status</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -167,7 +167,7 @@ export function ExamScheduleView() {
                           {schedule.room}
                         </span>
                       </TableCell>
-                      <TableCell className="text-xs font-mono">
+                      <TableCell className="text-right tabular-nums text-xs font-mono">
                         <strong className="text-foreground">{schedule.totalMarks}</strong> / {schedule.passingMarks}
                       </TableCell>
                       <TableCell>
@@ -202,11 +202,11 @@ export function ExamScheduleView() {
                     <TableHead>Student Name</TableHead>
                     <TableHead>Exam Series</TableHead>
                     <TableHead>Class &amp; Section</TableHead>
-                    <TableHead>Total Marks</TableHead>
-                    <TableHead>Percentage</TableHead>
+                    <TableHead className="text-right tabular-nums">Total Marks</TableHead>
+                    <TableHead className="text-right tabular-nums">Percentage</TableHead>
                     <TableHead>Grade</TableHead>
-                    <TableHead>CGPA</TableHead>
-                    <TableHead>Rank</TableHead>
+                    <TableHead className="text-right tabular-nums">CGPA</TableHead>
+                    <TableHead className="text-right tabular-nums">Rank</TableHead>
                     <TableHead>Status</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -221,10 +221,10 @@ export function ExamScheduleView() {
                       <TableCell className="text-xs font-medium">
                         {r.className} - {r.sectionName}
                       </TableCell>
-                      <TableCell className="text-xs font-mono">
+                      <TableCell className="text-right tabular-nums text-xs font-mono">
                         <strong className="text-foreground">{r.marksObtained}</strong> / {r.totalMarks}
                       </TableCell>
-                      <TableCell className="text-xs font-mono font-bold text-primary">
+                      <TableCell className="text-right tabular-nums text-xs font-mono font-bold text-primary">
                         {r.percentage}%
                       </TableCell>
                       <TableCell>
@@ -232,8 +232,8 @@ export function ExamScheduleView() {
                           {r.overallGrade}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-xs font-mono font-semibold" title="CBSE CGPA = percentage ÷ 9.5">{(r.percentage / 9.5).toFixed(1)}</TableCell>
-                      <TableCell className="text-xs font-mono">
+                      <TableCell className="text-right tabular-nums text-xs font-mono font-semibold" title="CBSE CGPA = percentage ÷ 9.5">{(r.percentage / 9.5).toFixed(1)}</TableCell>
+                      <TableCell className="text-right tabular-nums text-xs font-mono">
                         {r.rank ? `#${r.rank}` : "—"}
                       </TableCell>
                       <TableCell>

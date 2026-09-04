@@ -234,9 +234,9 @@ export function ParentsDirectoryView() {
                 <TableRow>
                   <TableHead>Invoice</TableHead>
                   <TableHead>Period</TableHead>
-                  <TableHead>Total</TableHead>
-                  <TableHead>Paid</TableHead>
-                  <TableHead>Balance</TableHead>
+                  <TableHead className="text-right tabular-nums">Total</TableHead>
+                  <TableHead className="text-right tabular-nums">Paid</TableHead>
+                  <TableHead className="text-right tabular-nums">Balance</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Due Date</TableHead>
                 </TableRow>
@@ -246,9 +246,9 @@ export function ParentsDirectoryView() {
                   <TableRow key={inv.id}>
                     <TableCell className="font-mono text-xs font-bold">{inv.invoiceNumber}</TableCell>
                     <TableCell className="text-xs">{inv.period}</TableCell>
-                    <TableCell className="text-xs">{formatCurrency(inv.totalAmount)}</TableCell>
-                    <TableCell className="text-xs text-emerald-600">{formatCurrency(inv.paidAmount)}</TableCell>
-                    <TableCell className="text-xs font-bold text-rose-600">
+                    <TableCell className="text-xs text-right tabular-nums">{formatCurrency(inv.totalAmount)}</TableCell>
+                    <TableCell className="text-xs text-emerald-600 text-right tabular-nums">{formatCurrency(inv.paidAmount)}</TableCell>
+                    <TableCell className="text-xs font-bold text-rose-600 text-right tabular-nums">
                       {formatCurrency(inv.balanceAmount)}
                     </TableCell>
                     <TableCell>

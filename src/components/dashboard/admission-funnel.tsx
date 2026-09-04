@@ -65,7 +65,7 @@ export function AdmissionFunnel() {
             </Badge>
           </div>
         </CardHeader>
-        <CardContent className="space-y-3.5 pt-2">
+        <CardContent className="space-y-4 pt-2">
           {branches.map((b) => {
             const occupancy = Math.round((b.totalStudents / b.capacity) * 100);
             return (

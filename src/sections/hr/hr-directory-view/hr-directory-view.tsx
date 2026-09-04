@@ -138,7 +138,7 @@ export function HrDirectoryView() {
                   <TableRow key={s.id} className="hover:bg-muted/40 transition-colors">
                     <TableCell className="font-mono font-bold text-xs">{s.employeeId}</TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2.5">
+                      <div className="flex items-center gap-2">
                         <img
                           src={
                             s.avatar ||
@@ -219,7 +219,7 @@ export function HrDirectoryView() {
                   <TableHead>Staff</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead>Dates</TableHead>
-                  <TableHead>Days</TableHead>
+                  <TableHead className="text-right tabular-nums">Days</TableHead>
                   <TableHead>Reason</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -240,7 +240,7 @@ export function HrDirectoryView() {
                     <TableCell className="text-xs">
                       {formatDate(l.fromDate)} - {formatDate(l.toDate)}
                     </TableCell>
-                    <TableCell className="text-xs font-mono font-bold">{l.totalDays} days</TableCell>
+                    <TableCell className="text-right tabular-nums text-xs font-mono font-bold">{l.totalDays} days</TableCell>
                     <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">
                       {l.reason}
                     </TableCell>

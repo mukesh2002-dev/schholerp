@@ -146,7 +146,7 @@ export function TransportDirectoryView() {
                 <TableRow>
                   <TableHead>Registration #</TableHead>
                   <TableHead>Make &amp; Model</TableHead>
-                  <TableHead>Capacity</TableHead>
+                  <TableHead className="text-right tabular-nums">Capacity</TableHead>
                   <TableHead>Fuel Type</TableHead>
                   <TableHead>Assigned Route</TableHead>
                   <TableHead>Campus</TableHead>
@@ -160,7 +160,7 @@ export function TransportDirectoryView() {
                     <TableCell className="text-sm font-semibold text-foreground">
                       {v.brand} {v.model} ({v.year})
                     </TableCell>
-                    <TableCell className="text-xs font-mono font-medium">{v.capacity || 0} Seats</TableCell>
+                    <TableCell className="text-right tabular-nums text-xs font-mono font-medium">{v.capacity || 0} Seats</TableCell>
                     <TableCell className="text-xs">{v.fuelType}</TableCell>
                     <TableCell className="text-xs font-medium">{v.assignedRouteName || "Unassigned"}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">{v.branchName}</TableCell>

@@ -182,7 +182,7 @@ export function TeacherDirectoryView() {
                 <TableHead>Department &amp; Role</TableHead>
                 <TableHead>Campus</TableHead>
                 <TableHead>Teaching Subjects</TableHead>
-                <TableHead>Weekly Workload</TableHead>
+                <TableHead className="text-right tabular-nums">Weekly Workload</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Action</TableHead>
               </TableRow>
@@ -192,7 +192,7 @@ export function TeacherDirectoryView() {
                 <TableRow key={t.id} className="hover:bg-muted/40 transition-colors">
                   <TableCell className="font-mono font-bold text-xs">{t.employeeId}</TableCell>
                   <TableCell>
-                    <div className="flex items-center gap-2.5">
+                    <div className="flex items-center gap-2">
                       <AppImage
                         src={t.avatar}
                         alt={t.fullName}
@@ -226,7 +226,7 @@ export function TeacherDirectoryView() {
                       ))}
                     </div>
                   </TableCell>
-                  <TableCell className="text-xs font-mono font-semibold">
+                  <TableCell className="text-right tabular-nums text-xs font-mono font-semibold">
                     {t.assignedClasses?.reduce((acc, c) => acc + (c.weeklyPeriods || 0), 0) || 0} hrs / week
                   </TableCell>
                   <TableCell>

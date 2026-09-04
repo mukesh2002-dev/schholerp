@@ -67,7 +67,7 @@ export default function TeacherDetailPage() {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
+    <div className="space-y-8 animate-in fade-in duration-300">
       <Breadcrumbs />
 
       {/* Hero Faculty Profile Banner */}
@@ -199,7 +199,7 @@ export default function TeacherDetailPage() {
               </div>
 
               {teacher.bio && (
-                <div className="p-3.5 rounded-xl bg-muted/40 border border-border/60 text-xs text-muted-foreground space-y-1">
+                <div className="p-4 rounded-xl bg-muted/40 border border-border/60 text-xs text-muted-foreground space-y-1">
                   <span className="font-bold text-foreground block">Professional Biography:</span>
                   <p className="leading-relaxed">{teacher.bio}</p>
                 </div>
@@ -220,19 +220,19 @@ export default function TeacherDetailPage() {
             </CardHeader>
             <CardContent className="space-y-3 text-xs">
               <div className="grid grid-cols-3 gap-2 text-center">
-                <div className="p-2.5 rounded-lg bg-muted/40 border border-border/60">
+                <div className="p-2 rounded-lg bg-muted/40 border border-border/60">
                   <span className="text-[10px] text-muted-foreground block">Annual Quota</span>
                   <span className="font-bold text-foreground text-base mt-0.5 block">
                     {teacher.leaveSummary.totalAllowed}
                   </span>
                 </div>
-                <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
                   <span className="text-[10px] text-amber-600 block">Leaves Taken</span>
                   <span className="font-bold text-amber-600 text-base mt-0.5 block">
                     {teacher.leaveSummary.used}
                   </span>
                 </div>
-                <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
                   <span className="text-[10px] text-emerald-600 block">Balance Days</span>
                   <span className="font-bold text-emerald-600 text-base mt-0.5 block">
                     {teacher.leaveSummary.balance}
@@ -279,7 +279,7 @@ export default function TeacherDetailPage() {
                     {formatCurrency(teacher.salarySummary.allowances)} / mo
                   </span>
                 </div>
-                <div className="flex items-center justify-between p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                <div className="flex items-center justify-between p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
                   <span className="text-emerald-700 dark:text-emerald-300 font-semibold">Gross Monthly:</span>
                   <span className="font-extrabold text-emerald-600 text-sm font-mono">
                     {formatCurrency(teacher.salarySummary.grossSalary)}

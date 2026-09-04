@@ -183,7 +183,7 @@ export function StudentDirectoryView() {
                 <TableHead>Class &amp; Section</TableHead>
                 <TableHead>Campus</TableHead>
                 <TableHead>Guardian</TableHead>
-                <TableHead>Attendance</TableHead>
+                <TableHead className="text-right tabular-nums">Attendance</TableHead>
                 <TableHead>Fee Status</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Action</TableHead>
@@ -194,7 +194,7 @@ export function StudentDirectoryView() {
                 <TableRow key={s.id} className="hover:bg-muted/40 transition-colors">
                   <TableCell className="font-mono font-bold text-xs">{s.rollNumber}</TableCell>
                   <TableCell>
-                    <div className="flex items-center gap-2.5">
+                    <div className="flex items-center gap-2">
                       <AppImage
                         src={s.avatar}
                         alt={s.fullName}
@@ -221,7 +221,7 @@ export function StudentDirectoryView() {
                     <span className="font-medium text-foreground block">{s.guardian.name}</span>
                     <span className="text-[11px] text-muted-foreground block">{s.guardian.phone}</span>
                   </TableCell>
-                  <TableCell className="text-xs font-mono font-semibold">
+                  <TableCell className="text-right tabular-nums text-xs font-mono font-semibold">
                     <span className={(s.attendanceSummary?.attendanceRate ?? 0) >= 95 ? "text-emerald-600" : "text-amber-600"}>
                       {s.attendanceSummary?.attendanceRate ?? 0}%
                     </span>

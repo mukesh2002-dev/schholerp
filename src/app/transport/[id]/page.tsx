@@ -337,7 +337,7 @@ export default function VehicleDetailPage() {
                           <TableRow>
                             <TableHead>Type</TableHead>
                             <TableHead>Description</TableHead>
-                            <TableHead>Cost</TableHead>
+                            <TableHead className="text-right tabular-nums">Cost</TableHead>
                             <TableHead>Vendor</TableHead>
                             <TableHead>Date</TableHead>
                             <TableHead>Status</TableHead>
@@ -364,7 +364,7 @@ export default function VehicleDetailPage() {
                                   </p>
                                 )}
                               </TableCell>
-                              <TableCell className="text-xs font-medium text-foreground">
+                              <TableCell className="text-right tabular-nums text-xs font-medium text-foreground">
                                 {formatCurrency(record.cost)}
                               </TableCell>
                               <TableCell className="text-xs text-foreground">
@@ -544,12 +544,12 @@ export default function VehicleDetailPage() {
                         <Table>
                           <TableHeader>
                             <TableRow>
-                              <TableHead>#</TableHead>
+                              <TableHead className="text-right tabular-nums">#</TableHead>
                               <TableHead>Stop Name</TableHead>
                               <TableHead>Address</TableHead>
                               <TableHead>Arrival</TableHead>
                               <TableHead>Departure</TableHead>
-                              <TableHead>Students</TableHead>
+                              <TableHead className="text-right tabular-nums">Students</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -558,7 +558,7 @@ export default function VehicleDetailPage() {
                                 key={stop.id}
                                 className="hover:bg-muted/40"
                               >
-                                <TableCell className="text-xs font-mono text-muted-foreground">
+                                <TableCell className="text-right tabular-nums text-xs font-mono text-muted-foreground">
                                   {index + 1}
                                 </TableCell>
                                 <TableCell className="text-xs font-medium text-foreground">
@@ -573,7 +573,7 @@ export default function VehicleDetailPage() {
                                 <TableCell className="text-xs font-mono text-foreground">
                                   {stop.departureTime}
                                 </TableCell>
-                                <TableCell className="text-xs font-medium text-foreground">
+                                <TableCell className="text-right tabular-nums text-xs font-medium text-foreground">
                                   {stop.studentCount}
                                 </TableCell>
                               </TableRow>

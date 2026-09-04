@@ -82,7 +82,7 @@ export function NotificationDropdown() {
           {notices.map((n) => (
             <div
               key={n.id}
-              className="p-2.5 rounded-lg hover:bg-accent/60 transition-colors border border-border/40 text-left space-y-1"
+              className="p-2 rounded-lg hover:bg-accent/60 transition-colors border border-border/40 text-left space-y-1"
             >
               <div className="flex items-start justify-between gap-2">
                 <span className="text-xs font-semibold text-foreground line-clamp-1">{n.title}</span>

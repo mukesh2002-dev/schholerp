@@ -252,7 +252,7 @@ export function LibraryDirectoryView() {
                   <TableHead>Issued</TableHead>
                   <TableHead>Due</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Fine</TableHead>
+                  <TableHead className="text-right tabular-nums">Fine</TableHead>
                   <TableHead className="text-right">Action</TableHead>
                 </TableRow>
               </TableHeader>
@@ -287,7 +287,7 @@ export function LibraryDirectoryView() {
                         {iss.status}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-xs font-bold text-rose-600">
+                    <TableCell className="text-right tabular-nums text-xs font-bold text-rose-600">
                       {iss.fineAmount ? formatCurrency(iss.fineAmount) : "—"}
                     </TableCell>
                     <TableCell className="text-right">

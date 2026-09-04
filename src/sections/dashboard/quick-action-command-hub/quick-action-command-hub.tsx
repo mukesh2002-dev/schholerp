@@ -63,7 +63,7 @@ export function QuickActionCommandHub() {
             {/* 1. Add Branch */}
             <button
               onClick={() => setBranchModalOpen(true)}
-              className="flex flex-col items-center justify-center p-3.5 rounded-xl border border-border/80 bg-card hover:border-primary/50 hover:shadow-md transition-all group text-center cursor-pointer"
+              className="flex flex-col items-center justify-center p-4 rounded-xl border border-border/80 bg-card hover:border-primary/50 hover:shadow-md transition-all group text-center cursor-pointer"
             >
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform mb-2">
                 <Building2 className="h-5 w-5" />
@@ -75,7 +75,7 @@ export function QuickActionCommandHub() {
             {/* 2. New Admission Application */}
             <button
               onClick={() => setAdmissionModalOpen(true)}
-              className="flex flex-col items-center justify-center p-3.5 rounded-xl border border-border/80 bg-card hover:border-primary/50 hover:shadow-md transition-all group text-center cursor-pointer"
+              className="flex flex-col items-center justify-center p-4 rounded-xl border border-border/80 bg-card hover:border-primary/50 hover:shadow-md transition-all group text-center cursor-pointer"
             >
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 group-hover:scale-110 transition-transform mb-2">
                 <UserPlus className="h-5 w-5" />
@@ -87,7 +87,7 @@ export function QuickActionCommandHub() {
             {/* 3. Register Student */}
             <button
               onClick={() => setStudentModalOpen(true)}
-              className="flex flex-col items-center justify-center p-3.5 rounded-xl border border-border/80 bg-card hover:border-primary/50 hover:shadow-md transition-all group text-center cursor-pointer"
+              className="flex flex-col items-center justify-center p-4 rounded-xl border border-border/80 bg-card hover:border-primary/50 hover:shadow-md transition-all group text-center cursor-pointer"
             >
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform mb-2">
                 <GraduationCap className="h-5 w-5" />
@@ -105,7 +105,7 @@ export function QuickActionCommandHub() {
                   "Phase 04"
                 )
               }
-              className="flex flex-col items-center justify-center p-3.5 rounded-xl border border-border/80 bg-card hover:border-primary/50 hover:shadow-md transition-all group text-center cursor-pointer"
+              className="flex flex-col items-center justify-center p-4 rounded-xl border border-border/80 bg-card hover:border-primary/50 hover:shadow-md transition-all group text-center cursor-pointer"
             >
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform mb-2">
                 <CreditCard className="h-5 w-5" />
@@ -123,7 +123,7 @@ export function QuickActionCommandHub() {
                   "Phase 03"
                 )
               }
-              className="flex flex-col items-center justify-center p-3.5 rounded-xl border border-border/80 bg-card hover:border-primary/50 hover:shadow-md transition-all group text-center cursor-pointer"
+              className="flex flex-col items-center justify-center p-4 rounded-xl border border-border/80 bg-card hover:border-primary/50 hover:shadow-md transition-all group text-center cursor-pointer"
             >
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 group-hover:scale-110 transition-transform mb-2">
                 <HardHat className="h-5 w-5" />
@@ -135,7 +135,7 @@ export function QuickActionCommandHub() {
             {/* 6. Biometric Sync Trigger */}
             <button
               onClick={handleBiometricSync}
-              className="flex flex-col items-center justify-center p-3.5 rounded-xl border border-border/80 bg-card hover:border-emerald-500/50 hover:shadow-md transition-all group text-center cursor-pointer"
+              className="flex flex-col items-center justify-center p-4 rounded-xl border border-border/80 bg-card hover:border-emerald-500/50 hover:shadow-md transition-all group text-center cursor-pointer"
             >
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 group-hover:scale-110 transition-transform mb-2">
                 <Fingerprint className="h-5 w-5" />
@@ -146,7 +146,7 @@ export function QuickActionCommandHub() {
           </div>
 
           {feedback && (
-            <div className="mt-3 p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs text-center font-medium animate-in fade-in">
+            <div className="mt-3 p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs text-center font-medium animate-in fade-in">
               {feedback}
             </div>
           )}

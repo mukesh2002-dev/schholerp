@@ -123,7 +123,7 @@ export default function BugsPage() {
   const reopenedCount = allBugs.filter((b) => b.status === "REOPENED").length;
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
+    <div className="space-y-8 animate-in fade-in duration-300">
       <Breadcrumbs />
 
       {/* Header */}

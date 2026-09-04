@@ -140,7 +140,7 @@ export default function AdmissionDetailPage() {
   const targetClass = classes.find((c) => c.id === selectedClassId) || classes[0];
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
+    <div className="space-y-8 animate-in fade-in duration-300">
       <Breadcrumbs />
 
       {/* Header Dossier Banner */}
@@ -255,7 +255,7 @@ export default function AdmissionDetailPage() {
               </div>
 
               {/* Counselor Notes / Interview Remarks */}
-              <div className="p-3.5 rounded-xl bg-secondary/60 border border-border/60 space-y-1 mt-2">
+              <div className="p-4 rounded-xl bg-secondary/60 border border-border/60 space-y-1 mt-2">
                 <span className="font-bold text-foreground block">Interview Notes & Committee Remarks:</span>
                 <p className="text-muted-foreground leading-relaxed">
                   {application.interviewFeedback ||
@@ -287,7 +287,7 @@ export default function AdmissionDetailPage() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 p-2.5 rounded-lg bg-card border border-border/60 text-muted-foreground">
+              <div className="flex items-center gap-2 p-2 rounded-lg bg-card border border-border/60 text-muted-foreground">
                 <MapPin className="h-4 w-4 text-primary shrink-0" />
                 <span>
                   {application.address}, {application.city}, {application.state} {application.postalCode}

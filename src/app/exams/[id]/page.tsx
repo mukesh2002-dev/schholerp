@@ -77,7 +77,7 @@ export default function ExamScheduleDetailPage() {
     : 0;
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
+    <div className="space-y-8 animate-in fade-in duration-300">
       <Breadcrumbs />
 
       {/* Hero Banner */}
@@ -259,9 +259,9 @@ export default function ExamScheduleDetailPage() {
                   <TableRow>
                     <TableHead>Student Name</TableHead>
                     <TableHead>Roll</TableHead>
-                    <TableHead className="text-center">Marks Obtained</TableHead>
-                    <TableHead className="text-center">Total Marks</TableHead>
-                    <TableHead className="text-center">Percentage</TableHead>
+                    <TableHead className="text-right tabular-nums">Marks Obtained</TableHead>
+                    <TableHead className="text-right tabular-nums">Total Marks</TableHead>
+                    <TableHead className="text-right tabular-nums">Percentage</TableHead>
                     <TableHead>Grade</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Remarks</TableHead>
@@ -281,9 +281,9 @@ export default function ExamScheduleDetailPage() {
                         </div>
                       </TableCell>
                       <TableCell className="font-mono text-xs font-medium">{entry.studentRoll}</TableCell>
-                      <TableCell className="text-center font-bold text-sm">{entry.marksObtained}</TableCell>
-                      <TableCell className="text-center text-xs text-muted-foreground">{entry.totalMarks}</TableCell>
-                      <TableCell className="text-center">
+                      <TableCell className="text-right tabular-nums font-bold text-sm">{entry.marksObtained}</TableCell>
+                      <TableCell className="text-right tabular-nums text-xs text-muted-foreground">{entry.totalMarks}</TableCell>
+                      <TableCell className="text-right tabular-nums">
                         <Badge variant="outline" className="font-mono text-xs font-bold">
                           {entry.percentage.toFixed(1)}%
                         </Badge>

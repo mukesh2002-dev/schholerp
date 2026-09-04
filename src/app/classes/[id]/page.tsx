@@ -48,7 +48,7 @@ export default function ClassDetailPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-8">
       <ClassDetailHeader classInfo={classInfo} />
 
       <Tabs defaultValue="info" className="w-full">

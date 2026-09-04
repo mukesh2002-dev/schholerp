@@ -21,7 +21,7 @@ export function AttendanceHeader() {
       <Breadcrumbs />
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
+        <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2">
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
               <Fingerprint className="h-6 w-6 text-primary" />
@@ -31,7 +31,7 @@ export function AttendanceHeader() {
               ZK &amp; Facial Gateways Active
             </Badge>
           </div>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+          <p className="text-xs sm:text-sm text-muted-foreground">
             Student roll-call, faculty check-in punches, support worker shifts, and automated attendance trends.
           </p>
         </div>

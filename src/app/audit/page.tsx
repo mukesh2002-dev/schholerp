@@ -137,7 +137,7 @@ export default function AuditPage() {
   }
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
+    <div className="space-y-8 animate-in fade-in duration-300">
       <Breadcrumbs />
 
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">

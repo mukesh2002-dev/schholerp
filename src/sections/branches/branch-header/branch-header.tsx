@@ -18,7 +18,7 @@ export function BranchHeader() {
         <Breadcrumbs />
 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
+          <div className="flex flex-col gap-1">
             <div className="flex items-center gap-2">
               <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
                 Campus Branch Management
@@ -27,7 +27,7 @@ export function BranchHeader() {
                 {branches.length} Registered
               </Badge>
             </div>
-            <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+            <p className="text-xs sm:text-sm text-muted-foreground">
               Oversee multi-branch school network, capacity allocation, campus principals, and operations.
             </p>
           </div>

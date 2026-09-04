@@ -165,7 +165,7 @@ export default function EngineeringDashboardPage() {
   const passRateBg = qaMetrics.passRate > 80 ? "bg-emerald-500" : "bg-amber-500";
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
+    <div className="space-y-8 animate-in fade-in duration-300">
       <Breadcrumbs />
 
       <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
@@ -354,9 +354,9 @@ export default function EngineeringDashboardPage() {
                       <tr className="border-b border-border/60 text-[11px] text-muted-foreground">
                         <th scope="col" className="text-left font-semibold py-2 pr-3">Module</th>
                         <th scope="col" className="text-left font-semibold py-2 px-3">Status</th>
-                        <th scope="col" className="text-right font-semibold py-2 px-3">Uptime</th>
-                        <th scope="col" className="text-right font-semibold py-2 px-3">Avg Response</th>
-                        <th scope="col" className="text-right font-semibold py-2 pl-3">Error Rate</th>
+                        <th scope="col" className="text-right tabular-nums font-semibold py-2 px-3">Uptime</th>
+                        <th scope="col" className="text-right tabular-nums font-semibold py-2 px-3">Avg Response</th>
+                        <th scope="col" className="text-right tabular-nums font-semibold py-2 pl-3">Error Rate</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -364,9 +364,9 @@ export default function EngineeringDashboardPage() {
                         <tr key={m.module} className="border-b border-border/40 last:border-0 hover:bg-muted/30">
                           <td className="py-2.5 pr-3 font-medium text-foreground whitespace-nowrap">{m.module}</td>
                           <td className="py-2.5 px-3 whitespace-nowrap">{getHealthBadge(m.status)}</td>
-                          <td className="py-2.5 px-3 text-right font-mono text-foreground">{m.uptime.toFixed(2)}%</td>
-                          <td className="py-2.5 px-3 text-right font-mono text-muted-foreground">{m.avgResponseMs} ms</td>
-                          <td className="py-2.5 pl-3 text-right font-mono">
+                          <td className="py-2.5 px-3 text-right tabular-nums font-mono text-foreground">{m.uptime.toFixed(2)}%</td>
+                          <td className="py-2.5 px-3 text-right tabular-nums font-mono text-muted-foreground">{m.avgResponseMs} ms</td>
+                          <td className="py-2.5 pl-3 text-right tabular-nums font-mono">
                             <span className={m.errorRate > 1 ? "text-amber-600 font-semibold" : m.errorRate > 2 ? "text-red-600 font-semibold" : "text-muted-foreground"}>{m.errorRate.toFixed(2)}%</span>
                           </td>
                         </tr>
@@ -491,7 +491,7 @@ export default function EngineeringDashboardPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className={`lg:col-span-1 border shadow-xs ${allHealthy ? "border-emerald-500/20 bg-emerald-500/[0.04]" : "border-amber-500/20 bg-amber-500/[0.04]"}`}>
-          <CardContent className="p-5">
+          <CardContent className="p-6">
             <div className="flex items-start gap-3">
               <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${allHealthy ? "bg-emerald-500/10 text-emerald-600" : "bg-amber-500/10 text-amber-600"}`}>
                 {allHealthy ? <ShieldCheck className="h-5 w-5" /> : <ShieldAlert className="h-5 w-5" />}

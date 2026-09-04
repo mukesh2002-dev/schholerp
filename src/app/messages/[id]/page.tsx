@@ -111,7 +111,7 @@ export default function MessageDetailPage() {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
+    <div className="space-y-8 animate-in fade-in duration-300">
       <Breadcrumbs />
 
       <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
@@ -230,23 +230,23 @@ export default function MessageDetailPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="p-2.5 rounded-lg bg-muted/30 border border-border/60 text-xs">
+              <div className="p-2 rounded-lg bg-muted/30 border border-border/60 text-xs">
                 <span className="text-muted-foreground block mb-0.5">From</span>
                 <span className="font-bold text-foreground">{message.senderName}</span>
                 <span className="text-muted-foreground block mt-0.5">({message.senderRole})</span>
               </div>
-              <div className="p-2.5 rounded-lg bg-muted/30 border border-border/60 text-xs">
+              <div className="p-2 rounded-lg bg-muted/30 border border-border/60 text-xs">
                 <span className="text-muted-foreground block mb-0.5">To</span>
                 <span className="font-bold text-foreground">{message.recipientNames.join(", ") || "N/A"}</span>
                 <span className="text-muted-foreground block mt-0.5">({message.recipientType.replace(/_/g, " ")})</span>
               </div>
-              <div className="flex items-center justify-between p-2.5 rounded-lg bg-muted/30 border border-border/60 text-xs">
+              <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30 border border-border/60 text-xs">
                 <span className="text-muted-foreground">Channel</span>
                 <Badge variant="outline" className={`text-[10px] border ${channelConfig[message.channel].className}`}>
                   {channelConfig[message.channel].label}
                 </Badge>
               </div>
-              <div className="flex items-center justify-between p-2.5 rounded-lg bg-muted/30 border border-border/60 text-xs">
+              <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30 border border-border/60 text-xs">
                 <span className="text-muted-foreground">Sent</span>
                 <span className="font-semibold text-foreground flex items-center gap-1">
                   <Clock className="h-3 w-3" />
@@ -254,7 +254,7 @@ export default function MessageDetailPage() {
                 </span>
               </div>
               {message.readAt && (
-                <div className="flex items-center justify-between p-2.5 rounded-lg bg-muted/30 border border-border/60 text-xs">
+                <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30 border border-border/60 text-xs">
                   <span className="text-muted-foreground">Read</span>
                   <span className="font-semibold text-foreground flex items-center gap-1">
                     <CheckCircle2 className="h-3 w-3 text-emerald-500" />
@@ -262,7 +262,7 @@ export default function MessageDetailPage() {
                   </span>
                 </div>
               )}
-              <div className="flex items-center justify-between p-2.5 rounded-lg bg-muted/30 border border-border/60 text-xs">
+              <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30 border border-border/60 text-xs">
                 <span className="text-muted-foreground">Status</span>
                 <span className={`flex items-center gap-1 font-semibold ${statusConfig[message.channelStatus].className}`}>
                   {statusConfig[message.channelStatus].icon}

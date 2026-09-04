@@ -133,9 +133,9 @@ export function FeesDirectoryView() {
                   <TableHead className="w-[120px]">Invoice #</TableHead>
                   <TableHead>Student</TableHead>
                   <TableHead>Class</TableHead>
-                  <TableHead>Total Bill</TableHead>
-                  <TableHead>Paid</TableHead>
-                  <TableHead>Balance</TableHead>
+                  <TableHead className="text-right tabular-nums">Total Bill</TableHead>
+                  <TableHead className="text-right tabular-nums">Paid</TableHead>
+                  <TableHead className="text-right tabular-nums">Balance</TableHead>
                   <TableHead>Due Date</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Action</TableHead>
@@ -152,11 +152,11 @@ export function FeesDirectoryView() {
                       </span>
                     </TableCell>
                     <TableCell className="text-xs">{inv.className}</TableCell>
-                    <TableCell className="text-xs font-semibold">{formatCurrency(inv.totalAmount)}</TableCell>
-                    <TableCell className="text-xs font-semibold text-emerald-600">
+                    <TableCell className="text-right tabular-nums text-xs font-semibold">{formatCurrency(inv.totalAmount)}</TableCell>
+                    <TableCell className="text-right tabular-nums text-xs font-semibold text-emerald-600">
                       {formatCurrency(inv.paidAmount)}
                     </TableCell>
-                    <TableCell className="text-xs font-bold text-rose-600">
+                      <TableCell className="text-right tabular-nums text-xs font-bold text-rose-600">
                       {inv.balanceAmount > 0 ? formatCurrency(inv.balanceAmount) : "—"}
                     </TableCell>
                     <TableCell className="text-xs">{formatDate(inv.dueDate)}</TableCell>
@@ -222,10 +222,10 @@ export function FeesDirectoryView() {
                 <TableRow>
                   <TableHead>Student</TableHead>
                   <TableHead>Class</TableHead>
-                  <TableHead>Assigned</TableHead>
-                  <TableHead>Paid</TableHead>
-                  <TableHead>Pending</TableHead>
-                  <TableHead>Overdue</TableHead>
+                  <TableHead className="text-right tabular-nums">Assigned</TableHead>
+                  <TableHead className="text-right tabular-nums">Paid</TableHead>
+                  <TableHead className="text-right tabular-nums">Pending</TableHead>
+                  <TableHead className="text-right tabular-nums">Overdue</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -240,12 +240,12 @@ export function FeesDirectoryView() {
                         </span>
                       </TableCell>
                       <TableCell className="text-xs">{a.className}</TableCell>
-                      <TableCell className="text-xs font-semibold">{formatCurrency(a.totalAssigned)}</TableCell>
-                      <TableCell className="text-xs text-emerald-600">{formatCurrency(a.totalPaid)}</TableCell>
-                      <TableCell className="text-xs font-bold text-amber-600">
+                      <TableCell className="text-right tabular-nums text-xs font-semibold">{formatCurrency(a.totalAssigned)}</TableCell>
+                      <TableCell className="text-right tabular-nums text-xs text-emerald-600">{formatCurrency(a.totalPaid)}</TableCell>
+                      <TableCell className="text-right tabular-nums text-xs font-bold text-amber-600">
                         {formatCurrency(a.totalPending)}
                       </TableCell>
-                      <TableCell className="text-xs font-bold text-rose-600">
+                    <TableCell className="text-right tabular-nums text-xs font-bold text-rose-600">
                         {formatCurrency(a.totalOverdue)}
                       </TableCell>
                       <TableCell>
@@ -312,7 +312,7 @@ export function FeesDirectoryView() {
                 <TableRow>
                   <TableHead>Receipt #</TableHead>
                   <TableHead>Student</TableHead>
-                  <TableHead>Amount</TableHead>
+                  <TableHead className="text-right tabular-nums">Amount</TableHead>
                   <TableHead>Method</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead>Status</TableHead>
@@ -323,7 +323,7 @@ export function FeesDirectoryView() {
                   <TableRow key={p.id} className="hover:bg-muted/40">
                     <TableCell className="font-mono font-bold text-xs">{p.receiptNumber}</TableCell>
                     <TableCell className="text-sm font-semibold">{p.studentName}</TableCell>
-                    <TableCell className="text-sm font-bold text-emerald-600">
+                    <TableCell className="text-right tabular-nums text-sm font-bold text-emerald-600">
                       {formatCurrency(p.amount)}
                     </TableCell>
                     <TableCell>

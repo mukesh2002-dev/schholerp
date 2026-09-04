@@ -58,7 +58,7 @@ export function RoleSelector() {
             <DropdownMenuItem
               key={r.role}
               onClick={() => setRole(r.role)}
-              className="gap-2.5 py-2 cursor-pointer items-start"
+              className="gap-2 py-2 cursor-pointer items-start"
             >
               <div className="flex h-6 w-6 mt-0.5 shrink-0 items-center justify-center rounded-md bg-muted text-foreground">
                 <UserCheck className="h-3.5 w-3.5" />

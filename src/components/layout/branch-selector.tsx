@@ -54,7 +54,7 @@ export function BranchSelector() {
         </DropdownMenuLabel>
         <DropdownMenuItem
           onClick={() => setActiveBranchId("all")}
-          className="gap-2.5 py-2 cursor-pointer font-medium"
+          className="gap-2 py-2 cursor-pointer font-medium"
         >
           <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
             <Globe className="h-4 w-4" />
@@ -77,7 +77,7 @@ export function BranchSelector() {
             <DropdownMenuItem
               key={b.id}
               onClick={() => setActiveBranchId(b.id)}
-              className="gap-2.5 py-2 cursor-pointer"
+              className="gap-2 py-2 cursor-pointer"
             >
               <div
                 className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-white font-bold text-xs"

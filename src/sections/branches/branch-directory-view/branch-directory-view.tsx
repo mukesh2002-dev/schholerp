@@ -184,8 +184,8 @@ export function BranchDirectoryView() {
                 <TableHead>Campus Name</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Principal</TableHead>
-                <TableHead>Students / Capacity</TableHead>
-                <TableHead>Faculty / Workers</TableHead>
+                <TableHead className="text-right tabular-nums">Students / Capacity</TableHead>
+                <TableHead className="text-right tabular-nums">Faculty / Workers</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -195,7 +195,7 @@ export function BranchDirectoryView() {
                 <TableRow key={b.id} className="hover:bg-muted/40">
                   <TableCell className="font-mono font-bold text-xs">{b.code}</TableCell>
                   <TableCell>
-                    <div className="flex items-center gap-2.5">
+                    <div className="flex items-center gap-2">
                       <span
                         className="h-2.5 w-2.5 rounded-full shrink-0"
                         style={{ backgroundColor: b.color || "#3b82f6" }}
@@ -215,14 +215,14 @@ export function BranchDirectoryView() {
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground">{b.type}</TableCell>
                   <TableCell className="text-xs font-medium text-foreground">{b.principalName}</TableCell>
-                  <TableCell className="text-xs font-mono">
+                  <TableCell className="text-right tabular-nums text-xs font-mono">
                     <span className="font-bold text-foreground">{formatNumber(b.totalStudents)}</span> /{" "}
                     {formatNumber(b.capacity)}{" "}
                     <span className="text-primary font-semibold">
                       ({Math.round((b.totalStudents / b.capacity) * 100)}%)
                     </span>
                   </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
+                  <TableCell className="text-right tabular-nums text-xs text-muted-foreground">
                     <span className="font-semibold text-foreground">{b.totalTeachers}</span> teachers •{" "}
                     {b.totalWorkers} workers
                   </TableCell>

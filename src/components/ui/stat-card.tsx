@@ -30,7 +30,7 @@ export function StatCard({
 }: StatCardProps) {
   return (
     <Card className={cn("relative overflow-hidden group hover:border-primary/40 transition-all duration-300", className)}>
-      <CardContent className="p-5">
+      <CardContent className="p-4">
         <div className="flex items-start justify-between">
           <div className="space-y-1">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{title}</p>

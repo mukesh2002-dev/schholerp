@@ -323,9 +323,9 @@ export function NotificationsDirectoryView() {
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-border/60 bg-muted/40">
-                  <th className="text-left py-3 px-5 font-semibold text-muted-foreground">Category</th>
+                  <th className="text-left py-3 px-4 font-semibold text-muted-foreground">Category</th>
                   {channelLabels.map((ch) => (
-                    <th key={ch.key} className="text-center py-3 px-4 font-semibold text-muted-foreground">
+                    <th key={ch.key} className="text-left py-3 px-4 font-semibold text-muted-foreground">
                       {ch.label}
                     </th>
                   ))}
@@ -337,7 +337,7 @@ export function NotificationsDirectoryView() {
                   const cfg = categoryConfig[cat] || categoryConfig.SYSTEM;
                   return (
                     <tr key={cat} className="hover:bg-muted/30 transition-colors">
-                      <td className="py-3 px-5">
+                      <td className="py-3 px-4">
                         <div className="flex items-center gap-2">
                           <div className={`flex h-7 w-7 items-center justify-center rounded-md ${cfg.color} border`}>
                             {cfg.icon}
@@ -346,7 +346,7 @@ export function NotificationsDirectoryView() {
                         </div>
                       </td>
                       {(["inApp", "email", "sms", "whatsapp"] as const).map((channel) => (
-                        <td key={channel} className="text-center py-3 px-4">
+                        <td key={channel} className="text-left py-3 px-4">
                           {pref ? (
                             <button
                               type="button"

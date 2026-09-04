@@ -18,7 +18,7 @@ export function FeesHeader() {
       <Breadcrumbs />
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
+        <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2">
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
               Fee Collection &amp; Invoicing Engine
@@ -27,7 +27,7 @@ export function FeesHeader() {
               {invoices.length} Invoices Active
             </Badge>
           </div>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+          <p className="text-xs sm:text-sm text-muted-foreground">
             Student fee heads, automated invoice generation, online stripe receipts, and dues recovery.
           </p>
         </div>

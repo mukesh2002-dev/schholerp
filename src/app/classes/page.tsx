@@ -12,7 +12,7 @@ import {
 
 export default function ClassesPage() {
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
+    <div className="space-y-8 animate-in fade-in duration-300">
       {/* 1. Class Header & Add Class Dialog */}
       <Suspense fallback={<ClassHeaderSkeleton />}>
         <ClassHeader />

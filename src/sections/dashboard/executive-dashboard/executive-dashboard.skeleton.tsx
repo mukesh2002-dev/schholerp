@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
 export function ExecutiveDashboardSkeleton() {
   return (
-    <div className="space-y-6 animate-pulse">
+    <div className="space-y-8 animate-pulse">
       {/* Banner Skeleton */}
       <div className="h-36 rounded-2xl bg-muted/40 border border-border/80 p-6 flex flex-col justify-between" />
 

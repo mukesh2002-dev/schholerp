@@ -210,7 +210,7 @@ export function HomeworkDirectoryView() {
                 <TableHead>Subject</TableHead>
                 <TableHead>Instructor</TableHead>
                 <TableHead>Due Date</TableHead>
-                <TableHead>Submissions</TableHead>
+                <TableHead className="text-right tabular-nums">Submissions</TableHead>
                 <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
@@ -239,7 +239,7 @@ export function HomeworkDirectoryView() {
                     <TableCell className="text-xs text-muted-foreground">
                       {formatDate(hw.dueDate)}
                     </TableCell>
-                    <TableCell className="text-xs font-mono">
+                    <TableCell className="text-right tabular-nums text-xs font-mono">
                       {submissions.length} submitted ({gradedCount} graded)
                     </TableCell>
                     <TableCell>

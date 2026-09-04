@@ -26,7 +26,7 @@ export function PerformanceOverview() {
           </Badge>
         </div>
       </CardHeader>
-      <CardContent className="space-y-3.5 pt-2">
+      <CardContent className="space-y-4 pt-2">
         {initialAdmissionFunnel.map((step) => (
           <div key={step.stage} className="space-y-1.5">
             <div className="flex items-center justify-between text-xs">
