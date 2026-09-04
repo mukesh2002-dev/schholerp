@@ -36,7 +36,7 @@ import {
   Clock,
   Fuel,
 } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 
 export function TransportDirectoryView() {
   const { activeBranchId } = useERP();
@@ -52,10 +52,9 @@ export function TransportDirectoryView() {
   const filteredRoutes = useMemo(() => {
     return routes.filter((r) => {
       const matchSearch =
-        r.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        r.routeName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         r.routeNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        r.startPoint?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        r.endPoint?.toLowerCase().includes(searchQuery.toLowerCase());
+        r.stops?.some((s) => s.name.toLowerCase().includes(searchQuery.toLowerCase()));
       const matchStatus = statusFilter === "ALL" || r.status === statusFilter;
       return matchSearch && matchStatus;
     });
@@ -65,7 +64,7 @@ export function TransportDirectoryView() {
     return vehicles.filter((v) => {
       const matchSearch =
         v.registrationNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        v.make?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        v.brand?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         v.model?.toLowerCase().includes(searchQuery.toLowerCase());
       const matchStatus = statusFilter === "ALL" || v.status === statusFilter;
       return matchSearch && matchStatus;
@@ -114,10 +113,10 @@ export function TransportDirectoryView() {
                         <span className="text-xs font-mono font-bold text-primary">{r.routeNumber}</span>
                         <Badge variant="outline" className="text-[10px]">{r.status}</Badge>
                       </div>
-                      <h3 className="font-bold text-base text-foreground mt-1">{r.name}</h3>
+                      <h3 className="font-bold text-base text-foreground mt-1">{r.routeName}</h3>
                     </div>
                     <span className="text-xs font-mono font-bold text-foreground">
-                      {formatCurrency(r.monthlyFee)} / mo
+                      {r.driverName || `Cap: ${r.capacity}`}
                     </span>
                   </div>
 
@@ -125,12 +124,12 @@ export function TransportDirectoryView() {
                     <div className="flex items-center justify-between">
                       <span className="flex items-center gap-1">
                         <MapPin className="h-3 w-3 text-muted-foreground" />
-                        {r.startPoint} → {r.endPoint}
+                        {r.stops[0]?.name || "Origin"} → {r.stops[r.stops.length - 1]?.name || "Destination"}
                       </span>
                     </div>
                     <div className="flex items-center justify-between text-[11px] pt-1">
                       <span>{r.stops.length} designated pickup stops</span>
-                      <span className="font-semibold text-foreground">{r.assignedVehicleRegistration}</span>
+                      <span className="font-semibold text-foreground">{r.vehicleRegistration || "No Bus"}</span>
                     </div>
                   </div>
                 </CardContent>
@@ -149,7 +148,7 @@ export function TransportDirectoryView() {
                   <TableHead>Make &amp; Model</TableHead>
                   <TableHead>Capacity</TableHead>
                   <TableHead>Fuel Type</TableHead>
-                  <TableHead>Assigned Driver</TableHead>
+                  <TableHead>Assigned Route</TableHead>
                   <TableHead>Campus</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
@@ -159,11 +158,11 @@ export function TransportDirectoryView() {
                   <TableRow key={v.id} className="hover:bg-muted/40">
                     <TableCell className="font-mono font-bold text-xs">{v.registrationNumber}</TableCell>
                     <TableCell className="text-sm font-semibold text-foreground">
-                      {v.brand || v.make} {v.model} ({v.year})
+                      {v.brand} {v.model} ({v.year})
                     </TableCell>
                     <TableCell className="text-xs font-mono font-medium">{v.capacity || 0} Seats</TableCell>
                     <TableCell className="text-xs">{v.fuelType}</TableCell>
-                    <TableCell className="text-xs font-medium">{v.assignedDriverName || "Unassigned"}</TableCell>
+                    <TableCell className="text-xs font-medium">{v.assignedRouteName || "Unassigned"}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">{v.branchName}</TableCell>
                     <TableCell>
                       <Badge variant={v.status === "ACTIVE" ? "success" : "warning"} className="text-[10px]">
@@ -185,7 +184,7 @@ export function TransportDirectoryView() {
                 <CardContent className="p-4 space-y-2">
                   <div className="flex justify-between items-start">
                     <div>
-                      <h4 className="font-bold text-sm text-foreground">{d.fullName}</h4>
+                      <h4 className="font-bold text-sm text-foreground">{d.name}</h4>
                       <p className="text-xs text-muted-foreground font-mono">Lic: {d.licenseNumber}</p>
                     </div>
                     <Badge variant={d.status === "ACTIVE" ? "success" : "secondary"} className="text-[10px]">
@@ -210,9 +209,9 @@ export function TransportDirectoryView() {
                 <TableRow>
                   <TableHead>Student Name</TableHead>
                   <TableHead>Roll #</TableHead>
-                  <TableHead>Route Number</TableHead>
+                  <TableHead>Route Name</TableHead>
                   <TableHead>Pickup Stop</TableHead>
-                  <TableHead>Seat #</TableHead>
+                  <TableHead>Assigned Date</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
@@ -221,9 +220,9 @@ export function TransportDirectoryView() {
                   <TableRow key={a.id} className="hover:bg-muted/40">
                     <TableCell className="font-semibold text-sm">{a.studentName}</TableCell>
                     <TableCell className="font-mono text-xs text-muted-foreground">{a.studentRoll}</TableCell>
-                    <TableCell className="text-xs font-bold text-primary">{a.routeNumber}</TableCell>
-                    <TableCell className="text-xs">{a.pickupStopName}</TableCell>
-                    <TableCell className="text-xs font-mono font-bold">#{a.assignedSeat}</TableCell>
+                    <TableCell className="text-xs font-bold text-primary">{a.routeName}</TableCell>
+                    <TableCell className="text-xs">{a.stopName}</TableCell>
+                    <TableCell className="text-xs font-mono">{formatDate(a.assignedDate)}</TableCell>
                     <TableCell>
                       <Badge variant="success" className="text-[10px]">{a.status}</Badge>
                     </TableCell>

@@ -161,9 +161,9 @@ export function AdmissionsPipelineView() {
                       <Badge variant="outline" className="text-xs font-medium">
                         {a.gradeApplied}
                       </Badge>
-                      {a.entranceExamScore !== undefined && (
+                      {a.entranceTestScore !== undefined && (
                         <span className="text-[11px] text-muted-foreground block mt-0.5">
-                          Score: <strong className="text-foreground">{a.entranceExamScore}%</strong>
+                          Score: <strong className="text-foreground">{a.entranceTestScore}%</strong>
                         </span>
                       )}
                     </TableCell>

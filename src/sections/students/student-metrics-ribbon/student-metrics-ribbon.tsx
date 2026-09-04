@@ -12,9 +12,9 @@ export function StudentMetricsRibbon() {
 
   const activeStudents = students.filter((s) => s.status === "ACTIVE").length;
   const avgAttendance = Math.round(
-    students.reduce((acc, s) => acc + s.attendanceRate, 0) / (students.length || 1)
+    students.reduce((acc, s) => acc + (s.attendanceSummary?.attendanceRate || 0), 0) / (students.length || 1)
   );
-  const paidFeesCount = students.filter((s) => s.feeStatus === "PAID").length;
+  const paidFeesCount = students.filter((s) => s.feeSummary?.status === "PAID").length;
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

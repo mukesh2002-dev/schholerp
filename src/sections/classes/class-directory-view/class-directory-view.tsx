@@ -109,7 +109,7 @@ export function ClassDirectoryView() {
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-mono font-bold text-muted-foreground">
-                          {cls.code}
+                          Grade {cls.gradeLevel}
                         </span>
                         <Badge variant="outline" className="text-[10px]">
                           {cls.category}

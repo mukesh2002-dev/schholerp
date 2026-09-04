@@ -230,7 +230,7 @@ export function HrDirectoryView() {
                   <TableRow key={l.id} className="hover:bg-muted/40">
                     <TableCell>
                       <span className="font-semibold text-sm">{l.staffName}</span>
-                      <span className="block text-[11px] text-muted-foreground">{l.department}</span>
+                      <span className="block text-[11px] text-muted-foreground">{l.branchName}</span>
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline" className="text-[10px]">
@@ -238,7 +238,7 @@ export function HrDirectoryView() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-xs">
-                      {formatDate(l.startDate)} - {formatDate(l.endDate)}
+                      {formatDate(l.fromDate)} - {formatDate(l.toDate)}
                     </TableCell>
                     <TableCell className="text-xs font-mono font-bold">{l.totalDays} days</TableCell>
                     <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">

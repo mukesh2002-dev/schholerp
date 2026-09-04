@@ -66,9 +66,10 @@ export function ExamScheduleView() {
   const filteredSchedules = useMemo(() => {
     return examSchedules.filter((ex) => {
       const matchesSearch =
-        ex.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        ex.examType?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        ex.academicYear?.toLowerCase().includes(searchQuery.toLowerCase());
+        ex.examName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        ex.examTypeName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        ex.subjectName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        ex.className?.toLowerCase().includes(searchQuery.toLowerCase());
 
       const matchesStatus = statusFilter === "ALL" || ex.status === statusFilter;
       return matchesSearch && matchesStatus;
@@ -79,8 +80,8 @@ export function ExamScheduleView() {
     return results.filter((r) => {
       const matchesSearch =
         r.studentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        r.rollNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        r.examTitle.toLowerCase().includes(searchQuery.toLowerCase());
+        r.studentRoll.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        r.examTypeName.toLowerCase().includes(searchQuery.toLowerCase());
 
       const matchesClass = classFilter === "ALL" || r.classId === classFilter;
       return matchesSearch && matchesClass;
@@ -124,82 +125,63 @@ export function ExamScheduleView() {
               description="No exam timetables match your search criteria."
             />
           ) : (
-            <div className="space-y-4">
-              {filteredSchedules.map((schedule) => (
-                <Card key={schedule.id} className="border-border/80 shadow-xs overflow-hidden">
-                  <div className="p-5 bg-muted/20 border-b border-border/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-base font-bold text-foreground">{schedule.title}</h3>
+            <div className="rounded-xl border border-border/80 bg-card overflow-hidden shadow-2xs">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[110px]">Date</TableHead>
+                    <TableHead>Time Window</TableHead>
+                    <TableHead>Exam Name</TableHead>
+                    <TableHead>Subject</TableHead>
+                    <TableHead>Class &amp; Section</TableHead>
+                    <TableHead>Hall / Room</TableHead>
+                    <TableHead>Marks (Max/Pass)</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredSchedules.map((schedule) => (
+                    <TableRow key={schedule.id} className="hover:bg-muted/30">
+                      <TableCell className="text-xs font-semibold text-foreground">
+                        {formatDate(schedule.examDate)}
+                      </TableCell>
+                      <TableCell className="text-xs font-mono text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          {schedule.startTime} - {schedule.endTime}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span className="font-semibold text-sm text-foreground block">{schedule.examName}</span>
+                        <span className="text-[11px] text-muted-foreground block">{schedule.examTypeName}</span>
+                      </TableCell>
+                      <TableCell className="text-xs font-medium text-foreground">
+                        {schedule.subjectName}
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        {schedule.className} - {schedule.sectionName}
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        <span className="flex items-center gap-1 text-muted-foreground">
+                          <MapPin className="h-3 w-3" />
+                          {schedule.room}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-xs font-mono">
+                        <strong className="text-foreground">{schedule.totalMarks}</strong> / {schedule.passingMarks}
+                      </TableCell>
+                      <TableCell>
                         <Badge
                           variant={statusBadgeVariant[schedule.status] as any}
                           className="text-[10px]"
                         >
                           {schedule.status}
                         </Badge>
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {schedule.examType} • Term: {schedule.term} • Academic Year:{" "}
-                        {schedule.academicYear} • {schedule.branchName}
-                      </p>
-                    </div>
-
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1 font-medium text-foreground">
-                        <Calendar className="h-3.5 w-3.5 text-primary" />
-                        {formatDate(schedule.startDate)} - {formatDate(schedule.endDate)}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="p-0 overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-[110px]">Date</TableHead>
-                          <TableHead>Time Window</TableHead>
-                          <TableHead>Subject</TableHead>
-                          <TableHead>Class</TableHead>
-                          <TableHead>Examination Hall</TableHead>
-                          <TableHead>Max Marks</TableHead>
-                          <TableHead>Passing Marks</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {schedule.papers.map((paper) => (
-                          <TableRow key={paper.id} className="hover:bg-muted/30">
-                            <TableCell className="text-xs font-semibold text-foreground">
-                              {formatDate(paper.date)}
-                            </TableCell>
-                            <TableCell className="text-xs font-mono text-muted-foreground">
-                              <span className="flex items-center gap-1">
-                                <Clock className="h-3 w-3" />
-                                {paper.startTime} - {paper.endTime}
-                              </span>
-                            </TableCell>
-                            <TableCell className="text-xs font-medium text-foreground">
-                              {paper.subjectName}
-                            </TableCell>
-                            <TableCell className="text-xs">{paper.className}</TableCell>
-                            <TableCell className="text-xs">
-                              <span className="flex items-center gap-1 text-muted-foreground">
-                                <MapPin className="h-3 w-3" />
-                                {paper.hallNumber}
-                              </span>
-                            </TableCell>
-                            <TableCell className="text-xs font-mono font-bold text-foreground">
-                              {paper.maxMarks}
-                            </TableCell>
-                            <TableCell className="text-xs font-mono text-muted-foreground">
-                              {paper.passingMarks}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </Card>
-              ))}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
           )}
         </TabsContent>
@@ -231,23 +213,23 @@ export function ExamScheduleView() {
                 <TableBody>
                   {filteredResults.map((r) => (
                     <TableRow key={r.id} className="hover:bg-muted/40 transition-colors">
-                      <TableCell className="font-mono font-bold text-xs">{r.rollNumber}</TableCell>
+                      <TableCell className="font-mono font-bold text-xs">{r.studentRoll}</TableCell>
                       <TableCell className="font-semibold text-foreground text-sm">
                         {r.studentName}
                       </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{r.examTitle}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{r.examTypeName}</TableCell>
                       <TableCell className="text-xs font-medium">
                         {r.className} - {r.sectionName}
                       </TableCell>
                       <TableCell className="text-xs font-mono">
-                        <strong className="text-foreground">{r.totalObtained}</strong> / {r.totalMax}
+                        <strong className="text-foreground">{r.marksObtained}</strong> / {r.totalMarks}
                       </TableCell>
                       <TableCell className="text-xs font-mono font-bold text-primary">
                         {r.percentage}%
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline" className="font-bold text-xs">
-                          {r.grade}
+                          {r.overallGrade}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-xs font-mono font-semibold">{r.gpa}</TableCell>
@@ -278,7 +260,7 @@ export function ExamScheduleView() {
                 <div className="flex items-center justify-between">
                   <span className="text-2xl font-extrabold text-primary">{scale.grade}</span>
                   <Badge variant="outline" className="text-xs font-mono">
-                    GPA {scale.gpaPoint?.toFixed(1) ?? "0.0"}
+                    GPA {scale.gpa?.toFixed(1) ?? "0.0"}
                   </Badge>
                 </div>
                 <div className="text-xs font-mono text-muted-foreground">

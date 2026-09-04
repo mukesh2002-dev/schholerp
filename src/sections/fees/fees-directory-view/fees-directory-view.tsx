@@ -258,16 +258,16 @@ export function FeesDirectoryView() {
                     <Badge variant="outline" className="text-[10px]">{s.applicableClasses?.join(", ")}</Badge>
                   </div>
                   <div className="space-y-1 pt-2 border-t text-xs">
-                    {(s.heads ?? []).map((h) => (
-                      <div key={h.id} className="flex justify-between text-muted-foreground">
-                        <span>{h.name} ({h.frequency})</span>
+                    {(s.items ?? []).map((h, idx) => (
+                      <div key={h.feeHeadId || idx} className="flex justify-between text-muted-foreground">
+                        <span>{h.feeHeadName} ({h.frequency})</span>
                         <span className="font-mono font-medium text-foreground">{formatCurrency(h.amount)}</span>
                       </div>
                     ))}
                   </div>
                   <div className="flex justify-between items-center pt-2 border-t text-xs">
                     <span className="font-semibold text-foreground">Annual Total:</span>
-                    <span className="font-bold text-sm text-primary">{formatCurrency(s.totalAnnual)}</span>
+                    <span className="font-bold text-sm text-primary">{formatCurrency(s.totalAmount)}</span>
                   </div>
                 </CardContent>
               </Card>
@@ -298,11 +298,11 @@ export function FeesDirectoryView() {
                       {formatCurrency(p.amount)}
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className="text-[10px]">{p.paymentMethod}</Badge>
+                      <Badge variant="outline" className="text-[10px]">{p.method}</Badge>
                     </TableCell>
-                    <TableCell className="text-xs">{formatDate(p.paymentDate)}</TableCell>
+                    <TableCell className="text-xs">{formatDate(p.date)}</TableCell>
                     <TableCell>
-                      <Badge variant="success" className="text-[10px]">{p.status}</Badge>
+                      <Badge variant="success" className="text-[10px]">SUCCESS</Badge>
                     </TableCell>
                   </TableRow>
                 ))}

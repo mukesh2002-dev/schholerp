@@ -47,7 +47,7 @@ export function HomeworkHeader({ onHomeworkAdded }: { onHomeworkAdded?: () => vo
     const selectedClass = classes.find((c) => c.id === newClassId);
     const selectedTeacher = teachers.find((t) => t.id === newTeacherId);
 
-    mockDb.addHomework({
+    mockDb.saveHomework({
       title: newTitle,
       description: newDescription,
       classId: newClassId,
@@ -56,6 +56,7 @@ export function HomeworkHeader({ onHomeworkAdded }: { onHomeworkAdded?: () => vo
       sectionName: selectedClass?.sections[0]?.name || "A",
       subjectId: selectedClass?.subjects[0]?.id || "sub-1",
       subjectName: selectedClass?.subjects[0]?.name || "General",
+      subjectCode: "GEN-101",
       teacherId: newTeacherId,
       teacherName: selectedTeacher?.fullName || "",
       branchId: activeBranchId === "all" ? "br-apex-01" : activeBranchId,
@@ -65,7 +66,6 @@ export function HomeworkHeader({ onHomeworkAdded }: { onHomeworkAdded?: () => vo
       maxMarks: Number(newMaxMarks) || 100,
       status: "ACTIVE" as HomeworkStatus,
       attachments: [],
-      submissions: [],
     });
 
     setDialogOpen(false);

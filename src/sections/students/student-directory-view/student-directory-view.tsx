@@ -205,22 +205,22 @@ export function StudentDirectoryView() {
                     <span className="text-[11px] text-muted-foreground block">{s.guardian.phone}</span>
                   </TableCell>
                   <TableCell className="text-xs font-mono font-semibold">
-                    <span className={s.attendanceRate >= 95 ? "text-emerald-600" : "text-amber-600"}>
-                      {s.attendanceRate}%
+                    <span className={(s.attendanceSummary?.attendanceRate ?? 0) >= 95 ? "text-emerald-600" : "text-amber-600"}>
+                      {s.attendanceSummary?.attendanceRate ?? 0}%
                     </span>
                   </TableCell>
                   <TableCell>
                     <Badge
                       variant={
-                        s.feeStatus === "PAID"
+                        s.feeSummary?.status === "PAID"
                           ? "success"
-                          : s.feeStatus === "PARTIAL"
+                          : s.feeSummary?.status === "PARTIAL"
                           ? "warning"
                           : "destructive"
                       }
                       className="text-[10px]"
                     >
-                      {s.feeStatus}
+                      {s.feeSummary?.status ?? "PENDING"}
                     </Badge>
                   </TableCell>
                   <TableCell>

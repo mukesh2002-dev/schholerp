@@ -12,12 +12,12 @@ export function HomeworkMetricsRibbon() {
 
   const activeCount = homeworkList.filter((h) => h.status === "ACTIVE").length;
   const totalSubmissions = homeworkList.reduce(
-    (acc, h) => acc + (h.submissions?.length || 0),
+    (acc, h) => acc + mockDb.getHomeworkSubmissions(h.id).length,
     0
   );
   const gradedSubmissions = homeworkList.reduce(
     (acc, h) =>
-      acc + (h.submissions ? h.submissions.filter((s) => s.status === "GRADED").length : 0),
+      acc + mockDb.getHomeworkSubmissions(h.id).filter((s) => s.status === "GRADED").length,
     0
   );
 

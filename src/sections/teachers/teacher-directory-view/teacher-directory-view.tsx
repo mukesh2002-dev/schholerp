@@ -210,7 +210,7 @@ export function TeacherDirectoryView() {
                     </div>
                   </TableCell>
                   <TableCell className="text-xs font-mono font-semibold">
-                    {t.workloadHours} hrs / week
+                    {t.assignedClasses?.reduce((acc, c) => acc + (c.weeklyPeriods || 0), 0) || 0} hrs / week
                   </TableCell>
                   <TableCell>
                     <Badge

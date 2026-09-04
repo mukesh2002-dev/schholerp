@@ -141,7 +141,7 @@ export function HomeworkDirectoryView() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredList.map((hw) => {
             const sc = statusConfig[hw.status] || statusConfig.ACTIVE;
-            const submissions = hw.submissions || [];
+            const submissions = mockDb.getHomeworkSubmissions(hw.id);
             const gradedCount = submissions.filter((s) => s.status === "GRADED").length;
             return (
               <Card
@@ -217,7 +217,7 @@ export function HomeworkDirectoryView() {
             <TableBody>
               {filteredList.map((hw) => {
                 const sc = statusConfig[hw.status] || statusConfig.ACTIVE;
-                const submissions = hw.submissions || [];
+                const submissions = mockDb.getHomeworkSubmissions(hw.id);
                 const gradedCount = submissions.filter((s) => s.status === "GRADED").length;
                 return (
                   <TableRow key={hw.id} className="hover:bg-muted/40 transition-colors">

@@ -53,8 +53,8 @@ export function InventoryDirectoryView() {
       const matchSearch =
         item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         item.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.category.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchCategory = categoryFilter === "ALL" || item.category === categoryFilter;
+        item.categoryName.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchCategory = categoryFilter === "ALL" || item.categoryName === categoryFilter;
       const matchStatus = statusFilter === "ALL" || item.status === statusFilter;
       return matchSearch && matchCategory && matchStatus;
     });
@@ -114,7 +114,7 @@ export function InventoryDirectoryView() {
                       <span className="font-semibold text-sm text-foreground block">{item.name}</span>
                       <span className="text-[11px] text-muted-foreground block">{item.branchName}</span>
                     </TableCell>
-                    <TableCell className="text-xs">{item.category}</TableCell>
+                    <TableCell className="text-xs">{item.categoryName}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <MapPin className="h-3 w-3" />
@@ -125,10 +125,10 @@ export function InventoryDirectoryView() {
                       {formatCurrency(item.unitPrice)}
                     </TableCell>
                     <TableCell className="text-xs font-mono font-bold">
-                      {item.quantityOnHand} {item.unit}
+                      {item.quantity} units
                     </TableCell>
                     <TableCell className="text-xs font-mono text-muted-foreground">
-                      {item.reorderPoint} {item.unit}
+                      {item.minStock} units
                     </TableCell>
                     <TableCell>
                       <Badge
@@ -162,13 +162,13 @@ export function InventoryDirectoryView() {
                       <h4 className="font-bold text-sm text-foreground">{al.itemName}</h4>
                       <p className="text-xs text-muted-foreground font-mono">SKU: {al.itemSku}</p>
                     </div>
-                    <Badge variant={al.alertType === "OUT_OF_STOCK" ? "destructive" : "warning"} className="text-[10px]">
-                      {al.alertType}
+                    <Badge variant={al.severity === "CRITICAL" ? "destructive" : "warning"} className="text-[10px]">
+                      {al.severity}
                     </Badge>
                   </div>
                   <div className="flex justify-between text-xs text-muted-foreground pt-2 border-t">
                     <span>Current: <strong className="text-foreground">{al.currentQuantity}</strong></span>
-                    <span>Reorder at: <strong className="text-foreground">{al.reorderPoint}</strong></span>
+                    <span>Reorder at: <strong className="text-foreground">{al.minStock}</strong></span>
                   </div>
                 </CardContent>
               </Card>
@@ -182,9 +182,9 @@ export function InventoryDirectoryView() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>PO Number</TableHead>
+                  <TableHead>PO / Invoice</TableHead>
                   <TableHead>Supplier</TableHead>
-                  <TableHead>Items Count</TableHead>
+                  <TableHead>Item</TableHead>
                   <TableHead>Total Amount</TableHead>
                   <TableHead>Purchase Date</TableHead>
                   <TableHead>Status</TableHead>
@@ -193,9 +193,9 @@ export function InventoryDirectoryView() {
               <TableBody>
                 {purchases.map((p) => (
                   <TableRow key={p.id} className="hover:bg-muted/40">
-                    <TableCell className="font-mono font-bold text-xs">{p.purchaseOrderNumber}</TableCell>
+                    <TableCell className="font-mono font-bold text-xs">{p.invoiceNumber || p.id}</TableCell>
                     <TableCell className="text-sm font-semibold">{p.supplierName}</TableCell>
-                    <TableCell className="text-xs font-mono">{p.items?.length ?? 0} SKUs</TableCell>
+                    <TableCell className="text-xs font-mono">{p.itemName} ({p.quantity} qty)</TableCell>
                     <TableCell className="text-xs font-mono font-bold text-foreground">
                       {formatCurrency(p.totalAmount)}
                     </TableCell>
@@ -219,7 +219,7 @@ export function InventoryDirectoryView() {
                   <div className="flex justify-between items-start">
                     <div>
                       <h4 className="font-bold text-sm text-foreground">{s.name}</h4>
-                      <p className="text-xs text-muted-foreground">{s.category}</p>
+                      <p className="text-xs text-muted-foreground">{s.status}</p>
                     </div>
                     <div className="flex items-center gap-1 text-xs font-bold text-amber-500">
                       <Star className="h-3.5 w-3.5 fill-amber-500" />

@@ -15,7 +15,7 @@ export function InventoryMetricsRibbon() {
   const alerts = mockDb.getStockAlerts(activeBranchId);
 
   const totalAssetValuation = items.reduce(
-    (acc, i) => acc + i.quantityOnHand * i.unitPrice,
+    (acc, i) => acc + i.quantity * i.unitPrice,
     0
   );
   const lowStockCount = items.filter(

@@ -75,7 +75,7 @@ export function AttendanceDirectoryView() {
 
   const handleMarkAllPresent = () => {
     toast.success(
-      `Marked ${filtered.length} ${category.toLowerCase()} as PRESENT for ${effectiveDate}`
+      `Marked ${filtered.length} ${category.toLowerCase()}s as PRESENT for ${effectiveDate}`
     );
   };
 
@@ -157,10 +157,10 @@ export function AttendanceDirectoryView() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
-                  <TableHead>Role / Identifier</TableHead>
+                  <TableHead>Category / Role</TableHead>
                   <TableHead>Check-In</TableHead>
                   <TableHead>Check-Out</TableHead>
-                  <TableHead>Method</TableHead>
+                  <TableHead>Marked By</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
@@ -168,17 +168,15 @@ export function AttendanceDirectoryView() {
                 {filtered.map((r) => (
                   <TableRow key={r.id} className="hover:bg-muted/40">
                     <TableCell className="font-semibold text-sm">{r.personName}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{r.personRole}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{r.category}</TableCell>
                     <TableCell className="text-xs font-mono font-medium">
-                      {r.checkInTime || "—"}
+                      {r.checkIn || "—"}
                     </TableCell>
                     <TableCell className="text-xs font-mono text-muted-foreground">
-                      {r.checkOutTime || "—"}
+                      {r.checkOut || "—"}
                     </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="text-[10px]">
-                        {r.method}
-                      </Badge>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {r.markedBy || "Biometric"}
                     </TableCell>
                     <TableCell>
                       <Badge variant={statusVariant(r.status) as any} className="text-[10px]">
@@ -195,33 +193,33 @@ export function AttendanceDirectoryView() {
         {/* Tab 2: Summaries */}
         <TabsContent value="summary" className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
-            {summaries.map((s) => (
-              <Card key={s.id} className="border-border/80 shadow-2xs">
+            {summaries.map((s, idx) => (
+              <Card key={`${s.date}-${idx}`} className="border-border/80 shadow-2xs">
                 <CardContent className="p-4 space-y-2">
                   <div className="flex justify-between items-start">
                     <div>
                       <span className="font-bold text-sm block">{formatDate(s.date)}</span>
-                      <span className="text-[11px] text-muted-foreground">{s.branchName}</span>
+                      <span className="text-[11px] text-muted-foreground">{s.category}</span>
                     </div>
                     <Badge variant="outline" className="text-xs font-bold text-primary">
-                      {s.attendanceRate}%
+                      {s.rate}%
                     </Badge>
                   </div>
                   <div className="grid grid-cols-4 gap-1 text-center text-xs pt-2 border-t">
                     <div>
-                      <span className="block font-bold text-emerald-600">{s.presentCount}</span>
+                      <span className="block font-bold text-emerald-600">{s.present}</span>
                       <span className="text-[10px] text-muted-foreground">Pres</span>
                     </div>
                     <div>
-                      <span className="block font-bold text-amber-600">{s.lateCount}</span>
+                      <span className="block font-bold text-amber-600">{s.late}</span>
                       <span className="text-[10px] text-muted-foreground">Late</span>
                     </div>
                     <div>
-                      <span className="block font-bold text-rose-600">{s.absentCount}</span>
+                      <span className="block font-bold text-rose-600">{s.absent}</span>
                       <span className="text-[10px] text-muted-foreground">Abs</span>
                     </div>
                     <div>
-                      <span className="block font-bold text-blue-600">{s.leaveCount}</span>
+                      <span className="block font-bold text-blue-600">{s.leave}</span>
                       <span className="text-[10px] text-muted-foreground">Leave</span>
                     </div>
                   </div>
@@ -251,10 +249,10 @@ export function AttendanceDirectoryView() {
                     <TableCell className="font-semibold text-sm">{e.personName}</TableCell>
                     <TableCell className="text-xs font-mono">{e.totalDays}</TableCell>
                     <TableCell className="text-xs font-mono font-bold text-emerald-600">
-                      {e.presentDays}
+                      {e.present}
                     </TableCell>
-                    <TableCell className="text-xs font-mono text-amber-600">{e.lateDays}</TableCell>
-                    <TableCell className="text-xs font-mono text-rose-600">{e.absentDays}</TableCell>
+                    <TableCell className="text-xs font-mono text-amber-600">{e.late}</TableCell>
+                    <TableCell className="text-xs font-mono text-rose-600">{e.absent}</TableCell>
                     <TableCell>
                       <Badge
                         variant={e.rate >= 90 ? "success" : e.rate >= 75 ? "warning" : "destructive"}
