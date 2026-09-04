@@ -1,9 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect } from "react";
 import { useERP } from "@/components/providers/erp-provider";
 import { mockDb } from "@/lib/services/mock-db";
 import { ClassRoom } from "@/types";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import {
   Dialog,
   DialogContent,
@@ -30,56 +33,88 @@ interface ClassFormDialogProps {
   onSuccess?: () => void;
 }
 
+const classSchema = z.object({
+  name: z.string().min(1, "Class name is required (e.g. Grade 10)"),
+  gradeLevel: z.number().min(1).max(12),
+  category: z.string().min(1),
+  branchId: z.string().min(1),
+  capacity: z.number().min(1, "Capacity must be greater than 0"),
+  description: z.string().optional(),
+  sectionName: z.string().min(1),
+  roomNumber: z.string().min(1),
+  classTeacherId: z.string().min(1),
+});
+
+type ClassFormValues = z.infer<typeof classSchema>;
+
 export function ClassFormDialog({ open, onOpenChange, onSuccess }: ClassFormDialogProps) {
   const { branches, activeBranchId } = useERP();
-  const [teachers] = useState(() => mockDb.getTeachers());
+  const [teachers] = React.useState(() => mockDb.getTeachers());
 
-  const [formData, setFormData] = useState({
-    name: "",
-    gradeLevel: 10,
-    category: "High School" as ClassRoom["category"],
-    branchId: activeBranchId !== "all" ? activeBranchId : "br-apex-01",
-    capacity: 120,
-    description: "",
-    sectionName: "Section A",
-    roomNumber: "Room 101",
-    classTeacherId: teachers[0]?.id || "tch-01",
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<ClassFormValues>({
+    resolver: zodResolver(classSchema),
+    defaultValues: {
+      name: "",
+      gradeLevel: 10,
+      category: "High School",
+      branchId: activeBranchId !== "all" ? activeBranchId : "br-apex-01",
+      capacity: 120,
+      description: "",
+      sectionName: "Section A",
+      roomNumber: "Room 101",
+      classTeacherId: teachers[0]?.id || "tch-01",
+    },
   });
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const category = watch("category");
+  const branchId = watch("branchId");
+  const classTeacherId = watch("classTeacherId");
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.name.trim()) {
-      setError("Class name is required (e.g. Grade 10)");
-      return;
+  useEffect(() => {
+    if (open) {
+      reset({
+        name: "",
+        gradeLevel: 10,
+        category: "High School",
+        branchId: activeBranchId !== "all" ? activeBranchId : "br-apex-01",
+        capacity: 120,
+        description: "",
+        sectionName: "Section A",
+        roomNumber: "Room 101",
+        classTeacherId: teachers[0]?.id || "tch-01",
+      });
     }
+  }, [open, activeBranchId, reset, teachers]);
 
-    setIsSubmitting(true);
-    setError(null);
-
-    const targetBranch = branches.find((b) => b.id === formData.branchId) || branches[0];
-    const assignedTeacher = teachers.find((t) => t.id === formData.classTeacherId) || teachers[0];
+  const onSubmit = (data: ClassFormValues) => {
+    const targetBranch = branches.find((b) => b.id === data.branchId) || branches[0];
+    const assignedTeacher = teachers.find((t) => t.id === data.classTeacherId) || teachers[0];
 
     const classPayload: Omit<ClassRoom, "id"> = {
-      name: formData.name,
-      gradeLevel: Number(formData.gradeLevel),
-      category: formData.category,
+      name: data.name,
+      gradeLevel: Number(data.gradeLevel),
+      category: data.category as ClassRoom["category"],
       branchId: targetBranch.id,
       branchName: targetBranch.name,
       totalStudents: 32,
-      capacity: Number(formData.capacity),
-      description: formData.description || `${formData.name} academic curriculum and subject tracks.`,
+      capacity: Number(data.capacity),
+      description: data.description || `${data.name} academic curriculum and subject tracks.`,
       sections: [
         {
           id: `sec-${Date.now().toString(36)}`,
-          name: formData.sectionName,
-          roomNumber: formData.roomNumber,
+          name: data.sectionName,
+          roomNumber: data.roomNumber,
           classTeacherId: assignedTeacher?.id || "tch-01",
           classTeacherName: assignedTeacher?.fullName || "Assigned Teacher",
           studentCount: 32,
-          capacity: Math.round(Number(formData.capacity) / 3),
+          capacity: Math.round(Number(data.capacity) / 3),
         },
       ],
       subjects: [
@@ -90,7 +125,6 @@ export function ClassFormDialog({ open, onOpenChange, onSuccess }: ClassFormDial
 
     setTimeout(() => {
       mockDb.saveClass(classPayload);
-      setIsSubmitting(false);
       onOpenChange(false);
       if (onSuccess) onSuccess();
     }, 400);
@@ -113,23 +147,17 @@ export function ClassFormDialog({ open, onOpenChange, onSuccess }: ClassFormDial
           </div>
         </DialogHeader>
 
-        {error && (
-          <div className="p-2.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-600 text-xs font-medium">
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-4 mt-2">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-2">
           <div>
             <label className="text-xs font-medium text-foreground mb-1 block">
               Class / Grade Name <span className="text-rose-500">*</span>
             </label>
             <Input
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              {...register("name")}
               placeholder="e.g. Grade 10 or Kindergarten Prep"
-              required
+              className={errors.name ? "border-rose-500" : ""}
             />
+            {errors.name && <p className="text-[11px] text-rose-500 mt-1">{errors.name.message}</p>}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -137,16 +165,12 @@ export function ClassFormDialog({ open, onOpenChange, onSuccess }: ClassFormDial
               <label className="text-xs font-medium text-foreground mb-1 block">Grade Level (Numeric)</label>
               <Input
                 type="number"
-                value={formData.gradeLevel}
-                onChange={(e) => setFormData({ ...formData, gradeLevel: Number(e.target.value) })}
+                {...register("gradeLevel", { valueAsNumber: true })}
               />
             </div>
             <div>
               <label className="text-xs font-medium text-foreground mb-1 block">Category</label>
-              <Select
-                value={formData.category}
-                onValueChange={(val: any) => setFormData({ ...formData, category: val })}
-              >
+              <Select value={category} onValueChange={(val) => setValue("category", val)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Category" />
                 </SelectTrigger>
@@ -164,10 +188,7 @@ export function ClassFormDialog({ open, onOpenChange, onSuccess }: ClassFormDial
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-medium text-foreground mb-1 block">Campus Branch</label>
-              <Select
-                value={formData.branchId}
-                onValueChange={(val) => setFormData({ ...formData, branchId: val })}
-              >
+              <Select value={branchId} onValueChange={(val) => setValue("branchId", val)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Campus" />
                 </SelectTrigger>
@@ -184,9 +205,9 @@ export function ClassFormDialog({ open, onOpenChange, onSuccess }: ClassFormDial
               <label className="text-xs font-medium text-foreground mb-1 block">Class Capacity</label>
               <Input
                 type="number"
-                value={formData.capacity}
-                onChange={(e) => setFormData({ ...formData, capacity: Number(e.target.value) })}
+                {...register("capacity", { valueAsNumber: true })}
               />
+              {errors.capacity && <p className="text-[11px] text-rose-500 mt-1">{errors.capacity.message}</p>}
             </div>
           </div>
 
@@ -197,8 +218,7 @@ export function ClassFormDialog({ open, onOpenChange, onSuccess }: ClassFormDial
               <div>
                 <label className="text-[11px] text-muted-foreground block mb-0.5">Section Name</label>
                 <Input
-                  value={formData.sectionName}
-                  onChange={(e) => setFormData({ ...formData, sectionName: e.target.value })}
+                  {...register("sectionName")}
                   placeholder="Section A"
                   className="h-8 text-xs"
                 />
@@ -206,8 +226,7 @@ export function ClassFormDialog({ open, onOpenChange, onSuccess }: ClassFormDial
               <div>
                 <label className="text-[11px] text-muted-foreground block mb-0.5">Room Number</label>
                 <Input
-                  value={formData.roomNumber}
-                  onChange={(e) => setFormData({ ...formData, roomNumber: e.target.value })}
+                  {...register("roomNumber")}
                   placeholder="Room 101"
                   className="h-8 text-xs"
                 />
@@ -216,10 +235,7 @@ export function ClassFormDialog({ open, onOpenChange, onSuccess }: ClassFormDial
 
             <div>
               <label className="text-[11px] text-muted-foreground block mb-0.5">Assigned Class Teacher</label>
-              <Select
-                value={formData.classTeacherId}
-                onValueChange={(val) => setFormData({ ...formData, classTeacherId: val })}
-              >
+              <Select value={classTeacherId} onValueChange={(val) => setValue("classTeacherId", val)}>
                 <SelectTrigger className="h-8 text-xs">
                   <SelectValue placeholder="Select Teacher" />
                 </SelectTrigger>
@@ -237,8 +253,7 @@ export function ClassFormDialog({ open, onOpenChange, onSuccess }: ClassFormDial
           <div>
             <label className="text-xs font-medium text-foreground mb-1 block">Description</label>
             <Textarea
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              {...register("description")}
               placeholder="Curriculum track, honors requirements, AP course offerings..."
               rows={2}
             />

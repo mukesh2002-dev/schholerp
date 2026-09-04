@@ -26,36 +26,61 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { NoticePriority } from "@/types";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+
+const noticeSchema = z.object({
+  title: z.string().min(1, "Notice title is required"),
+  content: z.string().min(1, "Content is required"),
+  priority: z.string().min(1),
+  category: z.string().min(1),
+  branchId: z.string().min(1),
+});
+
+type NoticeFormValues = z.infer<typeof noticeSchema>;
 
 export function NoticeBoard() {
   const { activeBranchId, branches } = useERP();
   const [notices, setNotices] = useState(() => mockDb.getNotices(activeBranchId));
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const [newTitle, setNewTitle] = useState("");
-  const [newContent, setNewContent] = useState("");
-  const [newPriority, setNewPriority] = useState<NoticePriority>("NORMAL");
-  const [newCategory, setNewCategory] = useState<"Academic" | "Administrative" | "Event" | "Holiday" | "Emergency" | "Transport">("Administrative");
-  const [targetBranch, setTargetBranch] = useState("all");
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<NoticeFormValues>({
+    resolver: zodResolver(noticeSchema),
+    defaultValues: {
+      title: "",
+      content: "",
+      priority: "NORMAL",
+      category: "Administrative",
+      branchId: "all",
+    },
+  });
 
-  const handlePostNotice = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newTitle.trim() || !newContent.trim()) return;
+  const priority = watch("priority");
+  const category = watch("category");
+  const branchId = watch("branchId");
 
+  const handlePostNotice = (data: NoticeFormValues) => {
     const created = mockDb.addNotice({
-      title: newTitle,
-      content: newContent,
-      priority: newPriority,
-      category: newCategory,
-      branchId: targetBranch,
+      title: data.title,
+      content: data.content,
+      priority: data.priority as NoticePriority,
+      category: data.category as any,
+      branchId: data.branchId,
       author: "School Administration",
       targetAudience: ["ALL"],
     });
 
     setNotices(mockDb.getNotices(activeBranchId));
     setDialogOpen(false);
-    setNewTitle("");
-    setNewContent("");
+    reset();
   };
 
   const priorityVariant = (priority: string) => {
@@ -129,21 +154,21 @@ export function NoticeBoard() {
               Broadcast an urgent announcement or circular across chosen campuses.
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handlePostNotice} className="space-y-4 mt-2">
+          <form onSubmit={handleSubmit(handlePostNotice)} className="space-y-4 mt-2">
             <div>
               <label className="text-xs font-medium text-foreground mb-1 block">Notice Title</label>
               <Input
-                value={newTitle}
-                onChange={(e) => setNewTitle(e.target.value)}
+                {...register("title")}
                 placeholder="e.g. Early Dismissal for Annual Sports Meet"
-                required
+                className={errors.title ? "border-rose-500" : ""}
               />
+              {errors.title && <p className="text-[11px] text-rose-500 mt-1">{errors.title.message}</p>}
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-medium text-foreground mb-1 block">Priority</label>
-                <Select value={newPriority} onValueChange={(val) => setNewPriority(val as NoticePriority)}>
+                <Select value={priority} onValueChange={(val) => setValue("priority", val)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Priority" />
                   </SelectTrigger>
@@ -158,7 +183,7 @@ export function NoticeBoard() {
 
               <div>
                 <label className="text-xs font-medium text-foreground mb-1 block">Category</label>
-                <Select value={newCategory} onValueChange={(val: any) => setNewCategory(val)}>
+                <Select value={category} onValueChange={(val) => setValue("category", val)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Category" />
                   </SelectTrigger>
@@ -176,7 +201,7 @@ export function NoticeBoard() {
 
             <div>
               <label className="text-xs font-medium text-foreground mb-1 block">Target Campus</label>
-              <Select value={targetBranch} onValueChange={setTargetBranch}>
+              <Select value={branchId} onValueChange={(val) => setValue("branchId", val)}>
                 <SelectTrigger>
                   <SelectValue placeholder="All Campuses" />
                 </SelectTrigger>
@@ -194,19 +219,19 @@ export function NoticeBoard() {
             <div>
               <label className="text-xs font-medium text-foreground mb-1 block">Content & Details</label>
               <Textarea
-                value={newContent}
-                onChange={(e) => setNewContent(e.target.value)}
+                {...register("content")}
                 placeholder="Write announcement details here..."
                 rows={4}
-                required
+                className={errors.content ? "border-rose-500" : ""}
               />
+              {errors.content && <p className="text-[11px] text-rose-500 mt-1">{errors.content.message}</p>}
             </div>
 
             <DialogFooter className="gap-2">
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit" variant="gradient">
+              <Button type="submit" disabled={isSubmitting} variant="gradient">
                 Publish Circular
               </Button>
             </DialogFooter>

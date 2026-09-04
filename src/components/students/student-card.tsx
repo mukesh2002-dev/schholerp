@@ -24,6 +24,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { AppImage } from "@/components/ui/app-image";
 import { formatCurrency } from "@/lib/utils";
 
 interface StudentCardProps {
@@ -31,22 +32,22 @@ interface StudentCardProps {
   onEdit: (student: Student) => void;
 }
 
-export function StudentCard({ student, onEdit }: StudentCardProps) {
-  const statusVariant = (status: string) => {
-    switch (status) {
-      case "ACTIVE":
-        return "success";
-      case "GRADUATED":
-        return "purple";
-      case "TRANSFERRED":
-        return "warning";
-      case "SUSPENDED":
-        return "destructive";
-      default:
-        return "secondary";
-    }
-  };
+function statusVariant(status: string) {
+  switch (status) {
+    case "ACTIVE":
+      return "success";
+    case "GRADUATED":
+      return "purple";
+    case "TRANSFERRED":
+      return "warning";
+    case "SUSPENDED":
+      return "destructive";
+    default:
+      return "secondary";
+  }
+}
 
+export const StudentCard = React.memo(function StudentCard({ student, onEdit }: StudentCardProps) {
   const feeBadge = (status: string) => {
     switch (status) {
       case "PAID":
@@ -67,10 +68,10 @@ export function StudentCard({ student, onEdit }: StudentCardProps) {
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <div className="relative shrink-0">
-              <img
+              <AppImage
                 src={student.avatar}
                 alt={student.fullName}
-                className="h-12 w-12 rounded-xl object-cover ring-1 ring-border shadow-2xs"
+                className="h-12 w-12 rounded-xl ring-1 ring-border shadow-2xs"
               />
               <span className="absolute -bottom-1 -right-1 text-[9px] font-bold px-1 rounded bg-secondary text-secondary-foreground border border-border">
                 {student.bloodGroup}
@@ -155,4 +156,4 @@ export function StudentCard({ student, onEdit }: StudentCardProps) {
       </CardContent>
     </Card>
   );
-}
+});

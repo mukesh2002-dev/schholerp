@@ -1,15 +1,10 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/providers/theme-provider";
+import { SettingsProvider } from "@/components/providers/settings-provider";
 import { ERPProvider } from "@/components/providers/erp-provider";
 import { AppLayoutShell } from "@/components/layout/app-layout-shell";
 import { Toaster } from "sonner";
-
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-});
 
 export const metadata: Metadata = {
   title: "Apex School ERP — Multi-Campus Management Platform",
@@ -26,13 +21,15 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body
         suppressHydrationWarning
-        className={`${inter.variable} font-sans antialiased min-h-screen bg-background text-foreground`}
+        className="font-sans antialiased min-h-screen bg-background text-foreground"
       >
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          <ERPProvider>
-            <AppLayoutShell>{children}</AppLayoutShell>
-            <Toaster richColors position="top-right" closeButton />
-          </ERPProvider>
+          <SettingsProvider>
+            <ERPProvider>
+              <AppLayoutShell>{children}</AppLayoutShell>
+              <Toaster richColors position="top-right" closeButton />
+            </ERPProvider>
+          </SettingsProvider>
         </ThemeProvider>
       </body>
     </html>

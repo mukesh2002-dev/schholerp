@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { useERP } from "@/components/providers/erp-provider";
 import { mockDb } from "@/lib/services/mock-db";
@@ -11,6 +11,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ListPagination } from "@/components/ui/list-pagination";
+import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
+import { usePagination } from "@/lib/hooks/use-pagination";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { toast } from "sonner";
 import { CreditCard, Receipt, AlertTriangle, Search, ExternalLink, Send, CheckCircle2 } from "lucide-react";
@@ -24,22 +27,40 @@ export function FeesDirectoryView() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
 
-  const refresh = () => {
+  // Debounce search so filtering doesn't run on every keystroke
+  const debouncedSearch = useDebouncedValue(search, 300);
+
+  const refresh = useCallback(() => {
     setAssignments([...mockDb.getFeeAssignments(activeBranchId)]);
     setInvoices([...mockDb.getInvoices(activeBranchId)]);
-  };
+  }, [activeBranchId]);
 
   const filteredInvoices = useMemo(() => {
+    const q = debouncedSearch.trim().toLowerCase();
     return invoices.filter((inv) => {
       const matchSearch =
-        inv.studentName.toLowerCase().includes(search.toLowerCase()) ||
-        inv.invoiceNumber.toLowerCase().includes(search.toLowerCase());
+        q === "" ||
+        inv.studentName.toLowerCase().includes(q) ||
+        inv.invoiceNumber.toLowerCase().includes(q);
       const matchStatus = statusFilter === "ALL" || inv.status === statusFilter;
       return matchSearch && matchStatus;
     });
-  }, [invoices, search, statusFilter]);
+  }, [invoices, debouncedSearch, statusFilter]);
 
-  const handlePay = (invoiceId: string) => {
+  const {
+    page: invoicePage,
+    totalPages: invoiceTotalPages,
+    totalItems: invoiceTotalItems,
+    pageItems: invoicePageItems,
+    setPage: setInvoicePage,
+  } = usePagination(filteredInvoices, 10);
+
+  const defaulters = useMemo(
+    () => assignments.filter((a) => a.status === "PENDING" || a.status === "OVERDUE"),
+    [assignments]
+  );
+
+  const handlePay = useCallback((invoiceId: string) => {
     const inv = invoices.find((i) => i.id === invoiceId);
     if (!inv) return;
     const amount = inv.balanceAmount;
@@ -52,13 +73,13 @@ export function FeesDirectoryView() {
       description: "Receipt generated and sent to parent.",
     });
     refresh();
-  };
+  }, [invoices, refresh]);
 
-  const handleReminder = (studentName: string) => {
+  const handleReminder = useCallback((studentName: string) => {
     toast.info(`Reminder sent to ${studentName}`, {
       description: "SMS + Email dues reminder dispatched.",
     });
-  };
+  }, []);
 
   return (
     <div className="space-y-4">
@@ -69,7 +90,7 @@ export function FeesDirectoryView() {
           </TabsTrigger>
           <TabsTrigger value="dues" className="gap-1.5 text-xs">
             <AlertTriangle className="h-3.5 w-3.5" /> Dues Defaulters (
-            {assignments.filter((a) => a.status === "PENDING" || a.status === "OVERDUE").length})
+            {defaulters.length})
           </TabsTrigger>
           <TabsTrigger value="structures" className="gap-1.5 text-xs">
             <CreditCard className="h-3.5 w-3.5" /> Fee Heads ({structures.length})
@@ -121,7 +142,7 @@ export function FeesDirectoryView() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredInvoices.map((inv) => (
+                {invoicePageItems.map((inv) => (
                   <TableRow key={inv.id} className="hover:bg-muted/40 transition-colors">
                     <TableCell className="font-mono font-bold text-xs">{inv.invoiceNumber}</TableCell>
                     <TableCell>
@@ -181,6 +202,16 @@ export function FeesDirectoryView() {
               </TableBody>
             </Table>
           </div>
+          {filteredInvoices.length > 0 && (
+            <ListPagination
+              page={invoicePage}
+              totalPages={invoiceTotalPages}
+              totalItems={invoiceTotalItems}
+              pageSize={10}
+              onPageChange={setInvoicePage}
+              label="invoices"
+            />
+          )}
         </TabsContent>
 
         {/* Tab 2: Dues Defaulters */}
@@ -200,9 +231,7 @@ export function FeesDirectoryView() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {assignments
-                  .filter((a) => a.status === "PENDING" || a.status === "OVERDUE")
-                  .map((a) => (
+                {defaulters.map((a) => (
                     <TableRow key={a.id} className="hover:bg-muted/40">
                       <TableCell>
                         <span className="font-semibold text-sm">{a.studentName}</span>

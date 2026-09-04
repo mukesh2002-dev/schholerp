@@ -35,6 +35,7 @@ import {
   ChevronLeft,
   Library,
   Heart,
+  Settings,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -116,6 +117,7 @@ const navGroups: NavGroup[] = [
     items: [
       { title: "Builds", href: "/builds", icon: Rocket, badge: "9" },
       { title: "Deployments", href: "/deployments", icon: Server, badge: "9" },
+      { title: "Settings", href: "/settings", icon: Settings },
     ],
   },
 ];

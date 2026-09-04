@@ -25,6 +25,20 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { HomeworkStatus } from "@/types";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+
+const homeworkSchema = z.object({
+  title: z.string().min(1, "Task title is required"),
+  description: z.string().optional(),
+  classId: z.string().min(1, "Class is required"),
+  teacherId: z.string().min(1, "Teacher is required"),
+  dueDate: z.string().min(1, "Due date is required"),
+  maxMarks: z.string().optional(),
+});
+
+type HomeworkFormValues = z.infer<typeof homeworkSchema>;
 
 export function HomeworkHeader({ onHomeworkAdded }: { onHomeworkAdded?: () => void }) {
   const { activeBranchId } = useERP();
@@ -33,44 +47,56 @@ export function HomeworkHeader({ onHomeworkAdded }: { onHomeworkAdded?: () => vo
   const teachers = mockDb.getTeachers(activeBranchId);
 
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [newTitle, setNewTitle] = useState("");
-  const [newDescription, setNewDescription] = useState("");
-  const [newClassId, setNewClassId] = useState("");
-  const [newTeacherId, setNewTeacherId] = useState("");
-  const [newDueDate, setNewDueDate] = useState("");
-  const [newMaxMarks, setNewMaxMarks] = useState("100");
 
-  const handleCreateHomework = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newTitle.trim() || !newClassId || !newTeacherId || !newDueDate) return;
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<HomeworkFormValues>({
+    resolver: zodResolver(homeworkSchema),
+    defaultValues: {
+      title: "",
+      description: "",
+      classId: "",
+      teacherId: "",
+      dueDate: "",
+      maxMarks: "100",
+    },
+  });
 
-    const selectedClass = classes.find((c) => c.id === newClassId);
-    const selectedTeacher = teachers.find((t) => t.id === newTeacherId);
+  const classId = watch("classId");
+  const teacherId = watch("teacherId");
+
+  const handleCreateHomework = (data: HomeworkFormValues) => {
+    const selectedClass = classes.find((c) => c.id === data.classId);
+    const selectedTeacher = teachers.find((t) => t.id === data.teacherId);
 
     mockDb.saveHomework({
-      title: newTitle,
-      description: newDescription,
-      classId: newClassId,
+      title: data.title,
+      description: data.description || "",
+      classId: data.classId,
       className: selectedClass?.name || "",
       sectionId: selectedClass?.sections[0]?.id || "sec-1",
       sectionName: selectedClass?.sections[0]?.name || "A",
       subjectId: selectedClass?.subjects[0]?.id || "sub-1",
       subjectName: selectedClass?.subjects[0]?.name || "General",
       subjectCode: "GEN-101",
-      teacherId: newTeacherId,
+      teacherId: data.teacherId,
       teacherName: selectedTeacher?.fullName || "",
       branchId: activeBranchId === "all" ? "br-apex-01" : activeBranchId,
       branchName: selectedClass?.branchName || "Main Campus",
       assignedDate: new Date().toISOString(),
-      dueDate: new Date(newDueDate).toISOString(),
-      maxMarks: Number(newMaxMarks) || 100,
+      dueDate: new Date(data.dueDate).toISOString(),
+      maxMarks: Number(data.maxMarks) || 100,
       status: "ACTIVE" as HomeworkStatus,
       attachments: [],
     });
 
     setDialogOpen(false);
-    setNewTitle("");
-    setNewDescription("");
+    reset();
     if (onHomeworkAdded) onHomeworkAdded();
   };
 
@@ -111,22 +137,22 @@ export function HomeworkHeader({ onHomeworkAdded }: { onHomeworkAdded?: () => vo
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleCreateHomework} className="space-y-3.5 mt-2">
+          <form onSubmit={handleSubmit(handleCreateHomework)} className="space-y-3.5 mt-2">
             <div>
               <label className="text-xs font-medium text-foreground mb-1 block">Task Title</label>
               <Input
-                value={newTitle}
-                onChange={(e) => setNewTitle(e.target.value)}
+                {...register("title")}
                 placeholder="e.g. Chapter 4 Trigonometry Problem Set"
-                required
+                className={errors.title ? "border-rose-500" : ""}
               />
+              {errors.title && <p className="text-[11px] text-rose-500 mt-1">{errors.title.message}</p>}
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-medium text-foreground mb-1 block">Class Cohort</label>
-                <Select value={newClassId} onValueChange={setNewClassId} required>
-                  <SelectTrigger>
+                <Select value={classId} onValueChange={(val) => setValue("classId", val)}>
+                  <SelectTrigger className={errors.classId ? "border-rose-500" : ""}>
                     <SelectValue placeholder="Select Class" />
                   </SelectTrigger>
                   <SelectContent>
@@ -137,12 +163,13 @@ export function HomeworkHeader({ onHomeworkAdded }: { onHomeworkAdded?: () => vo
                     ))}
                   </SelectContent>
                 </Select>
+                {errors.classId && <p className="text-[11px] text-rose-500 mt-1">{errors.classId.message}</p>}
               </div>
 
               <div>
                 <label className="text-xs font-medium text-foreground mb-1 block">Instructor</label>
-                <Select value={newTeacherId} onValueChange={setNewTeacherId} required>
-                  <SelectTrigger>
+                <Select value={teacherId} onValueChange={(val) => setValue("teacherId", val)}>
+                  <SelectTrigger className={errors.teacherId ? "border-rose-500" : ""}>
                     <SelectValue placeholder="Assign Teacher" />
                   </SelectTrigger>
                   <SelectContent>
@@ -153,6 +180,7 @@ export function HomeworkHeader({ onHomeworkAdded }: { onHomeworkAdded?: () => vo
                     ))}
                   </SelectContent>
                 </Select>
+                {errors.teacherId && <p className="text-[11px] text-rose-500 mt-1">{errors.teacherId.message}</p>}
               </div>
             </div>
 
@@ -161,18 +189,17 @@ export function HomeworkHeader({ onHomeworkAdded }: { onHomeworkAdded?: () => vo
                 <label className="text-xs font-medium text-foreground mb-1 block">Due Date</label>
                 <Input
                   type="date"
-                  value={newDueDate}
-                  onChange={(e) => setNewDueDate(e.target.value)}
-                  required
+                  {...register("dueDate")}
+                  className={errors.dueDate ? "border-rose-500" : ""}
                 />
+                {errors.dueDate && <p className="text-[11px] text-rose-500 mt-1">{errors.dueDate.message}</p>}
               </div>
 
               <div>
                 <label className="text-xs font-medium text-foreground mb-1 block">Max Marks</label>
                 <Input
                   type="number"
-                  value={newMaxMarks}
-                  onChange={(e) => setNewMaxMarks(e.target.value)}
+                  {...register("maxMarks")}
                   placeholder="100"
                 />
               </div>
@@ -181,8 +208,7 @@ export function HomeworkHeader({ onHomeworkAdded }: { onHomeworkAdded?: () => vo
             <div>
               <label className="text-xs font-medium text-foreground mb-1 block">Instructions</label>
               <Textarea
-                value={newDescription}
-                onChange={(e) => setNewDescription(e.target.value)}
+                {...register("description")}
                 placeholder="Detail the instructions or problem numbers..."
                 rows={3}
               />
@@ -192,7 +218,7 @@ export function HomeworkHeader({ onHomeworkAdded }: { onHomeworkAdded?: () => vo
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit" variant="gradient">
+              <Button type="submit" disabled={isSubmitting} variant="gradient">
                 Publish Task
               </Button>
             </DialogFooter>

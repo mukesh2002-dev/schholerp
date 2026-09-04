@@ -1,9 +1,12 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useERP } from "@/components/providers/erp-provider";
 import { mockDb } from "@/lib/services/mock-db";
 import { Student, StudentStatus } from "@/types";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import {
   Dialog,
   DialogContent,
@@ -21,7 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { GraduationCap, Sparkles } from "lucide-react";
+import { GraduationCap } from "lucide-react";
 
 interface StudentFormDialogProps {
   open: boolean;
@@ -29,6 +32,29 @@ interface StudentFormDialogProps {
   studentToEdit?: Student | null;
   onSuccess?: () => void;
 }
+
+const studentSchema = z.object({
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
+  gender: z.string().min(1),
+  dateOfBirth: z.string().min(1),
+  bloodGroup: z.string().min(1),
+  branchId: z.string().min(1),
+  classId: z.string().min(1),
+  sectionId: z.string().min(1),
+  status: z.string().min(1),
+  guardianName: z.string().min(1, "Guardian name is required"),
+  guardianRelation: z.string().min(1),
+  guardianEmail: z.string().min(1, "Guardian email is required").email("Invalid email"),
+  guardianPhone: z.string().optional(),
+  guardianOccupation: z.string().optional(),
+  address: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  emergencyContact: z.string().optional(),
+});
+
+type StudentFormValues = z.infer<typeof studentSchema>;
 
 export function StudentFormDialog({
   open,
@@ -39,108 +65,112 @@ export function StudentFormDialog({
   const { branches, activeBranchId } = useERP();
   const [classes, setClasses] = useState(() => mockDb.getClasses());
 
-  const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
-    gender: "Male" as "Male" | "Female" | "Other",
-    dateOfBirth: "2010-06-15",
-    bloodGroup: "O+",
-    branchId: activeBranchId !== "all" ? activeBranchId : "br-apex-01",
-    classId: "cls-g10",
-    sectionId: "sec-g10-a",
-    status: "ACTIVE" as StudentStatus,
-    guardianName: "",
-    guardianRelation: "Father" as "Father" | "Mother" | "Guardian",
-    guardianEmail: "",
-    guardianPhone: "",
-    guardianOccupation: "",
-    address: "",
-    city: "Metro City",
-    state: "CA",
-    emergencyContact: "",
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<StudentFormValues>({
+    resolver: zodResolver(studentSchema),
+    defaultValues: {
+      firstName: "",
+      lastName: "",
+      gender: "Male",
+      dateOfBirth: "2010-06-15",
+      bloodGroup: "O+",
+      branchId: activeBranchId !== "all" ? activeBranchId : "br-apex-01",
+      classId: "cls-g10",
+      sectionId: "sec-g10-a",
+      status: "ACTIVE",
+      guardianName: "",
+      guardianRelation: "Father",
+      guardianEmail: "",
+      guardianPhone: "",
+      guardianOccupation: "",
+      address: "",
+      city: "Metro City",
+      state: "CA",
+      emergencyContact: "",
+    },
   });
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const gender = watch("gender");
+  const bloodGroup = watch("bloodGroup");
+  const branchId = watch("branchId");
+  const classId = watch("classId");
+  const sectionId = watch("sectionId");
+  const status = watch("status");
+  const guardianRelation = watch("guardianRelation");
+
+  const selectedClass = classes.find((c) => c.id === classId) || classes[0];
 
   useEffect(() => {
     const loadedClasses = mockDb.getClasses();
     setClasses(loadedClasses);
-    if (studentToEdit) {
-      setFormData({
-        firstName: studentToEdit.firstName,
-        lastName: studentToEdit.lastName,
-        gender: studentToEdit.gender,
-        dateOfBirth: studentToEdit.dateOfBirth,
-        bloodGroup: studentToEdit.bloodGroup,
-        branchId: studentToEdit.branchId,
-        classId: studentToEdit.classId,
-        sectionId: studentToEdit.sectionId,
-        status: studentToEdit.status,
-        guardianName: studentToEdit.guardian.name,
-        guardianRelation: studentToEdit.guardian.relation as any,
-        guardianEmail: studentToEdit.guardian.email,
-        guardianPhone: studentToEdit.guardian.phone,
-        guardianOccupation: studentToEdit.guardian.occupation,
-        address: studentToEdit.address,
-        city: studentToEdit.city,
-        state: studentToEdit.state,
-        emergencyContact: studentToEdit.guardian.emergencyContact,
-      });
-    } else {
-      setFormData({
-        firstName: "",
-        lastName: "",
-        gender: "Male",
-        dateOfBirth: "2010-06-15",
-        bloodGroup: "O+",
-        branchId: activeBranchId !== "all" ? activeBranchId : "br-apex-01",
-        classId: loadedClasses[0]?.id || "cls-g10",
-        sectionId: loadedClasses[0]?.sections[0]?.id || "sec-g10-a",
-        status: "ACTIVE",
-        guardianName: "",
-        guardianRelation: "Father",
-        guardianEmail: "",
-        guardianPhone: "",
-        guardianOccupation: "Executive",
-        address: "500 Horizon Boulevard",
-        city: "Metro City",
-        state: "CA",
-        emergencyContact: "+1 (555) 234-9988",
-      });
+    if (open) {
+      if (studentToEdit) {
+        reset({
+          firstName: studentToEdit.firstName,
+          lastName: studentToEdit.lastName,
+          gender: studentToEdit.gender,
+          dateOfBirth: studentToEdit.dateOfBirth,
+          bloodGroup: studentToEdit.bloodGroup,
+          branchId: studentToEdit.branchId,
+          classId: studentToEdit.classId,
+          sectionId: studentToEdit.sectionId,
+          status: studentToEdit.status,
+          guardianName: studentToEdit.guardian.name,
+          guardianRelation: studentToEdit.guardian.relation,
+          guardianEmail: studentToEdit.guardian.email,
+          guardianPhone: studentToEdit.guardian.phone,
+          guardianOccupation: studentToEdit.guardian.occupation,
+          address: studentToEdit.address,
+          city: studentToEdit.city,
+          state: studentToEdit.state,
+          emergencyContact: studentToEdit.guardian.emergencyContact,
+        });
+      } else {
+        reset({
+          firstName: "",
+          lastName: "",
+          gender: "Male",
+          dateOfBirth: "2010-06-15",
+          bloodGroup: "O+",
+          branchId: activeBranchId !== "all" ? activeBranchId : "br-apex-01",
+          classId: loadedClasses[0]?.id || "cls-g10",
+          sectionId: loadedClasses[0]?.sections[0]?.id || "sec-g10-a",
+          status: "ACTIVE",
+          guardianName: "",
+          guardianRelation: "Father",
+          guardianEmail: "",
+          guardianPhone: "",
+          guardianOccupation: "Executive",
+          address: "500 Horizon Boulevard",
+          city: "Metro City",
+          state: "CA",
+          emergencyContact: "+1 (555) 234-9988",
+        });
+      }
     }
-  }, [studentToEdit, open, activeBranchId]);
+  }, [studentToEdit, open, activeBranchId, reset]);
 
-  const selectedClass = classes.find((c) => c.id === formData.classId) || classes[0];
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.firstName.trim() || !formData.lastName.trim()) {
-      setError("First and last name are required");
-      return;
-    }
-    if (!formData.guardianName.trim() || !formData.guardianEmail.trim()) {
-      setError("Guardian contact info is required");
-      return;
-    }
-
-    setIsSubmitting(true);
-    setError(null);
-
-    const targetBranch = branches.find((b) => b.id === formData.branchId) || branches[0];
-    const targetSection = selectedClass?.sections.find((s) => s.id === formData.sectionId) || selectedClass?.sections[0];
+  const onSubmit = (data: StudentFormValues) => {
+    const targetBranch = branches.find((b) => b.id === data.branchId) || branches[0];
+    const targetSection = selectedClass?.sections.find((s) => s.id === data.sectionId) || selectedClass?.sections[0];
 
     const studentPayload: Omit<Student, "id" | "createdAt" | "updatedAt"> & { id?: string } = {
       ...(studentToEdit?.id ? { id: studentToEdit.id } : {}),
       rollNumber: studentToEdit?.rollNumber || `STU-${Math.floor(Math.random() * 800) + 1050}`,
       admissionNumber: studentToEdit?.admissionNumber || `ADM-2026-${Math.floor(Math.random() * 800) + 200}`,
-      firstName: formData.firstName,
-      lastName: formData.lastName,
-      fullName: `${formData.firstName} ${formData.lastName}`,
+      firstName: data.firstName,
+      lastName: data.lastName,
+      fullName: `${data.firstName} ${data.lastName}`,
       avatar: studentToEdit?.avatar || "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150",
-      dateOfBirth: formData.dateOfBirth,
-      gender: formData.gender,
-      bloodGroup: formData.bloodGroup,
+      dateOfBirth: data.dateOfBirth,
+      gender: data.gender as "Male" | "Female" | "Other",
+      bloodGroup: data.bloodGroup,
       branchId: targetBranch.id,
       branchName: targetBranch.name,
       classId: selectedClass?.id || "cls-g10",
@@ -148,15 +178,15 @@ export function StudentFormDialog({
       sectionId: targetSection?.id || "sec-g10-a",
       sectionName: targetSection?.name || "Section A",
       admissionDate: studentToEdit?.admissionDate || new Date().toISOString().split("T")[0],
-      status: formData.status,
+      status: data.status as StudentStatus,
       guardian: {
-        name: formData.guardianName,
-        relation: formData.guardianRelation,
-        email: formData.guardianEmail,
-        phone: formData.guardianPhone || "+1 (555) 234-5678",
-        occupation: formData.guardianOccupation,
-        address: formData.address,
-        emergencyContact: formData.emergencyContact || formData.guardianPhone,
+        name: data.guardianName,
+        relation: data.guardianRelation as "Father" | "Mother" | "Guardian",
+        email: data.guardianEmail,
+        phone: data.guardianPhone || "+1 (555) 234-5678",
+        occupation: data.guardianOccupation || "",
+        address: data.address || "",
+        emergencyContact: data.emergencyContact || data.guardianPhone || "",
       },
       attendanceSummary: studentToEdit?.attendanceSummary || {
         totalDays: 140,
@@ -177,14 +207,13 @@ export function StudentFormDialog({
       documents: studentToEdit?.documents || [
         { id: "doc-std-1", name: "Birth_Certificate.pdf", type: "PDF", uploadedAt: "2026-08-10", verified: true, size: "1.2 MB" },
       ],
-      address: formData.address,
-      city: formData.city,
-      state: formData.state,
+      address: data.address || "",
+      city: data.city || "",
+      state: data.state || "",
     };
 
     setTimeout(() => {
       mockDb.saveStudent(studentPayload);
-      setIsSubmitting(false);
       onOpenChange(false);
       if (onSuccess) onSuccess();
     }, 400);
@@ -209,13 +238,7 @@ export function StudentFormDialog({
           </div>
         </DialogHeader>
 
-        {error && (
-          <div className="p-2.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-600 text-xs font-medium">
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-4 mt-2">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-2">
           {/* Section: Personal Info */}
           <div className="space-y-3">
             <h4 className="text-xs font-semibold text-primary uppercase tracking-wider border-b border-border pb-1">
@@ -227,22 +250,22 @@ export function StudentFormDialog({
                   First Name <span className="text-rose-500">*</span>
                 </label>
                 <Input
-                  value={formData.firstName}
-                  onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                  {...register("firstName")}
                   placeholder="e.g. Liam"
-                  required
+                  className={errors.firstName ? "border-rose-500" : ""}
                 />
+                {errors.firstName && <p className="text-[11px] text-rose-500 mt-1">{errors.firstName.message}</p>}
               </div>
               <div>
                 <label className="text-xs font-medium text-foreground mb-1 block">
                   Last Name <span className="text-rose-500">*</span>
                 </label>
                 <Input
-                  value={formData.lastName}
-                  onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                  {...register("lastName")}
                   placeholder="e.g. Chen"
-                  required
+                  className={errors.lastName ? "border-rose-500" : ""}
                 />
+                {errors.lastName && <p className="text-[11px] text-rose-500 mt-1">{errors.lastName.message}</p>}
               </div>
             </div>
 
@@ -251,16 +274,12 @@ export function StudentFormDialog({
                 <label className="text-xs font-medium text-foreground mb-1 block">Date of Birth</label>
                 <Input
                   type="date"
-                  value={formData.dateOfBirth}
-                  onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
+                  {...register("dateOfBirth")}
                 />
               </div>
               <div>
                 <label className="text-xs font-medium text-foreground mb-1 block">Gender</label>
-                <Select
-                  value={formData.gender}
-                  onValueChange={(val: any) => setFormData({ ...formData, gender: val })}
-                >
+                <Select value={gender} onValueChange={(val) => setValue("gender", val)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Gender" />
                   </SelectTrigger>
@@ -273,10 +292,7 @@ export function StudentFormDialog({
               </div>
               <div>
                 <label className="text-xs font-medium text-foreground mb-1 block">Blood Group</label>
-                <Select
-                  value={formData.bloodGroup}
-                  onValueChange={(val) => setFormData({ ...formData, bloodGroup: val })}
-                >
+                <Select value={bloodGroup} onValueChange={(val) => setValue("bloodGroup", val)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Blood Group" />
                   </SelectTrigger>
@@ -300,10 +316,7 @@ export function StudentFormDialog({
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <label className="text-xs font-medium text-foreground mb-1 block">Campus Branch</label>
-                <Select
-                  value={formData.branchId}
-                  onValueChange={(val) => setFormData({ ...formData, branchId: val })}
-                >
+                <Select value={branchId} onValueChange={(val) => setValue("branchId", val)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Campus" />
                   </SelectTrigger>
@@ -320,14 +333,11 @@ export function StudentFormDialog({
               <div>
                 <label className="text-xs font-medium text-foreground mb-1 block">Class / Grade</label>
                 <Select
-                  value={formData.classId}
+                  value={classId}
                   onValueChange={(val) => {
                     const cl = classes.find((c) => c.id === val);
-                    setFormData({
-                      ...formData,
-                      classId: val,
-                      sectionId: cl?.sections[0]?.id || "",
-                    });
+                    setValue("classId", val);
+                    setValue("sectionId", cl?.sections[0]?.id || "");
                   }}
                 >
                   <SelectTrigger>
@@ -345,10 +355,7 @@ export function StudentFormDialog({
 
               <div>
                 <label className="text-xs font-medium text-foreground mb-1 block">Section</label>
-                <Select
-                  value={formData.sectionId}
-                  onValueChange={(val) => setFormData({ ...formData, sectionId: val })}
-                >
+                <Select value={sectionId} onValueChange={(val) => setValue("sectionId", val)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select Section" />
                   </SelectTrigger>
@@ -365,10 +372,7 @@ export function StudentFormDialog({
 
             <div>
               <label className="text-xs font-medium text-foreground mb-1 block">Enrollment Status</label>
-              <Select
-                value={formData.status}
-                onValueChange={(val: any) => setFormData({ ...formData, status: val })}
-              >
+              <Select value={status} onValueChange={(val) => setValue("status", val)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
@@ -393,18 +397,15 @@ export function StudentFormDialog({
                   Guardian Full Name <span className="text-rose-500">*</span>
                 </label>
                 <Input
-                  value={formData.guardianName}
-                  onChange={(e) => setFormData({ ...formData, guardianName: e.target.value })}
+                  {...register("guardianName")}
                   placeholder="e.g. David & Vivian Chen"
-                  required
+                  className={errors.guardianName ? "border-rose-500" : ""}
                 />
+                {errors.guardianName && <p className="text-[11px] text-rose-500 mt-1">{errors.guardianName.message}</p>}
               </div>
               <div>
                 <label className="text-xs font-medium text-foreground mb-1 block">Relationship</label>
-                <Select
-                  value={formData.guardianRelation}
-                  onValueChange={(val: any) => setFormData({ ...formData, guardianRelation: val })}
-                >
+                <Select value={guardianRelation} onValueChange={(val) => setValue("guardianRelation", val)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Relation" />
                   </SelectTrigger>
@@ -424,17 +425,16 @@ export function StudentFormDialog({
                 </label>
                 <Input
                   type="email"
-                  value={formData.guardianEmail}
-                  onChange={(e) => setFormData({ ...formData, guardianEmail: e.target.value })}
+                  {...register("guardianEmail")}
                   placeholder="parent@email.com"
-                  required
+                  className={errors.guardianEmail ? "border-rose-500" : ""}
                 />
+                {errors.guardianEmail && <p className="text-[11px] text-rose-500 mt-1">{errors.guardianEmail.message}</p>}
               </div>
               <div>
                 <label className="text-xs font-medium text-foreground mb-1 block">Guardian Phone</label>
                 <Input
-                  value={formData.guardianPhone}
-                  onChange={(e) => setFormData({ ...formData, guardianPhone: e.target.value })}
+                  {...register("guardianPhone")}
                   placeholder="+1 (555) 789-4321"
                 />
               </div>

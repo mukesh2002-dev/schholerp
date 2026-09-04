@@ -1,14 +1,13 @@
 "use client";
 
 import React, { Suspense } from "react";
+import dynamic from "next/dynamic";
 import {
   ExecutiveDashboard,
   ExecutiveDashboardSkeleton,
   QuickActionCommandHub,
   QuickActionCommandHubSkeleton,
-  AttendanceRateTrends,
   AttendanceRateTrendsSkeleton,
-  FeeCollections,
   FeeCollectionsSkeleton,
   PerformanceOverview,
   PerformanceOverviewSkeleton,
@@ -19,6 +18,24 @@ import {
   CampusBranchRoster,
   CampusBranchRosterSkeleton,
 } from "@/sections/dashboard";
+
+// Heavy chart libraries (recharts) are code-split and client-only:
+// they load after first paint instead of bloating the initial bundle.
+const AttendanceRateTrends = dynamic(
+  () =>
+    import("@/sections/dashboard/attendance-rate-trends/attendance-rate-trends").then((m) => ({
+      default: m.AttendanceRateTrends,
+    })),
+  { ssr: false, loading: () => <AttendanceRateTrendsSkeleton /> }
+);
+
+const FeeCollections = dynamic(
+  () =>
+    import("@/sections/dashboard/fee-collections/fee-collections").then((m) => ({
+      default: m.FeeCollections,
+    })),
+  { ssr: false, loading: () => <FeeCollectionsSkeleton /> }
+);
 
 export default function AdminDashboardPage() {
   return (

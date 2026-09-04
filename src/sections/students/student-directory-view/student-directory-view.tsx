@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { useERP } from "@/components/providers/erp-provider";
 import { mockDb } from "@/lib/services/mock-db";
@@ -11,6 +11,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
+import { AppImage } from "@/components/ui/app-image";
+import { ListPagination } from "@/components/ui/list-pagination";
+import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
+import { usePagination } from "@/lib/hooks/use-pagination";
 import {
   Table,
   TableHeader,
@@ -47,34 +51,47 @@ export function StudentDirectoryView() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [studentToEdit, setStudentToEdit] = useState<Student | null>(null);
 
-  const refreshList = () => {
+  // Debounce search so filtering doesn't run on every keystroke
+  const debouncedQuery = useDebouncedValue(searchQuery, 300);
+
+  const refreshList = useCallback(() => {
     setStudents(mockDb.getStudents(activeBranchId));
-  };
+  }, [activeBranchId]);
 
   const filteredStudents = useMemo(() => {
+    const q = debouncedQuery.trim().toLowerCase();
     return students.filter((s) => {
       const matchesSearch =
-        s.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        s.rollNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        s.admissionNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        s.guardian.name.toLowerCase().includes(searchQuery.toLowerCase());
+        q === "" ||
+        s.fullName.toLowerCase().includes(q) ||
+        s.rollNumber.toLowerCase().includes(q) ||
+        s.admissionNumber.toLowerCase().includes(q) ||
+        s.guardian.name.toLowerCase().includes(q);
 
       const matchesStatus = statusFilter === "ALL" || s.status === statusFilter;
       const matchesClass = classFilter === "ALL" || s.classId === classFilter;
 
       return matchesSearch && matchesStatus && matchesClass;
     });
-  }, [students, searchQuery, statusFilter, classFilter]);
+  }, [students, debouncedQuery, statusFilter, classFilter]);
 
-  const handleEdit = (student: Student) => {
+  const {
+    page,
+    totalPages,
+    totalItems,
+    pageItems,
+    setPage,
+  } = usePagination(filteredStudents, 9);
+
+  const handleEdit = useCallback((student: Student) => {
     setStudentToEdit(student);
     setDialogOpen(true);
-  };
+  }, []);
 
-  const handleAddNew = () => {
+  const handleAddNew = useCallback(() => {
     setStudentToEdit(null);
     setDialogOpen(true);
-  };
+  }, []);
 
   return (
     <div className="space-y-4">
@@ -152,7 +169,7 @@ export function StudentDirectoryView() {
         />
       ) : viewMode === "grid" ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredStudents.map((student) => (
+          {pageItems.map((student) => (
             <StudentCard key={student.id} student={student} onEdit={handleEdit} />
           ))}
         </div>
@@ -173,15 +190,15 @@ export function StudentDirectoryView() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredStudents.map((s) => (
+              {pageItems.map((s) => (
                 <TableRow key={s.id} className="hover:bg-muted/40 transition-colors">
                   <TableCell className="font-mono font-bold text-xs">{s.rollNumber}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2.5">
-                      <img
-                        src={s.avatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100"}
+                      <AppImage
+                        src={s.avatar}
                         alt={s.fullName}
-                        className="h-8 w-8 rounded-full object-cover ring-1 ring-border"
+                        className="h-8 w-8 rounded-full ring-1 ring-border"
                       />
                       <div>
                         <Link
@@ -253,6 +270,17 @@ export function StudentDirectoryView() {
             </TableBody>
           </Table>
         </div>
+      )}
+
+      {filteredStudents.length > 0 && (
+        <ListPagination
+          page={page}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          pageSize={9}
+          onPageChange={setPage}
+          label="students"
+        />
       )}
 
       {/* Dialog */}

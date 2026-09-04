@@ -24,25 +24,27 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { AppImage } from "@/components/ui/app-image";
 
 interface TeacherCardProps {
   teacher: Teacher;
   onEdit: (teacher: Teacher) => void;
 }
 
-export function TeacherCard({ teacher, onEdit }: TeacherCardProps) {
-  const statusVariant = (status: string) => {
-    switch (status) {
-      case "ACTIVE":
-        return "success";
-      case "ON_LEAVE":
-        return "warning";
-      case "PROBATION":
-        return "purple";
-      default:
-        return "secondary";
-    }
-  };
+function statusVariant(status: string) {
+  switch (status) {
+    case "ACTIVE":
+      return "success";
+    case "ON_LEAVE":
+      return "warning";
+    case "PROBATION":
+      return "purple";
+    default:
+      return "secondary";
+  }
+}
+
+export const TeacherCard = React.memo(function TeacherCard({ teacher, onEdit }: TeacherCardProps) {
 
   return (
     <Card className="group relative overflow-hidden border-border/80 hover:border-primary/40 transition-all duration-200 hover:shadow-md bg-card">
@@ -51,10 +53,10 @@ export function TeacherCard({ teacher, onEdit }: TeacherCardProps) {
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <div className="relative shrink-0">
-              <img
+              <AppImage
                 src={teacher.avatar}
                 alt={teacher.fullName}
-                className="h-12 w-12 rounded-xl object-cover ring-1 ring-border shadow-2xs"
+                className="h-12 w-12 rounded-xl ring-1 ring-border shadow-2xs"
               />
               <span className="absolute -bottom-1 -right-1 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-card" />
             </div>
@@ -146,4 +148,4 @@ export function TeacherCard({ teacher, onEdit }: TeacherCardProps) {
       </CardContent>
     </Card>
   );
-}
+});
