@@ -26,6 +26,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Users } from "lucide-react";
+import {
+  SOCIAL_CATEGORIES,
+  TEACHING_DESIGNATIONS,
+  INDIAN_MOBILE_REGEX,
+  INDIAN_PAN_REGEX,
+  normaliseIndianMobile,
+  isValidAadhaar,
+} from "@/lib/india";
 
 interface TeacherFormDialogProps {
   open: boolean;
@@ -35,23 +43,41 @@ interface TeacherFormDialogProps {
 }
 
 const departmentsList = [
-  "Mathematics & Computing",
-  "Science & Technology",
-  "Humanities & Languages",
-  "Computer Science & AI",
-  "Early Childhood (Toddler & Primary)",
-  "International Baccalaureate (IB)",
-  "Visual Arts & Digital Design",
-  "Physical Education & Sports",
+  "Mathematics",
+  "Science",
+  "Social Science",
+  "English",
+  "Hindi",
+  "Sanskrit",
+  "Computer Science",
+  "Physical Education",
+  "Arts",
+  "Pre-Primary",
+  "Library",
 ];
 
 const teacherSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
   email: z.string().min(1, "Email is required").email("Invalid email"),
-  phone: z.string().optional(),
+  phone: z
+    .string()
+    .optional()
+    .refine(
+      (v) => !v || INDIAN_MOBILE_REGEX.test(normaliseIndianMobile(v)),
+      "Enter a valid 10-digit mobile number"
+    ),
   gender: z.string().min(1),
   dateOfBirth: z.string().min(1),
+  panNumber: z
+    .string()
+    .optional()
+    .refine((v) => !v || INDIAN_PAN_REGEX.test(v.trim().toUpperCase()), "Enter a valid PAN (e.g. ABCDE1234F)"),
+  aadhaarNumber: z
+    .string()
+    .optional()
+    .refine((v) => !v || isValidAadhaar(v), "Enter a valid 12-digit Aadhaar number"),
+  category: z.string().optional(),
   qualification: z.string().optional(),
   joiningDate: z.string().min(1),
   branchId: z.string().min(1),
@@ -91,16 +117,19 @@ export function TeacherFormDialog({
       phone: "",
       gender: "Female",
       dateOfBirth: "1985-05-20",
+      panNumber: "",
+      aadhaarNumber: "",
+      category: "General",
       qualification: "",
       joiningDate: "2020-08-01",
       branchId: activeBranchId !== "all" ? activeBranchId : "br-apex-01",
-      department: "Mathematics & Computing",
-      designation: "Senior Subject Teacher",
+      department: "Mathematics",
+      designation: "TGT (Trained Graduate Teacher)",
       status: "ACTIVE",
-      subjectsString: "Mathematics, AP Calculus, Statistics",
+      subjectsString: "Mathematics, Algebra, Geometry",
       experienceYears: 8,
-      baseSalary: 6500,
-      allowances: 1000,
+      baseSalary: 55000,
+      allowances: 15000,
       bio: "",
     },
   });
@@ -108,6 +137,8 @@ export function TeacherFormDialog({
   const gender = watch("gender");
   const branchId = watch("branchId");
   const department = watch("department");
+  const designation = watch("designation");
+  const category = watch("category");
   const status = watch("status");
 
   useEffect(() => {
@@ -120,6 +151,9 @@ export function TeacherFormDialog({
           phone: teacherToEdit.phone,
           gender: teacherToEdit.gender,
           dateOfBirth: teacherToEdit.dateOfBirth,
+          panNumber: teacherToEdit.panNumber || "",
+          aadhaarNumber: teacherToEdit.aadhaarNumber || "",
+          category: teacherToEdit.category || "General",
           qualification: teacherToEdit.qualification,
           joiningDate: teacherToEdit.joiningDate,
           branchId: teacherToEdit.branchId,
@@ -140,16 +174,19 @@ export function TeacherFormDialog({
           phone: "",
           gender: "Female",
           dateOfBirth: "1988-04-12",
+          panNumber: "",
+          aadhaarNumber: "",
+          category: "General",
           qualification: "M.Sc. Mathematics, B.Ed.",
           joiningDate: new Date().toISOString().split("T")[0],
           branchId: activeBranchId !== "all" ? activeBranchId : "br-apex-01",
-          department: "Mathematics & Computing",
-          designation: "Senior Mathematics Educator",
+          department: "Mathematics",
+          designation: "TGT (Trained Graduate Teacher)",
           status: "ACTIVE",
-          subjectsString: "Mathematics, Algebra, Calculus",
+          subjectsString: "Mathematics, Algebra, Geometry",
           experienceYears: 6,
-          baseSalary: 6200,
-          allowances: 1000,
+          baseSalary: 52000,
+          allowances: 14000,
           bio: "",
         });
       }
@@ -168,9 +205,12 @@ export function TeacherFormDialog({
       fullName: `${data.firstName} ${data.lastName}`,
       avatar: teacherToEdit?.avatar || `https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150`,
       email: data.email,
-      phone: data.phone || "+1 (555) 234-9988",
+      phone: data.phone ? `+91 ${normaliseIndianMobile(data.phone)}` : "+91 98220 00000",
       gender: data.gender as "Male" | "Female" | "Other",
       dateOfBirth: data.dateOfBirth,
+      panNumber: data.panNumber?.trim().toUpperCase() || undefined,
+      aadhaarNumber: data.aadhaarNumber?.replace(/[\s-]/g, "") || undefined,
+      category: data.category || undefined,
       qualification: data.qualification || "",
       joiningDate: data.joiningDate,
       branchId: targetBranch.id,
@@ -235,7 +275,7 @@ export function TeacherFormDialog({
               </label>
               <Input
                 {...register("firstName")}
-                placeholder="e.g. Sarah"
+                placeholder="e.g. Sunita"
                 className={errors.firstName ? "border-rose-500" : ""}
               />
               {errors.firstName && <p className="text-[11px] text-rose-500 mt-1">{errors.firstName.message}</p>}
@@ -246,7 +286,7 @@ export function TeacherFormDialog({
               </label>
               <Input
                 {...register("lastName")}
-                placeholder="e.g. Lin"
+                placeholder="e.g. Rao"
                 className={errors.lastName ? "border-rose-500" : ""}
               />
               {errors.lastName && <p className="text-[11px] text-rose-500 mt-1">{errors.lastName.message}</p>}
@@ -261,17 +301,57 @@ export function TeacherFormDialog({
               <Input
                 type="email"
                 {...register("email")}
-                placeholder="teacher@campus.edu"
+                placeholder="teacher@apex.edu.in"
                 className={errors.email ? "border-rose-500" : ""}
               />
               {errors.email && <p className="text-[11px] text-rose-500 mt-1">{errors.email.message}</p>}
             </div>
             <div>
-              <label className="text-xs font-medium text-foreground mb-1 block">Phone Number</label>
+              <label className="text-xs font-medium text-foreground mb-1 block">Mobile Number</label>
               <Input
                 {...register("phone")}
-                placeholder="+1 (555) 234-5678"
+                placeholder="98765 43210"
+                inputMode="numeric"
+                className={errors.phone ? "border-rose-500" : ""}
               />
+              {errors.phone && <p className="text-[11px] text-rose-500 mt-1">{errors.phone.message}</p>}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label className="text-xs font-medium text-foreground mb-1 block">PAN (for TDS)</label>
+              <Input
+                {...register("panNumber")}
+                placeholder="ABCDE1234F"
+                className={errors.panNumber ? "border-rose-500" : ""}
+              />
+              {errors.panNumber && <p className="text-[11px] text-rose-500 mt-1">{errors.panNumber.message}</p>}
+            </div>
+            <div>
+              <label className="text-xs font-medium text-foreground mb-1 block">Aadhaar (optional)</label>
+              <Input
+                {...register("aadhaarNumber")}
+                placeholder="12-digit Aadhaar"
+                inputMode="numeric"
+                className={errors.aadhaarNumber ? "border-rose-500" : ""}
+              />
+              {errors.aadhaarNumber && <p className="text-[11px] text-rose-500 mt-1">{errors.aadhaarNumber.message}</p>}
+            </div>
+            <div>
+              <label className="text-xs font-medium text-foreground mb-1 block">Category</label>
+              <Select value={category} onValueChange={(val) => setValue("category", val)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {SOCIAL_CATEGORIES.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {c}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
@@ -325,17 +405,25 @@ export function TeacherFormDialog({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="text-xs font-medium text-foreground mb-1 block">Designation / Title</label>
-              <Input
-                {...register("designation")}
-                placeholder="e.g. Senior AP Physics Instructor"
-              />
+              <label className="text-xs font-medium text-foreground mb-1 block">Designation</label>
+              <Select value={designation || ""} onValueChange={(val) => setValue("designation", val)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select designation" />
+                </SelectTrigger>
+                <SelectContent>
+                  {TEACHING_DESIGNATIONS.map((d) => (
+                    <SelectItem key={d} value={d}>
+                      {d}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <label className="text-xs font-medium text-foreground mb-1 block">Qualifications</label>
               <Input
                 {...register("qualification")}
-                placeholder="e.g. Ph.D. Physics, M.Ed."
+                placeholder="e.g. M.Sc. Physics, B.Ed."
               />
             </div>
           </div>
@@ -346,7 +434,7 @@ export function TeacherFormDialog({
             </label>
             <Input
               {...register("subjectsString")}
-              placeholder="e.g. AP Calculus, Linear Algebra, Grade 10 Math"
+              placeholder="e.g. Mathematics, Algebra, Geometry"
             />
           </div>
 
@@ -359,14 +447,14 @@ export function TeacherFormDialog({
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-foreground mb-1 block">Monthly Base ($)</label>
+              <label className="text-xs font-medium text-foreground mb-1 block">Monthly Base (₹)</label>
               <Input
                 type="number"
                 {...register("baseSalary", { valueAsNumber: true })}
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-foreground mb-1 block">Allowances ($)</label>
+              <label className="text-xs font-medium text-foreground mb-1 block">Allowances (₹)</label>
               <Input
                 type="number"
                 {...register("allowances", { valueAsNumber: true })}
@@ -378,7 +466,7 @@ export function TeacherFormDialog({
             <label className="text-xs font-medium text-foreground mb-1 block">Professional Bio & Notes</label>
             <Textarea
               {...register("bio")}
-              placeholder="Research background, publications, Olympiad mentoring..."
+              placeholder="B.Ed. background, NTSE/Olympiad mentoring, board-examiner experience..."
               rows={2}
             />
           </div>

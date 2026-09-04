@@ -205,7 +205,7 @@ export function ExamScheduleView() {
                     <TableHead>Total Marks</TableHead>
                     <TableHead>Percentage</TableHead>
                     <TableHead>Grade</TableHead>
-                    <TableHead>GPA</TableHead>
+                    <TableHead>CGPA</TableHead>
                     <TableHead>Rank</TableHead>
                     <TableHead>Status</TableHead>
                   </TableRow>
@@ -232,7 +232,7 @@ export function ExamScheduleView() {
                           {r.overallGrade}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-xs font-mono font-semibold">{r.gpa}</TableCell>
+                      <TableCell className="text-xs font-mono font-semibold" title="CBSE CGPA = percentage ÷ 9.5">{(r.percentage / 9.5).toFixed(1)}</TableCell>
                       <TableCell className="text-xs font-mono">
                         {r.rank ? `#${r.rank}` : "—"}
                       </TableCell>
@@ -260,7 +260,7 @@ export function ExamScheduleView() {
                 <div className="flex items-center justify-between">
                   <span className="text-2xl font-extrabold text-primary">{scale.grade}</span>
                   <Badge variant="outline" className="text-xs font-mono">
-                    GPA {scale.gpa?.toFixed(1) ?? "0.0"}
+                    CGPA {(scale.maxPercentage / 9.5).toFixed(1)}
                   </Badge>
                 </div>
                 <div className="text-xs font-mono text-muted-foreground">

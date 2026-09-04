@@ -3,6 +3,9 @@
 import React, { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useERP } from "@/components/providers/erp-provider";
 import { mockDb } from "@/lib/services/mock-db";
 import { AdmissionStatus, ClassRoom } from "@/types";
@@ -44,6 +47,18 @@ import {
 } from "lucide-react";
 import { formatDate, formatDateTime } from "@/lib/utils";
 
+const enrollSchema = z.object({
+  classId: z.string().min(1, "Select a class cohort"),
+  sectionId: z.string().min(1, "Select a section"),
+});
+
+type EnrollFormValues = z.infer<typeof enrollSchema>;
+
+const ENROLL_DEFAULTS: EnrollFormValues = {
+  classId: "cls-g10",
+  sectionId: "sec-g10-a",
+};
+
 export default function AdmissionDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -51,11 +66,26 @@ export default function AdmissionDetailPage() {
 
   const [application, setApplication] = useState(() => mockDb.getAdmissionById(applicationId));
   const [enrollModalOpen, setEnrollModalOpen] = useState(false);
-  const [selectedClassId, setSelectedClassId] = useState("cls-g10");
-  const [selectedSectionId, setSelectedSectionId] = useState("sec-g10-a");
-  const [feedbackText, setFeedbackText] = useState("");
 
   const classes = mockDb.getClasses();
+
+  const {
+    watch,
+    setValue,
+    handleSubmit,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<EnrollFormValues>({
+    resolver: zodResolver(enrollSchema),
+    defaultValues: ENROLL_DEFAULTS,
+  });
+  const selectedClassId = watch("classId");
+  const selectedSectionId = watch("sectionId");
+
+  // Fresh defaults every time the enroll modal opens.
+  React.useEffect(() => {
+    if (enrollModalOpen) reset(ENROLL_DEFAULTS);
+  }, [enrollModalOpen, reset]);
 
   if (!application) {
     return (
@@ -75,7 +105,7 @@ export default function AdmissionDetailPage() {
   }
 
   const handleStatusChange = (newStatus: AdmissionStatus) => {
-    const updated = mockDb.updateAdmissionStatus(application.id, newStatus, feedbackText || application.interviewFeedback);
+    const updated = mockDb.updateAdmissionStatus(application.id, newStatus, application.interviewFeedback);
     if (updated) {
       setApplication(updated);
     }
@@ -92,8 +122,15 @@ export default function AdmissionDetailPage() {
     setApplication(updated);
   };
 
-  const handleEnrollStudent = () => {
-    const newStudent = mockDb.enrollApplicantAsStudent(application.id, selectedClassId, selectedSectionId);
+  const handleClassChange = (classId: string) => {
+    setValue("classId", classId, { shouldValidate: true });
+    // Auto-pick the first section of the newly selected class.
+    const nextClass = classes.find((c) => c.id === classId);
+    setValue("sectionId", nextClass?.sections[0]?.id || "", { shouldValidate: true });
+  };
+
+  const handleEnrollStudent = (values: EnrollFormValues) => {
+    const newStudent = mockDb.enrollApplicantAsStudent(application.id, values.classId, values.sectionId);
     if (newStudent) {
       setEnrollModalOpen(false);
       router.push(`/students/${newStudent.id}`);
@@ -210,9 +247,9 @@ export default function AdmissionDetailPage() {
                   <span className="font-semibold text-foreground">{application.previousSchool || "St. Jude Prep"}</span>
                 </div>
                 <div className="flex items-center justify-between p-2 rounded-lg bg-card border border-border/60">
-                  <span className="text-muted-foreground">Previous Grade Level & GPA:</span>
+                  <span className="text-muted-foreground">Previous Class & Percentage:</span>
                   <span className="font-semibold text-foreground font-mono">
-                    {application.previousGrade || "Grade 8"} • GPA: {application.previousGpa || "3.90"}
+                    {application.previousGrade || "Class 8"} • {application.previousGpa || "85%"}
                   </span>
                 </div>
               </div>
@@ -331,17 +368,10 @@ export default function AdmissionDetailPage() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 mt-3 text-xs">
+          <form onSubmit={handleSubmit(handleEnrollStudent)} className="space-y-4 mt-3 text-xs" noValidate>
             <div>
               <label className="font-medium text-foreground mb-1 block">Class / Grade Cohort</label>
-              <Select
-                value={selectedClassId}
-                onValueChange={(val) => {
-                  setSelectedClassId(val);
-                  const cl = classes.find((c) => c.id === val);
-                  setSelectedSectionId(cl?.sections[0]?.id || "");
-                }}
-              >
+              <Select value={selectedClassId} onValueChange={handleClassChange}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select Class" />
                 </SelectTrigger>
@@ -353,11 +383,15 @@ export default function AdmissionDetailPage() {
                   ))}
                 </SelectContent>
               </Select>
+              {errors.classId && <p className="text-xs text-destructive mt-1">{errors.classId.message}</p>}
             </div>
 
             <div>
               <label className="font-medium text-foreground mb-1 block">Section Assignment</label>
-              <Select value={selectedSectionId} onValueChange={setSelectedSectionId}>
+              <Select
+                value={selectedSectionId}
+                onValueChange={(val) => setValue("sectionId", val, { shouldValidate: true })}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select Section" />
                 </SelectTrigger>
@@ -369,17 +403,18 @@ export default function AdmissionDetailPage() {
                   ))}
                 </SelectContent>
               </Select>
+              {errors.sectionId && <p className="text-xs text-destructive mt-1">{errors.sectionId.message}</p>}
             </div>
-          </div>
 
-          <DialogFooter className="gap-2 mt-4">
-            <Button variant="outline" onClick={() => setEnrollModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="gradient" onClick={handleEnrollStudent}>
-              Confirm & Generate Student Dossier
-            </Button>
-          </DialogFooter>
+            <DialogFooter className="gap-2 mt-4">
+              <Button type="button" variant="outline" onClick={() => setEnrollModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" variant="gradient" disabled={isSubmitting}>
+                {isSubmitting ? "Enrolling…" : "Confirm & Generate Student Dossier"}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </div>

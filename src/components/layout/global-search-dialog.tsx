@@ -56,7 +56,7 @@ export function GlobalSearchDialog() {
 
   return (
     <Dialog open={searchOpen} onOpenChange={setSearchOpen}>
-      <DialogContent className="p-0 max-w-2xl overflow-hidden border-border/80 shadow-2xl rounded-2xl bg-card">
+      <DialogContent className="p-0 w-[calc(100vw-2rem)] sm:max-w-2xl overflow-hidden border-border/80 shadow-2xl rounded-2xl bg-card">
         <div className="flex items-center px-4 border-b border-border bg-muted/20">
           <Search className="h-5 w-5 text-muted-foreground mr-3 shrink-0" />
           <input

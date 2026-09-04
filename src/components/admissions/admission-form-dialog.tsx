@@ -26,6 +26,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { UserPlus } from "lucide-react";
+import {
+  INDIAN_GRADES,
+  SCHOOL_BOARDS,
+  SOCIAL_CATEGORIES,
+  RELIGIONS,
+  MOTHER_TONGUES,
+  INDIAN_STATES,
+  INDIAN_MOBILE_REGEX,
+  INDIAN_PIN_REGEX,
+  normaliseIndianMobile,
+  isValidAadhaar,
+} from "@/lib/india";
 
 interface AdmissionFormDialogProps {
   open: boolean;
@@ -33,39 +45,42 @@ interface AdmissionFormDialogProps {
   onSuccess?: () => void;
 }
 
-const gradesList = [
-  "Montessori Primary",
-  "Kindergarten",
-  "Grade 1",
-  "Grade 2",
-  "Grade 3",
-  "Grade 4",
-  "Grade 5",
-  "Grade 6",
-  "Grade 7",
-  "Grade 8",
-  "Grade 9",
-  "Grade 10",
-  "Grade 11",
-  "Grade 12",
-];
+const gradesList: string[] = [...INDIAN_GRADES];
 
 const admissionSchema = z.object({
   firstName: z.string().min(1, "Applicant name is required"),
   lastName: z.string().min(1, "Last name is required"),
-  dateOfBirth: z.string().min(1),
+  dateOfBirth: z.string().min(1, "Date of birth is required"),
   gender: z.string().min(1),
   gradeApplied: z.string().min(1),
   branchId: z.string().min(1),
   academicYear: z.string().min(1),
+  category: z.string().min(1, "Select social category"),
+  religion: z.string().min(1, "Select religion"),
+  motherTongue: z.string().min(1, "Select mother tongue"),
+  board: z.string().min(1, "Select board"),
+  aadhaarNumber: z
+    .string()
+    .optional()
+    .refine((v) => !v || isValidAadhaar(v), "Enter a valid 12-digit Aadhaar number"),
+  rteQuota: z.boolean().optional(),
   parentName: z.string().min(1, "Parent name is required"),
   parentRelationship: z.string().min(1),
   parentEmail: z.string().min(1, "Parent email is required").email("Invalid email"),
-  parentPhone: z.string().optional(),
+  parentPhone: z
+    .string()
+    .optional()
+    .refine(
+      (v) => !v || INDIAN_MOBILE_REGEX.test(normaliseIndianMobile(v)),
+      "Enter a valid 10-digit mobile number"
+    ),
   address: z.string().optional(),
   city: z.string().optional(),
   state: z.string().optional(),
-  postalCode: z.string().optional(),
+  postalCode: z
+    .string()
+    .optional()
+    .refine((v) => !v || INDIAN_PIN_REGEX.test(v.trim()), "Enter a valid 6-digit PIN code"),
   previousSchool: z.string().optional(),
   previousGrade: z.string().optional(),
   previousGpa: z.string().optional(),
@@ -81,7 +96,7 @@ export function AdmissionFormDialog({ open, onOpenChange, onSuccess }: Admission
   const [step, setStep] = useState<1 | 2>(1);
   const [docBirthCert, setDocBirthCert] = useState(true);
   const [docReportCard, setDocReportCard] = useState(true);
-  const [docImmunization, setDocImmunization] = useState(true);
+  const [docAadhaar, setDocAadhaar] = useState(true);
   const [docProofAddress, setDocProofAddress] = useState(true);
 
   const {
@@ -98,17 +113,23 @@ export function AdmissionFormDialog({ open, onOpenChange, onSuccess }: Admission
       lastName: "",
       dateOfBirth: "2012-05-15",
       gender: "Male",
-      gradeApplied: "Grade 9",
+      gradeApplied: "Class 9",
       branchId: activeBranchId !== "all" ? activeBranchId : "br-apex-01",
       academicYear: "2026-2027",
+      category: "General",
+      religion: "Hindu",
+      motherTongue: "Hindi",
+      board: "CBSE",
+      aadhaarNumber: "",
+      rteQuota: false,
       parentName: "",
       parentRelationship: "Father",
       parentEmail: "",
       parentPhone: "",
       address: "",
-      city: "Metro City",
-      state: "CA",
-      postalCode: "94105",
+      city: "Pune",
+      state: "Maharashtra",
+      postalCode: "411038",
       previousSchool: "",
       previousGrade: "",
       previousGpa: "",
@@ -121,6 +142,11 @@ export function AdmissionFormDialog({ open, onOpenChange, onSuccess }: Admission
   const gradeApplied = watch("gradeApplied");
   const branchId = watch("branchId");
   const parentRelationship = watch("parentRelationship");
+  const category = watch("category");
+  const religion = watch("religion");
+  const motherTongue = watch("motherTongue");
+  const board = watch("board");
+  const state = watch("state");
 
   useEffect(() => {
     if (open) {
@@ -129,17 +155,23 @@ export function AdmissionFormDialog({ open, onOpenChange, onSuccess }: Admission
         lastName: "",
         dateOfBirth: "2012-05-15",
         gender: "Male",
-        gradeApplied: "Grade 9",
+        gradeApplied: "Class 9",
         branchId: activeBranchId !== "all" ? activeBranchId : "br-apex-01",
         academicYear: "2026-2027",
+        category: "General",
+        religion: "Hindu",
+        motherTongue: "Hindi",
+        board: "CBSE",
+        aadhaarNumber: "",
+        rteQuota: false,
         parentName: "",
         parentRelationship: "Father",
         parentEmail: "",
         parentPhone: "",
         address: "",
-        city: "Metro City",
-        state: "CA",
-        postalCode: "94105",
+        city: "Pune",
+        state: "Maharashtra",
+        postalCode: "411038",
         previousSchool: "",
         previousGrade: "",
         previousGpa: "",
@@ -170,22 +202,28 @@ export function AdmissionFormDialog({ open, onOpenChange, onSuccess }: Admission
       parentName: data.parentName,
       parentRelationship: data.parentRelationship,
       parentEmail: data.parentEmail,
-      parentPhone: data.parentPhone || "+1 (555) 000-1122",
-      address: data.address || "100 Campus View Way",
-      city: data.city || "Metro City",
-      state: data.state || "CA",
-      postalCode: data.postalCode || "94105",
-      previousSchool: data.previousSchool || "Heritage Prep Academy",
-      previousGrade: data.previousGrade || "Grade 8",
-      previousGpa: data.previousGpa || "3.85",
+      parentPhone: data.parentPhone ? `+91 ${normaliseIndianMobile(data.parentPhone)}` : "+91 98220 00000",
+      address: data.address || "100 Paud Road, Kothrud",
+      city: data.city || "Pune",
+      state: data.state || "Maharashtra",
+      postalCode: data.postalCode || "411038",
+      previousSchool: data.previousSchool || "Zilla Parishad School",
+      previousGrade: data.previousGrade || "Class 8",
+      previousGpa: data.previousGpa || "85%",
       entranceTestScore: Number(data.entranceTestScore) || 85,
       documents: [
         { id: "doc-1", name: "Birth_Certificate.pdf", required: true, submitted: docBirthCert, verified: false },
         { id: "doc-2", name: "Previous_Report_Card.pdf", required: true, submitted: docReportCard, verified: false },
-        { id: "doc-3", name: "Immunization_Records.pdf", required: true, submitted: docImmunization, verified: false },
-        { id: "doc-4", name: "Proof_Of_Address.pdf", required: true, submitted: docProofAddress, verified: false },
+        { id: "doc-3", name: "Aadhaar_Card.pdf", required: true, submitted: docAadhaar, verified: false },
+        { id: "doc-4", name: "Address_Proof.pdf", required: true, submitted: docProofAddress, verified: false },
       ],
       notes: data.notes || "",
+      aadhaarNumber: data.aadhaarNumber?.replace(/[\s-]/g, "") || undefined,
+      category: data.category,
+      religion: data.religion,
+      motherTongue: data.motherTongue,
+      board: data.board,
+      rteQuota: data.rteQuota || false,
     };
 
     setTimeout(() => {
@@ -246,7 +284,7 @@ export function AdmissionFormDialog({ open, onOpenChange, onSuccess }: Admission
                   </label>
                   <Input
                     {...register("firstName")}
-                    placeholder="e.g. Julian"
+                    placeholder="e.g. Aarav"
                     className={errors.firstName ? "border-rose-500" : ""}
                   />
                   {errors.firstName && <p className="text-[11px] text-rose-500 mt-1">{errors.firstName.message}</p>}
@@ -257,7 +295,7 @@ export function AdmissionFormDialog({ open, onOpenChange, onSuccess }: Admission
                   </label>
                   <Input
                     {...register("lastName")}
-                    placeholder="e.g. Vance"
+                    placeholder="e.g. Sharma"
                     className={errors.lastName ? "border-rose-500" : ""}
                   />
                   {errors.lastName && <p className="text-[11px] text-rose-500 mt-1">{errors.lastName.message}</p>}
@@ -322,17 +360,105 @@ export function AdmissionFormDialog({ open, onOpenChange, onSuccess }: Admission
                   <label className="text-xs font-medium text-foreground mb-1 block">Previous School</label>
                   <Input
                     {...register("previousSchool")}
-                    placeholder="e.g. St. Jude Middle School"
+                    placeholder="e.g. Vidya Valley School"
                   />
                 </div>
               </div>
 
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-medium text-foreground mb-1 block">Social Category</label>
+                  <Select value={category} onValueChange={(val) => setValue("category", val)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SOCIAL_CATEGORIES.map((c) => (
+                        <SelectItem key={c} value={c}>
+                          {c}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-foreground mb-1 block">Board</label>
+                  <Select value={board} onValueChange={(val) => setValue("board", val)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Board" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SCHOOL_BOARDS.map((b) => (
+                        <SelectItem key={b} value={b}>
+                          {b}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-medium text-foreground mb-1 block">Religion</label>
+                  <Select value={religion} onValueChange={(val) => setValue("religion", val)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Religion" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {RELIGIONS.map((r) => (
+                        <SelectItem key={r} value={r}>
+                          {r}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-foreground mb-1 block">Mother Tongue</label>
+                  <Select value={motherTongue} onValueChange={(val) => setValue("motherTongue", val)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Mother tongue" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {MOTHER_TONGUES.map((m) => (
+                        <SelectItem key={m} value={m}>
+                          {m}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-medium text-foreground mb-1 block">Aadhaar Number (optional)</label>
+                  <Input
+                    {...register("aadhaarNumber")}
+                    placeholder="12-digit Aadhaar"
+                    inputMode="numeric"
+                    className={errors.aadhaarNumber ? "border-rose-500" : ""}
+                  />
+                  {errors.aadhaarNumber && <p className="text-[11px] text-rose-500 mt-1">{errors.aadhaarNumber.message}</p>}
+                </div>
+                <label className="flex items-center gap-2 p-2 rounded-lg border bg-muted/30 cursor-pointer self-end text-xs">
+                  <input
+                    type="checkbox"
+                    checked={watch("rteQuota") || false}
+                    onChange={(e) => setValue("rteQuota", e.target.checked)}
+                    className="rounded text-primary"
+                  />
+                  <span>Admitted under <strong>RTE 25% quota</strong></span>
+                </label>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-medium text-foreground mb-1 block">Previous GPA / %</label>
+                  <label className="text-xs font-medium text-foreground mb-1 block">Previous Class %</label>
                   <Input
                     {...register("previousGpa")}
-                    placeholder="3.90 or 92%"
+                    placeholder="e.g. 92%"
                   />
                 </div>
                 <div>
@@ -354,7 +480,7 @@ export function AdmissionFormDialog({ open, onOpenChange, onSuccess }: Admission
                   </label>
                   <Input
                     {...register("parentName")}
-                    placeholder="e.g. Dr. Robert Vance"
+                    placeholder="e.g. Ramesh Sharma"
                     className={errors.parentName ? "border-rose-500" : ""}
                   />
                   {errors.parentName && <p className="text-[11px] text-rose-500 mt-1">{errors.parentName.message}</p>}
@@ -388,11 +514,14 @@ export function AdmissionFormDialog({ open, onOpenChange, onSuccess }: Admission
                   {errors.parentEmail && <p className="text-[11px] text-rose-500 mt-1">{errors.parentEmail.message}</p>}
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-foreground mb-1 block">Parent Phone</label>
+                  <label className="text-xs font-medium text-foreground mb-1 block">Parent Mobile</label>
                   <Input
                     {...register("parentPhone")}
-                    placeholder="+1 (555) 234-5678"
+                    placeholder="98765 43210"
+                    inputMode="numeric"
+                    className={errors.parentPhone ? "border-rose-500" : ""}
                   />
+                  {errors.parentPhone && <p className="text-[11px] text-rose-500 mt-1">{errors.parentPhone.message}</p>}
                 </div>
               </div>
 
@@ -401,15 +530,43 @@ export function AdmissionFormDialog({ open, onOpenChange, onSuccess }: Admission
                   <label className="text-xs font-medium text-foreground mb-1 block">Residential Address</label>
                   <Input
                     {...register("address")}
-                    placeholder="740 Oakridge Lane"
+                    placeholder="Flat 4B, Shivtirth Nagar, Paud Road"
                   />
                 </div>
                 <div>
                   <label className="text-xs font-medium text-foreground mb-1 block">City</label>
                   <Input
                     {...register("city")}
-                    placeholder="Metro City"
+                    placeholder="Pune"
                   />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-medium text-foreground mb-1 block">State</label>
+                  <Select value={state} onValueChange={(val) => setValue("state", val)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="State" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {INDIAN_STATES.map((s) => (
+                        <SelectItem key={s.code} value={s.name}>
+                          {s.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-foreground mb-1 block">PIN Code</label>
+                  <Input
+                    {...register("postalCode")}
+                    placeholder="411038"
+                    inputMode="numeric"
+                    className={errors.postalCode ? "border-rose-500" : ""}
+                  />
+                  {errors.postalCode && <p className="text-[11px] text-rose-500 mt-1">{errors.postalCode.message}</p>}
                 </div>
               </div>
 
@@ -440,11 +597,11 @@ export function AdmissionFormDialog({ open, onOpenChange, onSuccess }: Admission
                   <label className="flex items-center gap-2 p-2 rounded-lg border bg-muted/30 cursor-pointer">
                     <input
                       type="checkbox"
-                      checked={docImmunization}
-                      onChange={(e) => setDocImmunization(e.target.checked)}
+                      checked={docAadhaar}
+                      onChange={(e) => setDocAadhaar(e.target.checked)}
                       className="rounded text-primary"
                     />
-                    <span>Immunization / Health Card</span>
+                    <span>Aadhaar Card Copy</span>
                   </label>
                   <label className="flex items-center gap-2 p-2 rounded-lg border bg-muted/30 cursor-pointer">
                     <input

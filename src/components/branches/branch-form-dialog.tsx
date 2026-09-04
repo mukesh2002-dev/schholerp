@@ -25,6 +25,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Building2, Check } from "lucide-react";
+import {
+  SCHOOL_BOARDS,
+  INDIAN_STATES,
+  INDIAN_MOBILE_REGEX,
+  INDIAN_PIN_REGEX,
+  UDISE_REGEX,
+  normaliseIndianMobile,
+} from "@/lib/india";
 
 interface BranchFormDialogProps {
   open: boolean;
@@ -56,14 +64,35 @@ const branchSchema = z.object({
   code: z.string().min(1, "Branch code is required (e.g. APX-01)"),
   tagline: z.string().optional(),
   type: z.string().min(1),
+  board: z.string().min(1, "Select affiliation board"),
+  udiseCode: z
+    .string()
+    .optional()
+    .refine((v) => !v || UDISE_REGEX.test(v.trim()), "UDISE code must be 11 digits"),
+  affiliationNumber: z.string().optional(),
   principalName: z.string().min(1, "Principal name is required"),
   principalEmail: z.string().min(1, "Principal email is required").email("Invalid email"),
-  principalPhone: z.string().optional(),
+  principalPhone: z
+    .string()
+    .optional()
+    .refine(
+      (v) => !v || INDIAN_MOBILE_REGEX.test(normaliseIndianMobile(v)),
+      "Enter a valid 10-digit mobile number"
+    ),
   address: z.string().optional(),
   city: z.string().min(1, "City is required"),
   state: z.string().optional(),
-  postalCode: z.string().optional(),
-  phone: z.string().optional(),
+  postalCode: z
+    .string()
+    .optional()
+    .refine((v) => !v || INDIAN_PIN_REGEX.test(v.trim()), "Enter a valid 6-digit PIN code"),
+  phone: z
+    .string()
+    .optional()
+    .refine(
+      (v) => !v || INDIAN_MOBILE_REGEX.test(normaliseIndianMobile(v)),
+      "Enter a valid 10-digit mobile number"
+    ),
   email: z.string().optional(),
   website: z.string().optional(),
   establishedYear: z.number().min(1900).max(2100),
@@ -105,12 +134,15 @@ export function BranchFormDialog({
       code: "",
       tagline: "",
       type: "Main Campus",
+      board: "CBSE",
+      udiseCode: "",
+      affiliationNumber: "",
       principalName: "",
       principalEmail: "",
       principalPhone: "",
       address: "",
       city: "",
-      state: "CA",
+      state: "Maharashtra",
       postalCode: "",
       phone: "",
       email: "",
@@ -122,16 +154,18 @@ export function BranchFormDialog({
       totalTeachers: 40,
       totalStaff: 12,
       totalWorkers: 15,
-      monthlyRevenue: 200000,
-      monthlyExpenses: 120000,
+      monthlyRevenue: 4500000,
+      monthlyExpenses: 2800000,
       attendanceRate: 96.0,
       feeCollectionRate: 95.0,
-      facilitiesString: "Smart Classrooms, Central Library, Computer Lab, Cafeteria, Sports Ground",
+      facilitiesString: "Smart Classrooms, Atal Tinkering Lab, Central Library, Cricket Ground, Canteen",
       color: "#3b82f6",
     },
   });
 
   const type = watch("type");
+  const board = watch("board");
+  const state = watch("state");
   const status = watch("status");
   const color = watch("color");
 
@@ -143,6 +177,9 @@ export function BranchFormDialog({
           code: branchToEdit.code,
           tagline: branchToEdit.tagline || "",
           type: branchToEdit.type,
+          board: branchToEdit.board || "CBSE",
+          udiseCode: branchToEdit.udiseCode || "",
+          affiliationNumber: branchToEdit.affiliationNumber || "",
           principalName: branchToEdit.principalName,
           principalEmail: branchToEdit.principalEmail,
           principalPhone: branchToEdit.principalPhone,
@@ -173,12 +210,15 @@ export function BranchFormDialog({
           code: "",
           tagline: "",
           type: "Main Campus",
+          board: "CBSE",
+          udiseCode: "",
+          affiliationNumber: "",
           principalName: "",
           principalEmail: "",
           principalPhone: "",
           address: "",
           city: "",
-          state: "CA",
+          state: "Maharashtra",
           postalCode: "",
           phone: "",
           email: "",
@@ -190,11 +230,11 @@ export function BranchFormDialog({
           totalTeachers: 45,
           totalStaff: 14,
           totalWorkers: 18,
-          monthlyRevenue: 220000,
-          monthlyExpenses: 140000,
+          monthlyRevenue: 4800000,
+          monthlyExpenses: 3000000,
           attendanceRate: 96.2,
           feeCollectionRate: 94.5,
-          facilitiesString: "Smart Classrooms, Robotics Lab, Central Library, Sports Arena, Cafeteria",
+          facilitiesString: "Smart Classrooms, Atal Tinkering Lab, Central Library, Cricket Ground, Canteen",
           color: "#3b82f6",
         });
       }
@@ -213,16 +253,19 @@ export function BranchFormDialog({
       code: data.code.toUpperCase(),
       tagline: data.tagline || `${data.name} - Excellence in Education`,
       type: data.type as BranchType,
+      board: data.board,
+      udiseCode: data.udiseCode?.trim() || undefined,
+      affiliationNumber: data.affiliationNumber?.trim() || undefined,
       principalName: data.principalName,
       principalEmail: data.principalEmail,
-      principalPhone: data.principalPhone || "+1 (555) 000-0000",
-      address: data.address || "Main Campus Avenue",
+      principalPhone: data.principalPhone ? `+91 ${normaliseIndianMobile(data.principalPhone)}` : "+91 98220 00000",
+      address: data.address || "Main School Road",
       city: data.city,
-      state: data.state || "CA",
-      postalCode: data.postalCode || "90001",
-      phone: data.phone || "+1 (555) 123-4567",
-      email: data.email || `info@${data.code.toLowerCase()}.edu`,
-      website: data.website || `https://${data.code.toLowerCase()}.edu`,
+      state: data.state || "Maharashtra",
+      postalCode: data.postalCode || "411001",
+      phone: data.phone ? `+91 ${normaliseIndianMobile(data.phone)}` : "+91 20 2545 0000",
+      email: data.email || `info@${data.code.toLowerCase()}.edu.in`,
+      website: data.website || `https://${data.code.toLowerCase()}.edu.in`,
       establishedYear: Number(data.establishedYear),
       status: data.status as BranchStatus,
       capacity: Number(data.capacity),
@@ -336,11 +379,46 @@ export function BranchFormDialog({
               </div>
             </div>
 
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label className="text-xs font-medium text-foreground mb-1 block">Affiliation Board</label>
+                <Select value={board} onValueChange={(val) => setValue("board", val)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Board" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SCHOOL_BOARDS.map((b) => (
+                      <SelectItem key={b} value={b}>
+                        {b}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-foreground mb-1 block">UDISE+ Code</label>
+                <Input
+                  {...register("udiseCode")}
+                  placeholder="11-digit UDISE code"
+                  inputMode="numeric"
+                  className={errors.udiseCode ? "border-rose-500" : ""}
+                />
+                {errors.udiseCode && <p className="text-[11px] text-rose-500 mt-1">{errors.udiseCode.message}</p>}
+              </div>
+              <div>
+                <label className="text-xs font-medium text-foreground mb-1 block">Affiliation No.</label>
+                <Input
+                  {...register("affiliationNumber")}
+                  placeholder="e.g. 1130456"
+                />
+              </div>
+            </div>
+
             <div>
               <label className="text-xs font-medium text-foreground mb-1 block">Motto / Tagline</label>
               <Input
                 {...register("tagline")}
-                placeholder="e.g. Flagship Metro Academic & Innovation Center"
+                placeholder="e.g. CBSE Campus — Kothrud, Pune"
               />
             </div>
           </div>
@@ -357,7 +435,7 @@ export function BranchFormDialog({
                 </label>
                 <Input
                   {...register("principalName")}
-                  placeholder="Dr. Eleanor Vance, Ph.D."
+                  placeholder="Dr. Meera Kapoor, Ph.D."
                   className={errors.principalName ? "border-rose-500" : ""}
                 />
                 {errors.principalName && <p className="text-[11px] text-rose-500 mt-1">{errors.principalName.message}</p>}
@@ -369,18 +447,21 @@ export function BranchFormDialog({
                 </label>
                 <Input
                   {...register("principalEmail")}
-                  placeholder="principal@campus.edu"
+                  placeholder="principal@apex.edu.in"
                   className={errors.principalEmail ? "border-rose-500" : ""}
                 />
                 {errors.principalEmail && <p className="text-[11px] text-rose-500 mt-1">{errors.principalEmail.message}</p>}
               </div>
 
               <div>
-                <label className="text-xs font-medium text-foreground mb-1 block">Principal Phone</label>
+                <label className="text-xs font-medium text-foreground mb-1 block">Principal Mobile</label>
                 <Input
                   {...register("principalPhone")}
-                  placeholder="+1 (555) 234-5678"
+                  placeholder="98220 45678"
+                  inputMode="numeric"
+                  className={errors.principalPhone ? "border-rose-500" : ""}
                 />
+                {errors.principalPhone && <p className="text-[11px] text-rose-500 mt-1">{errors.principalPhone.message}</p>}
               </div>
             </div>
           </div>
@@ -395,7 +476,7 @@ export function BranchFormDialog({
                 <label className="text-xs font-medium text-foreground mb-1 block">Campus Address</label>
                 <Input
                   {...register("address")}
-                  placeholder="100 Innovation Boulevard"
+                  placeholder="100 Paud Road, Kothrud"
                 />
               </div>
               <div>
@@ -404,10 +485,38 @@ export function BranchFormDialog({
                 </label>
                 <Input
                   {...register("city")}
-                  placeholder="Metro City"
+                  placeholder="Pune"
                   className={errors.city ? "border-rose-500" : ""}
                 />
                 {errors.city && <p className="text-[11px] text-rose-500 mt-1">{errors.city.message}</p>}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-medium text-foreground mb-1 block">State</label>
+                <Select value={state} onValueChange={(val) => setValue("state", val)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="State" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {INDIAN_STATES.map((s) => (
+                      <SelectItem key={s.code} value={s.name}>
+                        {s.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-foreground mb-1 block">PIN Code</label>
+                <Input
+                  {...register("postalCode")}
+                  placeholder="411038"
+                  inputMode="numeric"
+                  className={errors.postalCode ? "border-rose-500" : ""}
+                />
+                {errors.postalCode && <p className="text-[11px] text-rose-500 mt-1">{errors.postalCode.message}</p>}
               </div>
             </div>
 
@@ -449,7 +558,7 @@ export function BranchFormDialog({
               </label>
               <Textarea
                 {...register("facilitiesString")}
-                placeholder="Smart Classrooms, Robotics AI Lab, Olympic Swimming Pool, Central Library"
+                placeholder="Smart Classrooms, Atal Tinkering Lab, Cricket Ground, Central Library"
                 rows={2}
               />
             </div>

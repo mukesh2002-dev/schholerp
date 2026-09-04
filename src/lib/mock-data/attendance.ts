@@ -16,30 +16,30 @@ const currentDate = new Date();
 const workingDates = generateDatesForMonth(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
 
 const studentPeople = [
-  { id: "stu-01", name: "Liam Chen", avatar: "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80", classId: "cls-g10", className: "Grade 10", sectionId: "sec-g10-a", sectionName: "Section A" },
-  { id: "stu-02", name: "Maya Patel", avatar: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80", classId: "cls-g10", className: "Grade 10", sectionId: "sec-g10-a", sectionName: "Section A" },
-  { id: "stu-03", name: "Ethan Hawthorne", avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80", classId: "cls-g9", className: "Grade 9", sectionId: "sec-g9-a", sectionName: "Section A" },
-  { id: "stu-04", name: "Sophie Dubois", avatar: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=150&auto=format&fit=crop&q=80", classId: "cls-g11", className: "Grade 11", sectionId: "sec-g11-ib", sectionName: "IB Cohort" },
-  { id: "stu-05", name: "Lucas Moretti", avatar: "https://images.unsplash.com/photo-1543610892-0b1f7e6d8ac1?w=150&auto=format&fit=crop&q=80", classId: "cls-mont", className: "Montessori", sectionId: "sec-mont-a", sectionName: "Sunflowers" },
-  { id: "stu-06", name: "Zoe Alvarez", avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80", classId: "cls-g10", className: "Grade 10", sectionId: "sec-g10-arts", sectionName: "Section D" },
+  { id: "stu-01", name: "Aarav Sharma", avatar: "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80", classId: "cls-g10", className: "Grade 10", sectionId: "sec-g10-a", sectionName: "Section A" },
+  { id: "stu-02", name: "Diya Patel", avatar: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80", classId: "cls-g10", className: "Grade 10", sectionId: "sec-g10-a", sectionName: "Section A" },
+  { id: "stu-03", name: "Arjun Nair", avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80", classId: "cls-g9", className: "Grade 9", sectionId: "sec-g9-a", sectionName: "Section A" },
+  { id: "stu-04", name: "Ananya Iyer", avatar: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=150&auto=format&fit=crop&q=80", classId: "cls-g11", className: "Grade 11", sectionId: "sec-g11-ib", sectionName: "IB Cohort" },
+  { id: "stu-05", name: "Vihaan Gupta", avatar: "https://images.unsplash.com/photo-1543610892-0b1f7e6d8ac1?w=150&auto=format&fit=crop&q=80", classId: "cls-mont", className: "Montessori", sectionId: "sec-mont-a", sectionName: "Sunflowers" },
+  { id: "stu-06", name: "Ishita Verma", avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80", classId: "cls-g10", className: "Grade 10", sectionId: "sec-g10-arts", sectionName: "Section D" },
 ];
 
 const teacherPeople = [
-  { id: "tch-01", name: "Dr. Eleanor Voss", avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80" },
-  { id: "tch-02", name: "Prof. James Whitmore", avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80" },
-  { id: "tch-03", name: "Ms. Ayesha Rahman", avatar: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80" },
-  { id: "tch-04", name: "Mr. Carlos Mendez", avatar: "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150&auto=format&fit=crop&q=80" },
+  { id: "tch-01", name: "Mrs. Sunita Rao", avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80" },
+  { id: "tch-02", name: "Mr. Rajesh Kulkarni", avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80" },
+  { id: "tch-03", name: "Ms. Priya Menon", avatar: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80" },
+  { id: "tch-04", name: "Mrs. Kavitha Subramaniam", avatar: "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150&auto=format&fit=crop&q=80" },
 ];
 
 const staffPeople = [
-  { id: "stf-01", name: "Robert Matthews", avatar: "" },
-  { id: "stf-02", name: "Linda Park", avatar: "" },
-  { id: "stf-03", name: "Thomas Reed", avatar: "" },
+  { id: "stf-01", name: "Sandeep Kulkarni", avatar: "" },
+  { id: "stf-02", name: "Kavita Deshpande", avatar: "" },
+  { id: "stf-03", name: "Nilesh Pawar", avatar: "" },
 ];
 
 const workerPeople = [
   { id: "wrk-01", name: "David Kumar", avatar: "" },
-  { id: "wrk-02", name: "Maria Santos", avatar: "" },
+  { id: "wrk-02", name: "Maria D'Souza", avatar: "" },
   { id: "wrk-03", name: "Ahmed Hassan", avatar: "" },
 ];
 

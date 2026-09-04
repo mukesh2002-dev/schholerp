@@ -41,6 +41,12 @@ export interface Branch {
   code: string;
   tagline: string;
   type: BranchType;
+  /** UDISE+ 11-digit school code (backend key). */
+  udiseCode?: string;
+  /** Board affiliation number, e.g. CBSE Aff. No. 1130456. */
+  affiliationNumber?: string;
+  /** Board the campus is affiliated to. */
+  board?: string;
   principalName: string;
   principalEmail: string;
   principalPhone: string;
@@ -113,6 +119,18 @@ export interface AdmissionApplication {
   previousSchool?: string;
   previousGrade?: string;
   previousGpa?: string;
+  /** 12-digit Aadhaar (Verhoeff-validated in forms). */
+  aadhaarNumber?: string;
+  /** APAAR lifelong academic ID (12 chars). */
+  apaarId?: string;
+  /** Govt. reservation category: General | EWS | OBC | SC | ST. */
+  category?: string;
+  religion?: string;
+  motherTongue?: string;
+  /** Board applied under: CBSE | ICSE | State Board ... */
+  board?: string;
+  /** Admitted under RTE 25% quota. */
+  rteQuota?: boolean;
   entranceTestScore?: number; // percentage e.g. 88%
   interviewDate?: string;
   interviewFeedback?: string;
@@ -199,6 +217,20 @@ export interface Student {
   state: string;
   createdAt: string;
   updatedAt: string;
+  /** 12-digit Aadhaar (Verhoeff-validated in forms). */
+  aadhaarNumber?: string;
+  /** APAAR lifelong academic ID. */
+  apaarId?: string;
+  /** Govt. reservation category: General | EWS | OBC | SC | ST. */
+  category?: string;
+  religion?: string;
+  motherTongue?: string;
+  board?: string;
+  medium?: string;
+  /** Inter-house competitions: Agni | Prithvi | Akash | Vayu. */
+  house?: string;
+  /** Admitted under RTE 25% quota. */
+  rteAdmission?: boolean;
 }
 
 // CLASSES & SECTIONS
@@ -276,6 +308,11 @@ export interface Teacher {
   phone: string;
   gender: "Male" | "Female" | "Other";
   dateOfBirth: string;
+  /** PAN for payroll/TDS, e.g. ABCDE1234F. */
+  panNumber?: string;
+  /** 12-digit Aadhaar (Verhoeff-validated in forms). */
+  aadhaarNumber?: string;
+  category?: string;
   qualification: string; // e.g. M.Sc. Physics, B.Ed.
   joiningDate: string;
   branchId: string;
@@ -423,7 +460,7 @@ export interface FeeHead {
   id: string;
   name: string;
   description: string;
-  category: "TUITION" | "LAB" | "LIBRARY" | "TRANSPORT" | "SPORTS" | "EXAM" | "MISC";
+  category: "TUITION" | "LAB" | "LIBRARY" | "TRANSPORT" | "SPORTS" | "EXAM" | "MISC" | "ADMISSION" | "ACTIVITY" | "DEVELOPMENT";
   isRecurring: boolean;
   color: string;
 }
@@ -1395,6 +1432,10 @@ export interface StaffMember {
   name: string;
   email: string;
   phone: string;
+  /** PAN for payroll/TDS. */
+  panNumber?: string;
+  /** 12-digit Aadhaar. */
+  aadhaarNumber?: string;
   avatar?: string;
   gender: "Male" | "Female" | "Other";
   dateOfBirth: string;

@@ -3,6 +3,10 @@
 import React, { useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { toast } from "sonner";
 import { mockDb } from "@/lib/services/mock-db";
 import { Breadcrumbs } from "@/components/layout/breadcrumbs";
 import { formatDate, formatDateTime } from "@/lib/utils";
@@ -68,6 +72,15 @@ function getSeverityBadge(severity: string) {
   }
 }
 
+const commentSchema = z.object({
+  content: z
+    .string()
+    .min(3, "Please write a comment (min 3 characters)")
+    .max(2000, "Comment is too long"),
+});
+
+type CommentFormValues = z.infer<typeof commentSchema>;
+
 export default function BugDetailPage() {
   const params = useParams();
   const bugId = params.id as string;
@@ -75,7 +88,16 @@ export default function BugDetailPage() {
   const [bug, setBug] = useState<Bug | undefined>(() => mockDb.getBugById(bugId));
   const [activityLogs] = useState<BugActivityLog[]>(() => mockDb.getBugActivityLogs(bugId));
   const [activeTab, setActiveTab] = useState("details");
-  const [commentText, setCommentText] = useState("");
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<CommentFormValues>({
+    resolver: zodResolver(commentSchema),
+    defaultValues: { content: "" },
+  });
 
   if (!bug) {
     return (
@@ -96,16 +118,17 @@ export default function BugDetailPage() {
 
   const isCritical = bug.priority === "P1_CRITICAL" || bug.severity === "S1_BLOCKER" || bug.severity === "S2_CRITICAL";
 
-  const handleAddComment = () => {
-    if (!commentText.trim()) return;
+  const handleAddComment = (values: CommentFormValues) => {
+    if (!bug) return;
     const session = mockDb.getSession();
     const updatedBug = mockDb.addBugComment(bug.id, {
       author: session.name,
       authorRole: session.role,
-      content: commentText.trim(),
+      content: values.content.trim(),
     });
     setBug(updatedBug);
-    setCommentText("");
+    reset();
+    toast.success("Comment added", { description: "Your note was posted to the bug thread." });
   };
 
   return (
@@ -354,24 +377,24 @@ export default function BugDetailPage() {
                 )}
 
                 {/* Add Comment Form */}
-                <div className="pt-4 border-t border-border/60 space-y-3">
+                <form onSubmit={handleSubmit(handleAddComment)} className="pt-4 border-t border-border/60 space-y-3" noValidate>
                   <h4 className="text-xs font-bold text-foreground">Add Comment</h4>
                   <Textarea
-                    value={commentText}
-                    onChange={(e) => setCommentText(e.target.value)}
                     placeholder="Type your comment..."
                     className="min-h-[80px] text-sm"
+                    {...register("content")}
                   />
+                  {errors.content && <p className="text-xs text-destructive">{errors.content.message}</p>}
                   <Button
+                    type="submit"
                     size="sm"
                     className="gap-1.5"
-                    onClick={handleAddComment}
-                    disabled={!commentText.trim()}
+                    disabled={isSubmitting}
                   >
                     <Send className="h-3.5 w-3.5" />
-                    Submit Comment
+                    {isSubmitting ? "Posting…" : "Submit Comment"}
                   </Button>
-                </div>
+                </form>
               </CardContent>
             </Card>
           </div>

@@ -2,6 +2,9 @@
 
 import React, { useState, useMemo } from "react";
 import Link from "next/link";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useERP } from "@/components/providers/erp-provider";
 import { mockDb } from "@/lib/services/mock-db";
 import { Message, MessageChannel } from "@/types";
@@ -38,17 +41,45 @@ const channelConfig: Record<MessageChannel, { label: string; className: string }
   WHATSAPP: { label: "WhatsApp", className: "bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20" },
 };
 
+const composeSchema = z.object({
+  subject: z
+    .string()
+    .min(3, "Subject must be at least 3 characters")
+    .max(120, "Subject must be under 120 characters"),
+  body: z
+    .string()
+    .min(10, "Message body must be at least 10 characters")
+    .max(5000, "Message body is too long"),
+  recipientType: z.enum(["INDIVIDUAL", "GROUP", "ALL_TEACHERS", "ALL_PARENTS", "ALL_STUDENTS"]),
+  channel: z.enum(["IN_APP", "EMAIL", "SMS", "WHATSAPP"]),
+});
+
+type ComposeFormValues = z.infer<typeof composeSchema>;
+
 export function MessagesDirectoryView() {
   const { activeBranchId } = useERP();
   const [messages, setMessages] = useState<Message[]>(() => mockDb.getMessages(activeBranchId) || []);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("inbox");
-  const [composeData, setComposeData] = useState({
-    subject: "",
-    body: "",
-    recipientType: "INDIVIDUAL" as Message["recipientType"],
-    channel: "IN_APP" as MessageChannel,
+
+  const {
+    register,
+    handleSubmit,
+    watch,
+    setValue,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<ComposeFormValues>({
+    resolver: zodResolver(composeSchema),
+    defaultValues: {
+      subject: "",
+      body: "",
+      recipientType: "INDIVIDUAL",
+      channel: "IN_APP",
+    },
   });
+  const recipientType = watch("recipientType");
+  const channel = watch("channel");
 
   const refreshMessages = () => {
     setMessages(mockDb.getMessages(activeBranchId) || []);
@@ -80,25 +111,25 @@ export function MessagesDirectoryView() {
 
   const unreadCount = useMemo(() => messages.filter((m) => !m.isRead).length, [messages]);
 
-  const handleSend = () => {
+  const handleSend = (values: ComposeFormValues) => {
     mockDb.saveMessage({
-      subject: composeData.subject,
-      body: composeData.body,
+      subject: values.subject.trim(),
+      body: values.body.trim(),
       senderId: "current-user",
       senderName: "Administrator",
       senderRole: "SUPER_ADMIN",
       recipientIds: [],
-      recipientNames: [composeData.recipientType.replace("_", " ")],
-      recipientType: composeData.recipientType,
-      channel: composeData.channel,
+      recipientNames: [values.recipientType.replace("_", " ")],
+      recipientType: values.recipientType,
+      channel: values.channel,
       channelStatus: "SENT",
       branchId: activeBranchId === "all" ? "br-apex-01" : activeBranchId,
       branchName: "Apex Global Campus",
       isRead: false,
       isStarred: false,
     });
-    toast.success("Message dispatched successfully via " + composeData.channel);
-    setComposeData({ subject: "", body: "", recipientType: "INDIVIDUAL", channel: "IN_APP" });
+    toast.success("Message dispatched successfully via " + values.channel);
+    reset();
     refreshMessages();
     setActiveTab("inbox");
   };
@@ -224,77 +255,81 @@ export function MessagesDirectoryView() {
 
       <TabsContent value="compose" className="space-y-4">
         <Card className="border-border/80 shadow-xs">
-          <CardContent className="p-6 space-y-4">
-            <div>
-              <label className="font-medium text-foreground mb-1 block text-sm">Subject</label>
-              <Input
-                value={composeData.subject}
-                onChange={(e) => setComposeData({ ...composeData, subject: e.target.value })}
-                placeholder="Enter message subject"
-                className="h-9"
-              />
-            </div>
-
-            <div>
-              <label className="font-medium text-foreground mb-1 block text-sm">Body</label>
-              <Textarea
-                value={composeData.body}
-                onChange={(e) => setComposeData({ ...composeData, body: e.target.value })}
-                placeholder="Write your message..."
-                className="min-h-[160px]"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <CardContent className="p-6">
+            <form onSubmit={handleSubmit(handleSend)} className="space-y-4" noValidate>
               <div>
-                <label className="font-medium text-foreground mb-1 block text-sm">Recipient Type</label>
-                <Select
-                  value={composeData.recipientType}
-                  onValueChange={(v) => setComposeData({ ...composeData, recipientType: v as Message["recipientType"] })}
-                >
-                  <SelectTrigger className="h-9">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="INDIVIDUAL">Individual</SelectItem>
-                    <SelectItem value="GROUP">Group</SelectItem>
-                    <SelectItem value="ALL_TEACHERS">All Teachers</SelectItem>
-                    <SelectItem value="ALL_PARENTS">All Parents</SelectItem>
-                    <SelectItem value="ALL_STUDENTS">All Students</SelectItem>
-                  </SelectContent>
-                </Select>
+                <label htmlFor="compose-subject" className="font-medium text-foreground mb-1 block text-sm">Subject</label>
+                <Input
+                  id="compose-subject"
+                  placeholder="Enter message subject"
+                  className="h-9"
+                  {...register("subject")}
+                />
+                {errors.subject && <p className="text-xs text-destructive mt-1">{errors.subject.message}</p>}
               </div>
 
               <div>
-                <label className="font-medium text-foreground mb-1 block text-sm">Channel</label>
-                <Select
-                  value={composeData.channel}
-                  onValueChange={(v) => setComposeData({ ...composeData, channel: v as MessageChannel })}
-                >
-                  <SelectTrigger className="h-9">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="IN_APP">In-App</SelectItem>
-                    <SelectItem value="EMAIL">Email</SelectItem>
-                    <SelectItem value="SMS">SMS</SelectItem>
-                    <SelectItem value="WHATSAPP">WhatsApp</SelectItem>
-                  </SelectContent>
-                </Select>
+                <label htmlFor="compose-body" className="font-medium text-foreground mb-1 block text-sm">Body</label>
+                <Textarea
+                  id="compose-body"
+                  placeholder="Write your message..."
+                  className="min-h-[160px]"
+                  {...register("body")}
+                />
+                {errors.body && <p className="text-xs text-destructive mt-1">{errors.body.message}</p>}
               </div>
-            </div>
 
-            <div className="flex justify-end pt-2">
-              <Button
-                variant="gradient"
-                onClick={handleSend}
-                disabled={!composeData.subject || !composeData.body}
-                className="gap-2"
-              >
-                <Send className="h-4 w-4" />
-                Send Message
-              </Button>
-            </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="font-medium text-foreground mb-1 block text-sm">Recipient Type</label>
+                  <Select
+                    value={recipientType}
+                    onValueChange={(v) => setValue("recipientType", v as Message["recipientType"], { shouldValidate: true })}
+                  >
+                    <SelectTrigger className="h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="INDIVIDUAL">Individual</SelectItem>
+                      <SelectItem value="GROUP">Group</SelectItem>
+                      <SelectItem value="ALL_TEACHERS">All Teachers</SelectItem>
+                      <SelectItem value="ALL_PARENTS">All Parents</SelectItem>
+                      <SelectItem value="ALL_STUDENTS">All Students</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <label className="font-medium text-foreground mb-1 block text-sm">Channel</label>
+                  <Select
+                    value={channel}
+                    onValueChange={(v) => setValue("channel", v as MessageChannel, { shouldValidate: true })}
+                  >
+                    <SelectTrigger className="h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="IN_APP">In-App</SelectItem>
+                      <SelectItem value="EMAIL">Email</SelectItem>
+                      <SelectItem value="SMS">SMS</SelectItem>
+                      <SelectItem value="WHATSAPP">WhatsApp</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-2">
+                <Button
+                  type="submit"
+                  variant="gradient"
+                  disabled={isSubmitting}
+                  className="gap-2"
+                >
+                  <Send className="h-4 w-4" />
+                  {isSubmitting ? "Sending…" : "Send Message"}
+                </Button>
+              </div>
+            </form>
           </CardContent>
         </Card>
       </TabsContent>

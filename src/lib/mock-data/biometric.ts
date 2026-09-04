@@ -2,7 +2,7 @@ import { BiometricEnrolledUser, BiometricSyncLog } from "@/types";
 
 export const initialEnrolledUsers: BiometricEnrolledUser[] = [
   {
-    id: "be-01", personId: "stu-01", personName: "Liam Chen",
+    id: "be-01", personId: "stu-01", personName: "Aarav Sharma",
     personAvatar: "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80",
     category: "STUDENT", deviceId: "bio-gw-01", deviceName: "Main Gate Alpha",
     branchId: "br-apex-01", branchName: "Apex Global Campus",
@@ -16,14 +16,14 @@ export const initialEnrolledUsers: BiometricEnrolledUser[] = [
     fingerprintId: "FP-1043-L", enrolledAt: "2024-08-16T10:15:00.000Z", lastScan: "2026-09-02T08:08:00.000Z", status: "ACTIVE",
   },
   {
-    id: "be-03", personId: "stu-03", personName: "Ethan Hawthorne",
+    id: "be-03", personId: "stu-03", personName: "Arjun Nair",
     personAvatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
     category: "STUDENT", deviceId: "bio-gw-02", deviceName: "STEM Lab Entrance",
     branchId: "br-west-02", branchName: "Westside STEM & Innovation Academy",
     fingerprintId: "FP-0912-L", enrolledAt: "2025-08-19T09:30:00.000Z", lastScan: "2026-09-01T08:20:00.000Z", status: "ACTIVE",
   },
   {
-    id: "be-04", personId: "stu-04", personName: "Sophie Dubois",
+    id: "be-04", personId: "stu-04", personName: "Ananya Iyer",
     personAvatar: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=150&auto=format&fit=crop&q=80",
     category: "STUDENT", deviceId: "bio-gw-03", deviceName: "International Wing Gate",
     branchId: "br-green-04", branchName: "Green Valley International School",
@@ -56,14 +56,14 @@ export const initialEnrolledUsers: BiometricEnrolledUser[] = [
     fingerprintId: "FP-WRK001-L", enrolledAt: "2024-01-15T08:00:00.000Z", lastScan: "2026-09-02T06:30:00.000Z", status: "ACTIVE",
   },
   {
-    id: "be-09", personId: "stu-05", personName: "Lucas Moretti",
+    id: "be-09", personId: "stu-05", personName: "Vihaan Gupta",
     personAvatar: "https://images.unsplash.com/photo-1543610892-0b1f7e6d8ac1?w=150&auto=format&fit=crop&q=80",
     category: "STUDENT", deviceId: "bio-gw-06", deviceName: "Montessori Wing",
     branchId: "br-north-03", branchName: "Northpoint Montessori & Prep",
     fingerprintId: "FP-0015-L", enrolledAt: "2025-09-02T10:00:00.000Z", lastScan: "2026-09-01T08:30:00.000Z", status: "ACTIVE",
   },
   {
-    id: "be-10", personId: "stu-06", personName: "Zoe Alvarez",
+    id: "be-10", personId: "stu-06", personName: "Ishita Verma",
     personAvatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
     category: "STUDENT", deviceId: "bio-gw-07", deviceName: "Arts Campus Gate",
     branchId: "br-river-06", branchName: "Riverdale Arts & Sports Academy",

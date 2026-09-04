@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTheme } from "next-themes";
 import { useERP } from "@/components/providers/erp-provider";
 import { BranchSelector } from "./branch-selector";
 import { ThemeToggle } from "./theme-toggle";
@@ -20,6 +21,9 @@ import {
   HelpCircle,
   PanelLeftClose,
   PanelLeft,
+  Sun,
+  Moon,
+  Laptop,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -42,6 +46,7 @@ interface TopbarProps {
 
 export function Topbar({ sidebarCollapsed = false, onToggleSidebar }: TopbarProps) {
   const { session, setSearchOpen, triggerBiometricSync, logout } = useERP();
+  const { theme, setTheme } = useTheme();
   const router = useRouter();
 
   const handleLogout = () => {
@@ -65,18 +70,21 @@ export function Topbar({ sidebarCollapsed = false, onToggleSidebar }: TopbarProp
 
   return (
     <>
-      <header className="sticky top-0 z-20 flex h-16 w-full items-center justify-between border-b border-border bg-card/85 backdrop-blur-md px-3 sm:px-6">
+      <header
+        className="sticky top-0 z-20 flex min-h-16 w-full items-center justify-between gap-2 border-b border-border bg-card/85 backdrop-blur-md px-2.5 py-2 sm:px-6"
+        style={{ paddingTop: "max(0.5rem, env(safe-area-inset-top))" }}
+      >
         {/* Left Side: Desktop Toggle / Mobile Menu + Campus Switcher */}
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex min-w-0 flex-1 items-center gap-1.5 sm:gap-3">
           {/* Mobile Menu Drawer Trigger */}
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="lg:hidden h-9 w-9">
+              <Button variant="ghost" size="icon" className="lg:hidden h-10 w-10 shrink-0" aria-label="Open navigation menu">
                 <Menu className="h-5 w-5" />
                 <span className="sr-only">Open navigation menu</span>
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="p-0 w-72">
+            <SheetContent side="left" className="p-0 w-72 max-w-[85vw]">
               <Sidebar onNavigate={() => setMobileOpen(false)} />
             </SheetContent>
           </Sheet>
@@ -115,16 +123,17 @@ export function Topbar({ sidebarCollapsed = false, onToggleSidebar }: TopbarProp
         </div>
 
         {/* Right Side: Biometric Sync + Role + Notifications + Theme + Profile */}
-        <div className="flex items-center gap-1.5 sm:gap-2">
+        <div className="flex shrink-0 items-center gap-0.5 sm:gap-2">
           {/* Search Trigger for Mobile */}
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setSearchOpen(true)}
-            className="md:hidden h-9 w-9"
+            className="md:hidden h-10 w-10"
             title="Global Search"
+            aria-label="Global search"
           >
-            <Search className="h-4 w-4" />
+            <Search className="h-[18px] w-[18px]" />
           </Button>
 
           {/* Biometric Gateway Pulse Action (Hidden per user request, code retained) */}
@@ -149,13 +158,18 @@ export function Topbar({ sidebarCollapsed = false, onToggleSidebar }: TopbarProp
           {/* Notifications */}
           <NotificationDropdown />
 
-          {/* Theme Toggle */}
-          <ThemeToggle />
+          {/* Theme Toggle — icon button on sm+; inside profile menu on phones */}
+          <div className="hidden sm:block">
+            <ThemeToggle />
+          </div>
 
           {/* User Profile Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="flex items-center gap-2 pl-1.5 pr-1 py-1 rounded-xl hover:bg-accent transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20">
+              <button
+                aria-label="Account menu"
+                className="flex h-10 w-10 items-center justify-center rounded-xl hover:bg-accent transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20 sm:h-9 sm:w-9"
+              >
                 <img
                   src={session.avatar}
                   alt={session.name}
@@ -163,11 +177,11 @@ export function Topbar({ sidebarCollapsed = false, onToggleSidebar }: TopbarProp
                 />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56 p-1.5">
+            <DropdownMenuContent align="end" sideOffset={8} className="w-56 max-w-[calc(100vw-2rem)] p-1.5">
               <DropdownMenuLabel className="font-normal p-2">
                 <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-semibold leading-none">{session.name}</p>
-                  <p className="text-xs leading-none text-muted-foreground">{session.email}</p>
+                  <p className="text-sm font-semibold leading-none truncate">{session.name}</p>
+                  <p className="text-xs leading-none text-muted-foreground truncate">{session.email}</p>
                   <Badge variant="secondary" className="w-fit text-[10px] mt-1">
                     {session.roleLabel}
                   </Badge>
@@ -188,6 +202,31 @@ export function Topbar({ sidebarCollapsed = false, onToggleSidebar }: TopbarProp
                 <HelpCircle className="h-4 w-4 text-muted-foreground" />
                 <span>Documentation & Guides</span>
               </DropdownMenuItem>
+              {/* Theme switcher for phones (standalone button is sm+ only) */}
+              <div className="sm:hidden">
+                <DropdownMenuSeparator />
+                <div className="grid grid-cols-3 gap-1 p-1">
+                  {[
+                    { value: "light", label: "Light", Icon: Sun },
+                    { value: "dark", label: "Dark", Icon: Moon },
+                    { value: "system", label: "Auto", Icon: Laptop },
+                  ].map(({ value, label, Icon }) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setTheme(value)}
+                      className={`flex flex-col items-center gap-1 rounded-lg px-2 py-2 text-[11px] font-medium transition-colors ${
+                        theme === value
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                      }`}
+                    >
+                      <Icon className="h-4 w-4" />
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 className="gap-2 cursor-pointer text-destructive focus:text-destructive"
@@ -203,12 +242,12 @@ export function Topbar({ sidebarCollapsed = false, onToggleSidebar }: TopbarProp
 
       {/* Sync Toast Feedback Banner */}
       {syncFeedback && (
-        <div className="bg-emerald-500/10 border-b border-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-4 py-2 text-xs flex items-center justify-between animate-in fade-in slide-in-from-top-2 duration-300">
-          <div className="flex items-center gap-2">
+        <div className="bg-emerald-500/10 border-b border-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-3 sm:px-4 py-2 text-xs flex items-center justify-between gap-2 animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="flex min-w-0 items-center gap-2">
             <Fingerprint className="h-4 w-4 shrink-0" />
-            <span>{syncFeedback}</span>
+            <span className="truncate">{syncFeedback}</span>
           </div>
-          <span className="text-[10px] opacity-75 font-mono">200 OK • Mock Hardware Layer</span>
+          <span className="hidden sm:inline text-[10px] opacity-75 font-mono shrink-0">200 OK • Mock Hardware Layer</span>
         </div>
       )}
 

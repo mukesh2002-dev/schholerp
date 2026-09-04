@@ -1,8 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { toast } from "sonner";
 import { mockDb } from "@/lib/services/mock-db";
 import { Message, MessageChannel } from "@/types";
 import { Breadcrumbs } from "@/components/layout/breadcrumbs";
@@ -36,12 +40,30 @@ const statusConfig: Record<string, { label: string; icon: React.ReactNode; class
   FAILED: { label: "Failed", icon: <Circle className="h-3.5 w-3.5" />, className: "text-red-600 dark:text-red-400" },
 };
 
+const replySchema = z.object({
+  reply: z
+    .string()
+    .min(1, "Reply cannot be empty")
+    .max(5000, "Reply is too long"),
+});
+
+type ReplyFormValues = z.infer<typeof replySchema>;
+
 export default function MessageDetailPage() {
   const params = useParams();
   const messageId = params.id as string;
 
   const message = mockDb.getMessageById(messageId);
-  const [replyText, setReplyText] = useState("");
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<ReplyFormValues>({
+    resolver: zodResolver(replySchema),
+    defaultValues: { reply: "" },
+  });
 
   if (!message) {
     return (
@@ -64,11 +86,11 @@ export default function MessageDetailPage() {
     mockDb.markMessageRead(message.id);
   }
 
-  const handleReply = () => {
-    if (!replyText.trim()) return;
+  const handleReply = (values: ReplyFormValues) => {
+    if (!message) return;
     mockDb.saveMessage({
       subject: `RE: ${message.subject}`,
-      body: replyText,
+      body: values.reply.trim(),
       senderId: "current-user",
       senderName: "Current User",
       senderRole: "SUPER_ADMIN",
@@ -84,7 +106,8 @@ export default function MessageDetailPage() {
       replyToId: message.id,
       threadId: message.threadId || message.id,
     });
-    setReplyText("");
+    reset();
+    toast.success("Reply sent", { description: `Your reply to ${message.senderName} was dispatched.` });
   };
 
   return (
@@ -174,24 +197,26 @@ export default function MessageDetailPage() {
                 Reply
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <Textarea
-                value={replyText}
-                onChange={(e) => setReplyText(e.target.value)}
-                placeholder="Write your reply..."
-                className="min-h-[120px]"
-              />
-              <div className="flex justify-end">
-                <Button
-                  variant="gradient"
-                  onClick={handleReply}
-                  disabled={!replyText.trim()}
-                  className="gap-2"
-                >
-                  <Send className="h-4 w-4" />
-                  Send Reply
-                </Button>
-              </div>
+            <CardContent>
+              <form onSubmit={handleSubmit(handleReply)} className="space-y-3" noValidate>
+                <Textarea
+                  placeholder="Write your reply..."
+                  className="min-h-[120px]"
+                  {...register("reply")}
+                />
+                {errors.reply && <p className="text-xs text-destructive">{errors.reply.message}</p>}
+                <div className="flex justify-end">
+                  <Button
+                    type="submit"
+                    variant="gradient"
+                    disabled={isSubmitting}
+                    className="gap-2"
+                  >
+                    <Send className="h-4 w-4" />
+                    {isSubmitting ? "Sending…" : "Send Reply"}
+                  </Button>
+                </div>
+              </form>
             </CardContent>
           </Card>
         </div>

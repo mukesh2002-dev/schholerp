@@ -5,8 +5,8 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function formatCurrency(amount: number, currency: string = "USD"): string {
-  return new Intl.NumberFormat("en-US", {
+export function formatCurrency(amount: number, currency: string = "INR"): string {
+  return new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: currency,
     maximumFractionDigits: 0,
@@ -14,15 +14,15 @@ export function formatCurrency(amount: number, currency: string = "USD"): string
 }
 
 export function formatNumber(num: number): string {
-  return new Intl.NumberFormat("en-US").format(num);
+  return new Intl.NumberFormat("en-IN").format(num);
 }
 
 export function formatDate(dateString: string): string {
   if (!dateString) return "-";
   const date = new Date(dateString);
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
+  return new Intl.DateTimeFormat("en-IN", {
     day: "numeric",
+    month: "short",
     year: "numeric",
   }).format(date);
 }
@@ -30,9 +30,9 @@ export function formatDate(dateString: string): string {
 export function formatDateTime(dateString: string): string {
   if (!dateString) return "-";
   const date = new Date(dateString);
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
+  return new Intl.DateTimeFormat("en-IN", {
     day: "numeric",
+    month: "short",
     hour: "numeric",
     minute: "numeric",
     hour12: true,

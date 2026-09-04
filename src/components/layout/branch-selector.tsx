@@ -25,7 +25,8 @@ export function BranchSelector() {
         <Button
           variant="outline"
           size="sm"
-          className="h-9 px-3 gap-2 font-medium bg-background/80 backdrop-blur-xs border-border/80 hover:bg-accent hover:border-primary/50 text-left max-w-[220px] sm:max-w-[260px]"
+          className="h-10 sm:h-9 px-2.5 sm:px-3 gap-1.5 sm:gap-2 font-medium bg-background/80 backdrop-blur-xs border-border/80 hover:bg-accent hover:border-primary/50 text-left min-w-0 max-w-[118px] min-[380px]:max-w-[148px] min-[480px]:max-w-[190px] sm:max-w-[260px]"
+          aria-label="Select campus"
         >
           {activeBranchId === "all" ? (
             <Globe className="h-4 w-4 text-primary shrink-0" />
@@ -35,18 +36,19 @@ export function BranchSelector() {
               style={{ backgroundColor: selectedBranch?.color || "#3b82f6" }}
             />
           )}
-          <div className="flex flex-col text-left truncate flex-1 leading-tight">
+          <div className="flex flex-col text-left truncate flex-1 min-w-0 leading-tight">
             <span className="text-xs font-semibold truncate text-foreground">
-              {activeBranchId === "all" ? "All Campuses (Global)" : selectedBranch?.name}
+              {activeBranchId === "all" ? "All Campuses" : selectedBranch?.name}
             </span>
-            <span className="text-[10px] text-muted-foreground truncate">
+            {/* Subtitle hidden on phones — keeps the topbar from overflowing */}
+            <span className="hidden sm:block text-[10px] text-muted-foreground truncate">
               {activeBranchId === "all" ? `${branches.length} Active Branches` : selectedBranch?.code}
             </span>
           </div>
           <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0 opacity-70" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-[280px] p-1.5">
+      <DropdownMenuContent align="start" sideOffset={8} className="w-[280px] max-w-[calc(100vw-2rem)] p-1.5">
         <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-2 py-1">
           Select Campus Context
         </DropdownMenuLabel>

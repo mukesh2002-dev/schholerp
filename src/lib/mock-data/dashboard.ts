@@ -76,12 +76,12 @@ export const initialAttendanceTrends: AttendanceTrendPoint[] = [
 ];
 
 export const initialFeeCollections: FeeCollectionPoint[] = [
-  { month: "Apr", collected: 1320000, target: 1400000, pending: 80000 },
-  { month: "May", collected: 1410000, target: 1400000, pending: 65000 },
-  { month: "Jun", collected: 1380000, target: 1450000, pending: 95000 },
-  { month: "Jul", collected: 1490000, target: 1500000, pending: 72000 },
-  { month: "Aug", collected: 1520000, target: 1550000, pending: 58000 },
-  { month: "Sep (MTD)", collected: 620000, target: 1550000, pending: 930000 },
+  { month: "Apr", collected: 19800000, target: 21000000, pending: 1200000 },
+  { month: "May", collected: 21150000, target: 21000000, pending: 975000 },
+  { month: "Jun", collected: 20700000, target: 21750000, pending: 1425000 },
+  { month: "Jul", collected: 22350000, target: 22500000, pending: 1080000 },
+  { month: "Aug", collected: 22800000, target: 23250000, pending: 870000 },
+  { month: "Sep (MTD)", collected: 9300000, target: 23250000, pending: 13950000 },
 ];
 
 export const initialAdmissionFunnel: AdmissionFunnelPoint[] = [
@@ -95,8 +95,8 @@ export const initialAdmissionFunnel: AdmissionFunnelPoint[] = [
 export const initialNotices: Notice[] = [
   {
     id: "not-01",
-    title: "Annual Science & Innovation Expo 2026",
-    content: "All campuses are requested to finalize student STEM project submissions by September 15. The grand inter-branch showcase will be hosted at Westside STEM Academy.",
+    title: "National Science Exhibition 2026 (Vidnyan Pradarshan)",
+    content: "All campuses must finalize student science project entries by September 15. The inter-branch showcase will be hosted at Westside STEM Academy, Baner.",
     date: "2026-09-02T08:30:00.000Z",
     priority: "HIGH",
     branchId: "all",
@@ -117,8 +117,8 @@ export const initialNotices: Notice[] = [
   },
   {
     id: "not-03",
-    title: "Term 1 Tuition Fee Installment Due Date",
-    content: "Gentle reminder to parents: Term 1 fee installments are due on September 10. Online portal payments and receipt generation are active 24/7.",
+    title: "Q2 Fee Payment — Last Date 31st July",
+    content: "Gentle reminder to parents: Q2 (Jul–Sep) fees are due by 31st July. UPI, cheque and cash payments accepted at the school office; online receipts available 24/7.",
     date: "2026-08-30T10:15:00.000Z",
     priority: "NORMAL",
     branchId: "all",
@@ -134,7 +134,7 @@ export const initialNotices: Notice[] = [
     priority: "NORMAL",
     branchId: "br-north-03",
     category: "Event",
-    author: "Clara Higgins (Principal)",
+    author: "Mrs. Fatima Sheikh (Principal)",
     targetAudience: ["PARENTS", "STUDENTS"],
   },
 ];
@@ -143,9 +143,9 @@ export const initialActivities: ActivityLog[] = [
   {
     id: "act-01",
     user: {
-      name: "Sarah Lin",
+      name: "Sunita Rao",
       avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100",
-      role: "Faculty Head",
+      role: "HOD Mathematics",
     },
     action: "UPDATE",
     module: "Classes",
@@ -154,24 +154,24 @@ export const initialActivities: ActivityLog[] = [
     timestamp: "2026-09-02T09:15:00.000Z",
     branchId: "br-apex-01",
     branchName: "Apex Global Campus",
-    details: "Uploaded Midterm sample test papers and updated grading criteria.",
+    details: "Uploaded Half-Yearly sample papers and updated marking scheme.",
     status: "SUCCESS",
   },
   {
     id: "act-02",
     user: {
-      name: "Marcus Vance",
+      name: "Manoj Verma",
       avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100",
       role: "Admissions Officer",
     },
     action: "APPROVE",
     module: "Admissions",
-    entityName: "Application #ADM-2026-908 (Liam Chen)",
+    entityName: "Application #ADM-2026-908 (Aditya Deshmukh)",
     entityId: "adm-908",
     timestamp: "2026-09-02T08:45:00.000Z",
     branchId: "br-west-02",
     branchName: "Westside STEM & Innovation Academy",
-    details: "Approved Grade 9 STEM track admission following interview clearance.",
+    details: "Approved Class 9 Science admission following interaction round.",
     status: "SUCCESS",
   },
   {
@@ -183,12 +183,12 @@ export const initialActivities: ActivityLog[] = [
     },
     action: "PAYMENT",
     module: "Fees",
-    entityName: "Receipt #RCP-44910 ($2,450.00)",
+    entityName: "Receipt #RCP-44910 (₹18,700)",
     entityId: "fee-44910",
     timestamp: "2026-09-02T08:20:00.000Z",
     branchId: "br-green-04",
     branchName: "Green Valley International",
-    details: "Processed Term 1 Tuition & Transport fee via Stripe Mock Gateway.",
+    details: "Processed Q2 Tuition fee via UPI mock gateway.",
     status: "SUCCESS",
   },
   {
@@ -211,7 +211,7 @@ export const initialActivities: ActivityLog[] = [
   {
     id: "act-05",
     user: {
-      name: "Terrell Owens",
+      name: "Ramesh Yadav",
       avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100",
       role: "Transport Supervisor",
     },

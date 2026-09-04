@@ -153,7 +153,7 @@ export default function EngineeringDashboardPage() {
   const [auditLogs] = useState(() => mockDb.getAuditLogs());
   const [qaMetrics] = useState(() => mockDb.getQADashboardMetrics());
 
-  const lastUpdated = useMemo(() => new Date().toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true }), []);
+  const lastUpdated = useMemo(() => new Date().toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true }), []);
   const recentDeployments = dashboardData.recentDeployments;
   const recentAuditEvents = auditLogs.slice(0, 5);
   const currentBuild = dashboardData.currentBuild;

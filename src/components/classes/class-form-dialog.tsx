@@ -26,6 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { BookOpen } from "lucide-react";
+import { SCHOOL_BOARDS, MEDIUMS_OF_INSTRUCTION } from "@/lib/india";
 
 interface ClassFormDialogProps {
   open: boolean;
@@ -38,6 +39,8 @@ const classSchema = z.object({
   gradeLevel: z.number().min(1).max(12),
   category: z.string().min(1),
   branchId: z.string().min(1),
+  board: z.string().min(1, "Select board"),
+  medium: z.string().min(1, "Select medium"),
   capacity: z.number().min(1, "Capacity must be greater than 0"),
   description: z.string().optional(),
   sectionName: z.string().min(1),
@@ -65,6 +68,8 @@ export function ClassFormDialog({ open, onOpenChange, onSuccess }: ClassFormDial
       gradeLevel: 10,
       category: "High School",
       branchId: activeBranchId !== "all" ? activeBranchId : "br-apex-01",
+      board: "CBSE",
+      medium: "English",
       capacity: 120,
       description: "",
       sectionName: "Section A",
@@ -75,6 +80,8 @@ export function ClassFormDialog({ open, onOpenChange, onSuccess }: ClassFormDial
 
   const category = watch("category");
   const branchId = watch("branchId");
+  const board = watch("board");
+  const medium = watch("medium");
   const classTeacherId = watch("classTeacherId");
 
   useEffect(() => {
@@ -84,6 +91,8 @@ export function ClassFormDialog({ open, onOpenChange, onSuccess }: ClassFormDial
         gradeLevel: 10,
         category: "High School",
         branchId: activeBranchId !== "all" ? activeBranchId : "br-apex-01",
+        board: "CBSE",
+        medium: "English",
         capacity: 120,
         description: "",
         sectionName: "Section A",
@@ -118,8 +127,8 @@ export function ClassFormDialog({ open, onOpenChange, onSuccess }: ClassFormDial
         },
       ],
       subjects: [
-        { id: "sub-gen-1", name: "Core Mathematics", code: "MATH-CR", teacherId: assignedTeacher?.id || "tch-01", teacherName: assignedTeacher?.fullName || "Lead Faculty", weeklyPeriods: 6 },
-        { id: "sub-gen-2", name: "Language & Literature", code: "LANG-CR", teacherId: assignedTeacher?.id || "tch-01", teacherName: assignedTeacher?.fullName || "Lead Faculty", weeklyPeriods: 5 },
+        { id: "sub-gen-1", name: "Mathematics", code: "MATH-CR", teacherId: assignedTeacher?.id || "tch-01", teacherName: assignedTeacher?.fullName || "Lead Faculty", weeklyPeriods: 6 },
+        { id: "sub-gen-2", name: "English", code: "ENG-CR", teacherId: assignedTeacher?.id || "tch-01", teacherName: assignedTeacher?.fullName || "Lead Faculty", weeklyPeriods: 5 },
       ],
     };
 
@@ -154,10 +163,43 @@ export function ClassFormDialog({ open, onOpenChange, onSuccess }: ClassFormDial
             </label>
             <Input
               {...register("name")}
-              placeholder="e.g. Grade 10 or Kindergarten Prep"
+              placeholder="e.g. Grade 10 or UKG"
               className={errors.name ? "border-rose-500" : ""}
             />
             {errors.name && <p className="text-[11px] text-rose-500 mt-1">{errors.name.message}</p>}
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-medium text-foreground mb-1 block">Board</label>
+              <Select value={board} onValueChange={(val) => setValue("board", val)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Board" />
+                </SelectTrigger>
+                <SelectContent>
+                  {SCHOOL_BOARDS.map((b) => (
+                    <SelectItem key={b} value={b}>
+                      {b}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-foreground mb-1 block">Medium</label>
+              <Select value={medium} onValueChange={(val) => setValue("medium", val)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Medium" />
+                </SelectTrigger>
+                <SelectContent>
+                  {MEDIUMS_OF_INSTRUCTION.map((m) => (
+                    <SelectItem key={m} value={m}>
+                      {m}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -254,7 +296,7 @@ export function ClassFormDialog({ open, onOpenChange, onSuccess }: ClassFormDial
             <label className="text-xs font-medium text-foreground mb-1 block">Description</label>
             <Textarea
               {...register("description")}
-              placeholder="Curriculum track, honors requirements, AP course offerings..."
+              placeholder="CBSE curriculum track, NCERT pattern, Olympiad / NTSE batches..."
               rows={2}
             />
           </div>

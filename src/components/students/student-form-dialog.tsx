@@ -25,6 +25,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { GraduationCap } from "lucide-react";
+import {
+  SOCIAL_CATEGORIES,
+  RELIGIONS,
+  MOTHER_TONGUES,
+  SCHOOL_BOARDS,
+  MEDIUMS_OF_INSTRUCTION,
+  SCHOOL_HOUSES,
+  INDIAN_STATES,
+  DEMO_OCCUPATIONS,
+  INDIAN_MOBILE_REGEX,
+  normaliseIndianMobile,
+  isValidAadhaar,
+} from "@/lib/india";
 
 interface StudentFormDialogProps {
   open: boolean;
@@ -43,15 +56,38 @@ const studentSchema = z.object({
   classId: z.string().min(1),
   sectionId: z.string().min(1),
   status: z.string().min(1),
+  category: z.string().min(1, "Select social category"),
+  religion: z.string().min(1),
+  motherTongue: z.string().min(1),
+  board: z.string().min(1),
+  medium: z.string().min(1),
+  house: z.string().optional(),
+  aadhaarNumber: z
+    .string()
+    .optional()
+    .refine((v) => !v || isValidAadhaar(v), "Enter a valid 12-digit Aadhaar number"),
+  rteAdmission: z.boolean().optional(),
   guardianName: z.string().min(1, "Guardian name is required"),
   guardianRelation: z.string().min(1),
   guardianEmail: z.string().min(1, "Guardian email is required").email("Invalid email"),
-  guardianPhone: z.string().optional(),
+  guardianPhone: z
+    .string()
+    .optional()
+    .refine(
+      (v) => !v || INDIAN_MOBILE_REGEX.test(normaliseIndianMobile(v)),
+      "Enter a valid 10-digit mobile number"
+    ),
   guardianOccupation: z.string().optional(),
   address: z.string().optional(),
   city: z.string().optional(),
   state: z.string().optional(),
-  emergencyContact: z.string().optional(),
+  emergencyContact: z
+    .string()
+    .optional()
+    .refine(
+      (v) => !v || INDIAN_MOBILE_REGEX.test(normaliseIndianMobile(v)),
+      "Enter a valid 10-digit mobile number"
+    ),
 });
 
 type StudentFormValues = z.infer<typeof studentSchema>;
@@ -84,14 +120,22 @@ export function StudentFormDialog({
       classId: "cls-g10",
       sectionId: "sec-g10-a",
       status: "ACTIVE",
+      category: "General",
+      religion: "Hindu",
+      motherTongue: "Hindi",
+      board: "CBSE",
+      medium: "English",
+      house: "Agni",
+      aadhaarNumber: "",
+      rteAdmission: false,
       guardianName: "",
       guardianRelation: "Father",
       guardianEmail: "",
       guardianPhone: "",
       guardianOccupation: "",
       address: "",
-      city: "Metro City",
-      state: "CA",
+      city: "Pune",
+      state: "Maharashtra",
       emergencyContact: "",
     },
   });
@@ -103,6 +147,14 @@ export function StudentFormDialog({
   const sectionId = watch("sectionId");
   const status = watch("status");
   const guardianRelation = watch("guardianRelation");
+  const category = watch("category");
+  const religion = watch("religion");
+  const motherTongue = watch("motherTongue");
+  const board = watch("board");
+  const medium = watch("medium");
+  const house = watch("house");
+  const guardianOccupation = watch("guardianOccupation");
+  const state = watch("state");
 
   const selectedClass = classes.find((c) => c.id === classId) || classes[0];
 
@@ -121,6 +173,14 @@ export function StudentFormDialog({
           classId: studentToEdit.classId,
           sectionId: studentToEdit.sectionId,
           status: studentToEdit.status,
+          category: studentToEdit.category || "General",
+          religion: studentToEdit.religion || "Hindu",
+          motherTongue: studentToEdit.motherTongue || "Hindi",
+          board: studentToEdit.board || "CBSE",
+          medium: studentToEdit.medium || "English",
+          house: studentToEdit.house || "Agni",
+          aadhaarNumber: studentToEdit.aadhaarNumber || "",
+          rteAdmission: studentToEdit.rteAdmission || false,
           guardianName: studentToEdit.guardian.name,
           guardianRelation: studentToEdit.guardian.relation,
           guardianEmail: studentToEdit.guardian.email,
@@ -142,15 +202,23 @@ export function StudentFormDialog({
           classId: loadedClasses[0]?.id || "cls-g10",
           sectionId: loadedClasses[0]?.sections[0]?.id || "sec-g10-a",
           status: "ACTIVE",
+          category: "General",
+          religion: "Hindu",
+          motherTongue: "Hindi",
+          board: "CBSE",
+          medium: "English",
+          house: "Agni",
+          aadhaarNumber: "",
+          rteAdmission: false,
           guardianName: "",
           guardianRelation: "Father",
           guardianEmail: "",
           guardianPhone: "",
-          guardianOccupation: "Executive",
-          address: "500 Horizon Boulevard",
-          city: "Metro City",
-          state: "CA",
-          emergencyContact: "+1 (555) 234-9988",
+          guardianOccupation: "",
+          address: "",
+          city: "Pune",
+          state: "Maharashtra",
+          emergencyContact: "",
         });
       }
     }
@@ -181,12 +249,16 @@ export function StudentFormDialog({
       status: data.status as StudentStatus,
       guardian: {
         name: data.guardianName,
-        relation: data.guardianRelation as "Father" | "Mother" | "Guardian",
+        relation: data.guardianRelation as "Father" | "Mother" | "Guardian" | "Other",
         email: data.guardianEmail,
-        phone: data.guardianPhone || "+1 (555) 234-5678",
+        phone: data.guardianPhone ? `+91 ${normaliseIndianMobile(data.guardianPhone)}` : "+91 98220 00000",
         occupation: data.guardianOccupation || "",
         address: data.address || "",
-        emergencyContact: data.emergencyContact || data.guardianPhone || "",
+        emergencyContact: data.emergencyContact
+          ? `+91 ${normaliseIndianMobile(data.emergencyContact)}`
+          : data.guardianPhone
+            ? `+91 ${normaliseIndianMobile(data.guardianPhone)}`
+            : "",
       },
       attendanceSummary: studentToEdit?.attendanceSummary || {
         totalDays: 140,
@@ -196,20 +268,29 @@ export function StudentFormDialog({
         attendanceRate: 97.1,
       },
       feeSummary: studentToEdit?.feeSummary || {
-        totalAssigned: 12000,
-        totalPaid: 6000,
-        totalPending: 6000,
+        totalAssigned: 68000,
+        totalPaid: 34000,
+        totalPending: 34000,
         status: "PARTIAL",
       },
       academicHistory: studentToEdit?.academicHistory || [
-        { term: "Term 1 - 2025-26", grade: "A", gpa: 3.9, percentage: 94.5, rank: 3, remarks: "Excellent academic performance and participation." },
+        { term: "Term 1 - 2025-26", grade: "A2", gpa: 3.9, percentage: 94.5, rank: 3, remarks: "Excellent academic performance and participation." },
       ],
       documents: studentToEdit?.documents || [
         { id: "doc-std-1", name: "Birth_Certificate.pdf", type: "PDF", uploadedAt: "2026-08-10", verified: true, size: "1.2 MB" },
+        { id: "doc-std-2", name: "Aadhaar_Card.pdf", type: "PDF", uploadedAt: "2026-08-10", verified: false, size: "0.8 MB" },
       ],
       address: data.address || "",
       city: data.city || "",
       state: data.state || "",
+      aadhaarNumber: data.aadhaarNumber?.replace(/[\s-]/g, "") || undefined,
+      category: data.category,
+      religion: data.religion,
+      motherTongue: data.motherTongue,
+      board: data.board,
+      medium: data.medium,
+      house: data.house || undefined,
+      rteAdmission: data.rteAdmission || false,
     };
 
     setTimeout(() => {
@@ -251,7 +332,7 @@ export function StudentFormDialog({
                 </label>
                 <Input
                   {...register("firstName")}
-                  placeholder="e.g. Liam"
+                  placeholder="e.g. Aarav"
                   className={errors.firstName ? "border-rose-500" : ""}
                 />
                 {errors.firstName && <p className="text-[11px] text-rose-500 mt-1">{errors.firstName.message}</p>}
@@ -262,7 +343,7 @@ export function StudentFormDialog({
                 </label>
                 <Input
                   {...register("lastName")}
-                  placeholder="e.g. Chen"
+                  placeholder="e.g. Sharma"
                   className={errors.lastName ? "border-rose-500" : ""}
                 />
                 {errors.lastName && <p className="text-[11px] text-rose-500 mt-1">{errors.lastName.message}</p>}
@@ -305,6 +386,130 @@ export function StudentFormDialog({
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+          </div>
+
+          {/* Section: Indian Registry Details */}
+          <div className="space-y-3">
+            <h4 className="text-xs font-semibold text-primary uppercase tracking-wider border-b border-border pb-1">
+              Indian Registry Details
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label className="text-xs font-medium text-foreground mb-1 block">Social Category</label>
+                <Select value={category} onValueChange={(val) => setValue("category", val)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SOCIAL_CATEGORIES.map((c) => (
+                      <SelectItem key={c} value={c}>
+                        {c}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-foreground mb-1 block">Religion</label>
+                <Select value={religion} onValueChange={(val) => setValue("religion", val)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Religion" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {RELIGIONS.map((r) => (
+                      <SelectItem key={r} value={r}>
+                        {r}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-foreground mb-1 block">Mother Tongue</label>
+                <Select value={motherTongue} onValueChange={(val) => setValue("motherTongue", val)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Mother tongue" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MOTHER_TONGUES.map((m) => (
+                      <SelectItem key={m} value={m}>
+                        {m}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label className="text-xs font-medium text-foreground mb-1 block">Board</label>
+                <Select value={board} onValueChange={(val) => setValue("board", val)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Board" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SCHOOL_BOARDS.map((b) => (
+                      <SelectItem key={b} value={b}>
+                        {b}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-foreground mb-1 block">Medium</label>
+                <Select value={medium} onValueChange={(val) => setValue("medium", val)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Medium" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MEDIUMS_OF_INSTRUCTION.map((m) => (
+                      <SelectItem key={m} value={m}>
+                        {m}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-foreground mb-1 block">House</label>
+                <Select value={house} onValueChange={(val) => setValue("house", val)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="House" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SCHOOL_HOUSES.map((h) => (
+                      <SelectItem key={h} value={h}>
+                        {h}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-medium text-foreground mb-1 block">Aadhaar Number (optional)</label>
+                <Input
+                  {...register("aadhaarNumber")}
+                  placeholder="12-digit Aadhaar"
+                  inputMode="numeric"
+                  className={errors.aadhaarNumber ? "border-rose-500" : ""}
+                />
+                {errors.aadhaarNumber && <p className="text-[11px] text-rose-500 mt-1">{errors.aadhaarNumber.message}</p>}
+              </div>
+              <label className="flex items-center gap-2 p-2 rounded-lg border bg-muted/30 cursor-pointer self-end text-xs">
+                <input
+                  type="checkbox"
+                  checked={watch("rteAdmission") || false}
+                  onChange={(e) => setValue("rteAdmission", e.target.checked)}
+                  className="rounded text-primary"
+                />
+                <span>Admitted under <strong>RTE 25% quota</strong></span>
+              </label>
             </div>
           </div>
 
@@ -398,7 +603,7 @@ export function StudentFormDialog({
                 </label>
                 <Input
                   {...register("guardianName")}
-                  placeholder="e.g. David & Vivian Chen"
+                  placeholder="e.g. Ramesh Sharma"
                   className={errors.guardianName ? "border-rose-500" : ""}
                 />
                 {errors.guardianName && <p className="text-[11px] text-rose-500 mt-1">{errors.guardianName.message}</p>}
@@ -432,11 +637,60 @@ export function StudentFormDialog({
                 {errors.guardianEmail && <p className="text-[11px] text-rose-500 mt-1">{errors.guardianEmail.message}</p>}
               </div>
               <div>
-                <label className="text-xs font-medium text-foreground mb-1 block">Guardian Phone</label>
+                <label className="text-xs font-medium text-foreground mb-1 block">Guardian Mobile</label>
                 <Input
                   {...register("guardianPhone")}
-                  placeholder="+1 (555) 789-4321"
+                  placeholder="98765 43210"
+                  inputMode="numeric"
+                  className={errors.guardianPhone ? "border-rose-500" : ""}
                 />
+                {errors.guardianPhone && <p className="text-[11px] text-rose-500 mt-1">{errors.guardianPhone.message}</p>}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-medium text-foreground mb-1 block">Guardian Occupation</label>
+                <Select value={guardianOccupation || ""} onValueChange={(val) => setValue("guardianOccupation", val)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select occupation" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DEMO_OCCUPATIONS.map((o) => (
+                      <SelectItem key={o} value={o}>
+                        {o}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-foreground mb-1 block">Emergency Contact</label>
+                <Input
+                  {...register("emergencyContact")}
+                  placeholder="98765 43211"
+                  inputMode="numeric"
+                  className={errors.emergencyContact ? "border-rose-500" : ""}
+                />
+                {errors.emergencyContact && <p className="text-[11px] text-rose-500 mt-1">{errors.emergencyContact.message}</p>}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-medium text-foreground mb-1 block">State</label>
+                <Select value={state} onValueChange={(val) => setValue("state", val)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="State" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {INDIAN_STATES.map((s) => (
+                      <SelectItem key={s.code} value={s.name}>
+                        {s.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </div>

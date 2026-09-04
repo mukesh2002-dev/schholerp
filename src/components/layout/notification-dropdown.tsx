@@ -42,17 +42,18 @@ export function NotificationDropdown() {
         <Button
           variant="ghost"
           size="icon"
-          className="h-9 w-9 rounded-lg hover:bg-accent relative"
+          className="h-10 w-10 sm:h-9 sm:w-9 rounded-lg hover:bg-accent relative"
           title="Notifications & Notices"
+          aria-label="View notifications"
         >
-          <Bell className="h-4 w-4 text-foreground" />
+          <Bell className="h-[18px] w-[18px] sm:h-4 sm:w-4 text-foreground" />
           {unreadCount > 0 && (
-            <span className="absolute 1.5 top-1.5 right-1.5 flex h-2 w-2 rounded-full bg-rose-500 ring-2 ring-background animate-pulse" />
+            <span className="absolute top-1.5 right-1.5 flex h-2 w-2 rounded-full bg-rose-500 ring-2 ring-background animate-pulse" />
           )}
           <span className="sr-only">View notifications</span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-[340px] sm:w-[380px] p-2">
+      <DropdownMenuContent align="end" sideOffset={8} className="w-[calc(100vw-2rem)] sm:w-[380px] p-2">
         <div className="flex items-center justify-between px-2 py-1.5">
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-foreground">Notifications & Circulars</span>
