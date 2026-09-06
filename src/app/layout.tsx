@@ -5,9 +5,10 @@ import { SettingsProvider } from "@/components/providers/settings-provider";
 import { ERPProvider } from "@/components/providers/erp-provider";
 import { AppLayoutShell } from "@/components/layout/app-layout-shell";
 import { Toaster } from "sonner";
+import { SCHOOL_DATA } from "@/lib/school-data";
 
 export const metadata: Metadata = {
-  title: "Apex School ERP — Multi-Campus Management Platform",
+  title: `${SCHOOL_DATA.appName} — ${SCHOOL_DATA.schoolName} | Multi-Campus Management Platform`,
   description:
     "Next-generation unified school management platform for multi-branch campuses, academics, HR, student records, fee collection, and biometric attendance.",
 };

@@ -2,10 +2,9 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useTheme } from "next-themes";
 import { useERP } from "@/components/providers/erp-provider";
+import { useSettings } from "@/components/providers/settings-provider";
 import { BranchSelector } from "./branch-selector";
-import { ThemeToggle } from "./theme-toggle";
 import { NotificationDropdown } from "./notification-dropdown";
 import { GlobalSearchDialog } from "./global-search-dialog";
 import {
@@ -21,11 +20,9 @@ import {
   HelpCircle,
   PanelLeftClose,
   PanelLeft,
-  Sun,
-  Moon,
-  Laptop,
 } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Sidebar } from "./sidebar";
@@ -46,7 +43,7 @@ interface TopbarProps {
 
 export function Topbar({ sidebarCollapsed = false, onToggleSidebar }: TopbarProps) {
   const { session, setSearchOpen, triggerBiometricSync, logout } = useERP();
-  const { theme, setTheme } = useTheme();
+  const { stickyTopbar } = useSettings();
   const router = useRouter();
 
   const handleLogout = () => {
@@ -71,7 +68,10 @@ export function Topbar({ sidebarCollapsed = false, onToggleSidebar }: TopbarProp
   return (
     <>
       <header
-        className="sticky top-0 z-20 flex min-h-16 w-full items-center justify-between gap-2 border-b border-border bg-card/85 backdrop-blur-md px-2.5 py-2 sm:px-6"
+        className={cn(
+          "flex min-h-16 w-full items-center justify-between gap-2 border-b border-border bg-card/85 backdrop-blur-md px-2.5 py-2 sm:px-6",
+          stickyTopbar ? "sticky top-0 z-20" : "relative z-10"
+        )}
         style={{ paddingTop: "max(0.5rem, env(safe-area-inset-top))" }}
       >
         {/* Left Side: Desktop Toggle / Mobile Menu + Campus Switcher */}
@@ -122,7 +122,7 @@ export function Topbar({ sidebarCollapsed = false, onToggleSidebar }: TopbarProp
           </button>
         </div>
 
-        {/* Right Side: Biometric Sync + Role + Notifications + Theme + Profile */}
+        {/* Right Side: Biometric Sync + Role + Notifications + Profile */}
         <div className="flex shrink-0 items-center gap-0.5 sm:gap-2">
           {/* Search Trigger for Mobile */}
           <Button
@@ -157,11 +157,6 @@ export function Topbar({ sidebarCollapsed = false, onToggleSidebar }: TopbarProp
 
           {/* Notifications */}
           <NotificationDropdown />
-
-          {/* Theme Toggle — icon button on sm+; inside profile menu on phones */}
-          <div className="hidden sm:block">
-            <ThemeToggle />
-          </div>
 
           {/* User Profile Menu */}
           <DropdownMenu>
@@ -202,31 +197,6 @@ export function Topbar({ sidebarCollapsed = false, onToggleSidebar }: TopbarProp
                 <HelpCircle className="h-4 w-4 text-muted-foreground" />
                 <span>Documentation & Guides</span>
               </DropdownMenuItem>
-              {/* Theme switcher for phones (standalone button is sm+ only) */}
-              <div className="sm:hidden">
-                <DropdownMenuSeparator />
-                <div className="grid grid-cols-3 gap-1 p-1">
-                  {[
-                    { value: "light", label: "Light", Icon: Sun },
-                    { value: "dark", label: "Dark", Icon: Moon },
-                    { value: "system", label: "Auto", Icon: Laptop },
-                  ].map(({ value, label, Icon }) => (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() => setTheme(value)}
-                      className={`flex flex-col items-center gap-1 rounded-lg px-2 py-2 text-[11px] font-medium transition-colors ${
-                        theme === value
-                          ? "bg-primary/10 text-primary"
-                          : "text-muted-foreground hover:bg-accent hover:text-foreground"
-                      }`}
-                    >
-                      <Icon className="h-4 w-4" />
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </div>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 className="gap-2 cursor-pointer text-destructive focus:text-destructive"

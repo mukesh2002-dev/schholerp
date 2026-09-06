@@ -7,6 +7,8 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
 import { NavigationProgress } from "@/components/layout/navigation-progress";
 import { useERP } from "@/components/providers/erp-provider";
+import { useSettings } from "@/components/providers/settings-provider";
+import { cn } from "@/lib/utils";
 import { canRoleAccessPath, getLandingPageForRole } from "@/lib/auth/role-navigation";
 
 export function AppLayoutShell({ children }: { children: React.ReactNode }) {
@@ -14,6 +16,7 @@ export function AppLayoutShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { session, isAuthenticated, isAuthLoading } = useERP();
+  const { contentWidth } = useSettings();
 
   useEffect(() => {
     const saved = localStorage.getItem("apex_sidebar_collapsed");
@@ -57,7 +60,10 @@ export function AppLayoutShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (isAuthLoading || !isAuthenticated) {
+  // "Loading workspace…" is reserved for the dashboard (/). Other modules render
+  // their own shell + skeletons while auth resolves; logged-out visitors get a
+  // blank frame here while the gate above redirects them to /login.
+  if ((isAuthLoading || !isAuthenticated) && pathname === "/") {
     return (
       <div className="flex min-h-screen w-full items-center justify-center bg-background text-foreground">
         <div className="flex flex-col items-center gap-3">
@@ -66,6 +72,10 @@ export function AppLayoutShell({ children }: { children: React.ReactNode }) {
         </div>
       </div>
     );
+  }
+
+  if (!isAuthLoading && !isAuthenticated) {
+    return null;
   }
 
   return (
@@ -82,7 +92,12 @@ export function AppLayoutShell({ children }: { children: React.ReactNode }) {
       {/* Main Application Column */}
       <div className="flex flex-col flex-1 min-w-0 min-h-screen overflow-x-hidden">
         <Topbar sidebarCollapsed={collapsed} onToggleSidebar={toggleSidebar} />
-        <main className="flex-1 p-3 sm:p-6 lg:p-8 max-w-[1400px] w-full mx-auto space-y-8">
+        <main
+          className={cn(
+            "flex-1 p-3 sm:p-6 lg:p-8 w-full mx-auto space-y-8",
+            contentWidth === "full" ? "max-w-none" : "max-w-[1400px]"
+          )}
+        >
           {children}
         </main>
       </div>

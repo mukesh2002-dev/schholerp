@@ -29,6 +29,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { SCHOOL_DATA } from "@/lib/school-data";
 
 const loginSchema = z.object({
   email: z.string().min(1, "Email is required").email("Enter a valid email address"),
@@ -50,6 +51,9 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = React.useState(false);
   const [selectedRole, setSelectedRole] = React.useState<DemoAccount>(DEMO_ACCOUNTS[0]);
   const [copiedEmail, setCopiedEmail] = React.useState(false);
+  // Logo file may not exist yet (place it at schholerp/public/logo.png).
+  const [logoFailed, setLogoFailed] = React.useState(false);
+  const showLogo = !logoFailed && SCHOOL_DATA.logoPath;
 
   const {
     register,
@@ -119,13 +123,22 @@ export default function LoginPage() {
       {/* ── Left: form column (shadcn login-02 pattern) ─────────────────── */}
       <div className="flex flex-col gap-4 p-6 md:p-10 bg-background">
         <div className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white shadow-md shadow-primary/20">
-            <Sparkles className="h-4 w-4" />
-          </div>
+          {showLogo ? (
+            <img
+              src={SCHOOL_DATA.logoPath}
+              alt={SCHOOL_DATA.appName}
+              onError={() => setLogoFailed(true)}
+              className="h-9 w-9 rounded-xl object-contain bg-white shadow-md shadow-primary/20"
+            />
+          ) : (
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white shadow-md shadow-primary/20">
+              <Sparkles className="h-4 w-4" />
+            </div>
+          )}
           <div className="flex flex-col leading-tight">
-            <span className="text-sm font-bold tracking-tight">Apex ERP</span>
+            <span className="text-sm font-bold tracking-tight">{SCHOOL_DATA.appName}</span>
             <span className="text-[10px] font-semibold uppercase tracking-wider text-primary">
-              Multi-Campus Group
+              {SCHOOL_DATA.appTagline}
             </span>
           </div>
         </div>

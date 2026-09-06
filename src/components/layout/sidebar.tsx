@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { SCHOOL_DATA } from "@/lib/school-data";
 
 interface SidebarProps {
   collapsed?: boolean;
@@ -26,6 +27,10 @@ export function Sidebar({ collapsed = false, onToggle, onNavigate }: SidebarProp
   const router = useRouter();
   const { session, logout } = useERP();
   const [pendingHref, setPendingHref] = React.useState<string | null>(null);
+  // Logo file may not exist yet (place it at schholerp/public/logo.png) —
+  // fall back to the built-in icon so branding never renders broken.
+  const [logoFailed, setLogoFailed] = React.useState(false);
+  const showLogo = !logoFailed && SCHOOL_DATA.logoPath;
 
   // Sidebar reshapes itself for the signed-in staff role.
   const navGroups = React.useMemo(() => getNavForRole(session.role), [session.role]);
@@ -52,23 +57,41 @@ export function Sidebar({ collapsed = false, onToggle, onNavigate }: SidebarProp
       <div className="flex h-16 items-center justify-between px-4 border-b border-sidebar-border shrink-0">
         {!collapsed ? (
           <Link href="/" className="flex items-center gap-3 group" onClick={onNavigate}>
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white shadow-md shadow-primary/20 group-hover:scale-105 transition-transform">
-              <Sparkles className="h-5 w-5" />
-            </div>
+            {showLogo ? (
+              <img
+                src={SCHOOL_DATA.logoPath}
+                alt={SCHOOL_DATA.appName}
+                onError={() => setLogoFailed(true)}
+                className="h-10 w-10 rounded-xl object-contain bg-white shadow-md shadow-primary/20 group-hover:scale-105 transition-transform"
+              />
+            ) : (
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white shadow-md shadow-primary/20 group-hover:scale-105 transition-transform">
+                <Sparkles className="h-5 w-5" />
+              </div>
+            )}
             <div className="flex flex-col">
               <span className="text-base font-bold tracking-tight text-sidebar-foreground">
-                Apex ERP
+                {SCHOOL_DATA.appName}
               </span>
               <span className="text-[10px] font-semibold text-primary uppercase tracking-wider">
-                Multi-Campus Group
+                {SCHOOL_DATA.appTagline}
               </span>
             </div>
           </Link>
         ) : (
           <Link href="/" className="mx-auto" onClick={onNavigate}>
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white shadow-md shadow-primary/20">
-              <Sparkles className="h-5 w-5" />
-            </div>
+            {showLogo ? (
+              <img
+                src={SCHOOL_DATA.logoPath}
+                alt={SCHOOL_DATA.appName}
+                onError={() => setLogoFailed(true)}
+                className="h-10 w-10 rounded-xl object-contain bg-white shadow-md shadow-primary/20"
+              />
+            ) : (
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white shadow-md shadow-primary/20">
+                <Sparkles className="h-5 w-5" />
+              </div>
+            )}
           </Link>
         )}
 

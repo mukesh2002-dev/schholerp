@@ -6,6 +6,7 @@ import {
   AppSettings,
   DEFAULT_SETTINGS,
   FONT_OPTIONS,
+  FONT_SIZE_SCALE,
   contrastForeground,
   hexToHsl,
   loadSettings,
@@ -57,6 +58,14 @@ function applySettings(settings: AppSettings) {
 
   // Corner radius
   root.style.setProperty("--radius", `${settings.radius}rem`);
+
+  // Base text size — percentage of 16px so the whole app scales
+  root.style.fontSize = FONT_SIZE_SCALE[settings.fontSize] ?? "100%";
+
+  // Density / table striping / motion — consumed by global CSS rules
+  root.dataset.density = settings.density;
+  root.dataset.tableStriped = String(settings.tableStriped);
+  root.dataset.motion = settings.animations ? "full" : "off";
 
   // Font family
   const font = FONT_OPTIONS.find((f) => f.id === settings.font) ?? FONT_OPTIONS[0];

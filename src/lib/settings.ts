@@ -73,7 +73,51 @@ export interface AppSettings {
   primaryColor: string; // hex
   secondaryColor: string; // hex
   radius: number; // rem
+  /** Base text size — applied as root font-size so the whole app scales. */
+  fontSize: FontSizeId;
+  /** Content density — compact tightens table rows + card padding app-wide. */
+  density: DensityId;
+  /** Main content column — contained caps at 1400px, full uses all space. */
+  contentWidth: ContentWidthId;
+  /** Zebra striping on every data table. */
+  tableStriped: boolean;
+  /** Page transitions / hover animations. Off = accessibility-friendly. */
+  animations: boolean;
+  /** Keep the top header pinned while scrolling. */
+  stickyTopbar: boolean;
 }
+
+export type FontSizeId = "sm" | "md" | "lg";
+export type DensityId = "comfortable" | "compact";
+export type ContentWidthId = "contained" | "full";
+
+export interface SettingOption<T extends string> {
+  id: T;
+  label: string;
+  hint: string;
+}
+
+export const FONT_SIZE_OPTIONS: SettingOption<FontSizeId>[] = [
+  { id: "sm", label: "Small", hint: "87.5% base" },
+  { id: "md", label: "Default", hint: "100% base" },
+  { id: "lg", label: "Large", hint: "112.5% base" },
+];
+
+export const FONT_SIZE_SCALE: Record<FontSizeId, string> = {
+  sm: "87.5%",
+  md: "100%",
+  lg: "112.5%",
+};
+
+export const DENSITY_OPTIONS: SettingOption<DensityId>[] = [
+  { id: "comfortable", label: "Comfortable", hint: "Roomy rows & cards" },
+  { id: "compact", label: "Compact", hint: "Dense data tables" },
+];
+
+export const CONTENT_WIDTH_OPTIONS: SettingOption<ContentWidthId>[] = [
+  { id: "contained", label: "Contained", hint: "Centered · max 1400px" },
+  { id: "full", label: "Full width", hint: "Use all screen space" },
+];
 
 export const DEFAULT_SETTINGS: AppSettings = {
   theme: "system",
@@ -81,6 +125,12 @@ export const DEFAULT_SETTINGS: AppSettings = {
   primaryColor: "#3b82f6",
   secondaryColor: "#e2e8f0",
   radius: 0.75,
+  fontSize: "md",
+  density: "comfortable",
+  contentWidth: "contained",
+  tableStriped: false,
+  animations: true,
+  stickyTopbar: true,
 };
 
 export const SETTINGS_STORAGE_KEY = "school_erp_settings_v1";
