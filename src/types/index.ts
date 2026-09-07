@@ -681,6 +681,7 @@ export interface RoomAssignment {
 // ==================== HOMEWORK ====================
 export type HomeworkStatus = "ACTIVE" | "COMPLETED" | "ARCHIVED";
 export type SubmissionStatus = "SUBMITTED" | "GRADED" | "LATE" | "NOT_SUBMITTED";
+export type HomeworkType = "CW" | "HW" | "ASSIGNMENT" | "PROJECT";
 
 export interface Homework {
   id: string;
@@ -701,6 +702,8 @@ export interface Homework {
   dueDate: string;
   maxMarks: number;
   status: HomeworkStatus;
+  homeworkType: HomeworkType;
+  priority?: "LOW" | "MEDIUM" | "HIGH";
   attachments?: string[];
   createdAt: string;
   updatedAt: string;
@@ -1378,6 +1381,13 @@ export interface LibraryBook {
   addedDate: string;
   createdAt: string;
   updatedAt: string;
+  accessionNumber?: string;
+  edition?: string;
+  deweyDecimal?: string;
+  rackNumber?: string;
+  digitalAccessUrl?: string;
+  isDigital?: boolean;
+  reservationCount?: number;
 }
 
 export type IssueStatus = "ISSUED" | "RETURNED" | "OVERDUE" | "LOST";

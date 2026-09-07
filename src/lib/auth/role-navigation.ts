@@ -187,7 +187,6 @@ export const ROLE_NAV_GROUPS: RoleNavGroup[] = [
     items: [
       { title: "Announcements", href: "/announcements", icon: Megaphone, badge: "6" },
       { title: "Messages", href: "/messages", icon: MessageSquare, badge: "3" },
-      { title: "Notifications", href: "/notifications", icon: Bell, badge: "5" },
       {
         title: "Events Calendar",
         href: "/events",
@@ -209,23 +208,9 @@ export const ROLE_NAV_GROUPS: RoleNavGroup[] = [
     items: [
       { title: "Reports & BI", href: "/reports", icon: BarChart3, badge: "7" },
       {
-        title: "QA & Bug Tracker",
-        href: "/qa",
-        icon: ClipboardList,
-        badge: "8",
-        allowedRoles: ["SUPER_ADMIN"],
-      },
-      {
         title: "Audit Logs",
         href: "/audit",
         icon: ShieldAlert,
-        badge: "10",
-        allowedRoles: ["SUPER_ADMIN"],
-      },
-      {
-        title: "Engineering",
-        href: "/engineering",
-        icon: Rocket,
         badge: "10",
         allowedRoles: ["SUPER_ADMIN"],
       },
@@ -233,23 +218,7 @@ export const ROLE_NAV_GROUPS: RoleNavGroup[] = [
   },
   {
     group: "System & DevOps",
-    items: [
-      {
-        title: "Builds",
-        href: "/builds",
-        icon: Rocket,
-        badge: "9",
-        allowedRoles: ["SUPER_ADMIN"],
-      },
-      {
-        title: "Deployments",
-        href: "/deployments",
-        icon: Server,
-        badge: "9",
-        allowedRoles: ["SUPER_ADMIN"],
-      },
-      { title: "Settings", href: "/settings", icon: Settings, allowedRoles: ["SUPER_ADMIN"] },
-    ],
+    items: [{ title: "Settings", href: "/settings", icon: Settings, allowedRoles: ["SUPER_ADMIN"] }],
   },
 ];
 

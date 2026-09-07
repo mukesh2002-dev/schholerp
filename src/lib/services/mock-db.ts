@@ -747,6 +747,39 @@ class MockDatabaseService {
     return issue;
   }
 
+  public saveLibraryBook(data: Omit<LibraryBook, "id" | "createdAt" | "updatedAt"> & { id?: string }): LibraryBook {
+    const books = this.getLibraryBooks();
+    const now = new Date().toISOString();
+    if (data.id) {
+      const idx = books.findIndex((b) => b.id === data.id);
+      if (idx !== -1) {
+        const updated: LibraryBook = { ...books[idx], ...data, id: data.id, updatedAt: now };
+        books[idx] = updated;
+        // update initial array
+        const gIdx = initialLibraryBooks.findIndex((b) => b.id === data.id);
+        if (gIdx !== -1) initialLibraryBooks[gIdx] = updated;
+        if (this.isBrowser()) localStorage.setItem(LIBRARY_BOOKS_STORAGE_KEY, JSON.stringify(books));
+        return updated;
+      }
+    }
+    const newBook: LibraryBook = { ...data, id: data.id || `lib-${Date.now().toString(36)}`, createdAt: now, updatedAt: now };
+    books.unshift(newBook);
+    initialLibraryBooks.unshift(newBook);
+    if (this.isBrowser()) localStorage.setItem(LIBRARY_BOOKS_STORAGE_KEY, JSON.stringify(books));
+    return newBook;
+  }
+
+  public deleteLibraryBook(id: string): boolean {
+    const books = this.getLibraryBooks();
+    const idx = books.findIndex((b) => b.id === id);
+    if (idx === -1) return false;
+    books.splice(idx, 1);
+    const gIdx = initialLibraryBooks.findIndex((b) => b.id === id);
+    if (gIdx !== -1) initialLibraryBooks.splice(gIdx, 1);
+    if (this.isBrowser()) localStorage.setItem(LIBRARY_BOOKS_STORAGE_KEY, JSON.stringify(books));
+    return true;
+  }
+
   // ==================== STAFF / HR ====================
   public getStaffMembers(branchId?: string): StaffMember[] {
     let staff = initialStaffMembers;
@@ -946,6 +979,63 @@ class MockDatabaseService {
   }
 
   public getDefaultPeriods() { return defaultPeriods; }
+
+  public saveTimetableSlot(slot: TimetableSlot): TimetableSlot {
+    const timetables = this.getTimetables();
+    // Find timetable that matches classId or create new one
+    let target = timetables.find((t) => t.slots.some((s) => s.id === slot.id));
+    if (target) {
+      const idx = target.slots.findIndex((s) => s.id === slot.id);
+      if (idx !== -1) target.slots[idx] = slot;
+      else target.slots.push(slot);
+    } else {
+      // find or create timetable for class
+      target = timetables.find((t) => t.branchId === slot.branchId && t.slots.some((s) => s.classId === slot.classId));
+      if (!target) {
+        const newTt: Timetable = {
+          id: `tt-${Date.now().toString(36)}`,
+          name: `${slot.className} Weekly Schedule`,
+          branchId: slot.branchId,
+          branchName: slot.branchName,
+          academicYear: "2026-2027",
+          effectiveFrom: new Date().toISOString().split("T")[0],
+          slots: [slot],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        timetables.unshift(newTt);
+        if (this.isBrowser()) localStorage.setItem(TIMETABLE_STORAGE_KEY, JSON.stringify(timetables));
+        return slot;
+      } else {
+        target.slots.push(slot);
+      }
+    }
+    if (this.isBrowser()) localStorage.setItem(TIMETABLE_STORAGE_KEY, JSON.stringify(timetables));
+    // also update initialTimetableSlots for non-browser fallback
+    const gIdx = initialTimetableSlots.findIndex((s) => s.id === slot.id);
+    if (gIdx !== -1) initialTimetableSlots[gIdx] = slot;
+    else initialTimetableSlots.push(slot);
+    return slot;
+  }
+
+  public deleteTimetableSlot(slotId: string): boolean {
+    const timetables = this.getTimetables();
+    let found = false;
+    for (const tt of timetables) {
+      const before = tt.slots.length;
+      tt.slots = tt.slots.filter((s) => s.id !== slotId);
+      if (tt.slots.length !== before) found = true;
+    }
+    if (found && this.isBrowser()) localStorage.setItem(TIMETABLE_STORAGE_KEY, JSON.stringify(timetables));
+    const gIdx = initialTimetableSlots.findIndex((s) => s.id === slotId);
+    if (gIdx !== -1) { initialTimetableSlots.splice(gIdx, 1); found = true; }
+    return found;
+  }
+
+  public createTimetableSlot(data: Omit<TimetableSlot, "id">): TimetableSlot {
+    const newSlot: TimetableSlot = { ...data, id: `ts-${Date.now().toString(36)}` };
+    return this.saveTimetableSlot(newSlot);
+  }
 
   // ==================== HOMEWORK ====================
   public getHomeworkList(branchId?: string): Homework[] {
