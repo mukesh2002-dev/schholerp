@@ -32,6 +32,7 @@ interface ClassFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
+  editingClass?: ClassRoom | null;
 }
 
 const classSchema = z.object({
@@ -50,9 +51,10 @@ const classSchema = z.object({
 
 type ClassFormValues = z.infer<typeof classSchema>;
 
-export function ClassFormDialog({ open, onOpenChange, onSuccess }: ClassFormDialogProps) {
+export function ClassFormDialog({ open, onOpenChange, onSuccess, editingClass }: ClassFormDialogProps) {
   const { branches, activeBranchId } = useERP();
   const [teachers] = React.useState(() => mockDb.getTeachers());
+  const isEditing = !!editingClass;
 
   const {
     register,
@@ -86,25 +88,68 @@ export function ClassFormDialog({ open, onOpenChange, onSuccess }: ClassFormDial
 
   useEffect(() => {
     if (open) {
-      reset({
-        name: "",
-        gradeLevel: 10,
-        category: "High School",
-        branchId: activeBranchId !== "all" ? activeBranchId : "br-apex-01",
-        board: "CBSE",
-        medium: "English",
-        capacity: 120,
-        description: "",
-        sectionName: "Section A",
-        roomNumber: "Room 101",
-        classTeacherId: teachers[0]?.id || "tch-01",
-      });
+      if (editingClass) {
+        reset({
+          name: editingClass.name,
+          gradeLevel: editingClass.gradeLevel,
+          category: editingClass.category,
+          branchId: editingClass.branchId,
+          board: "CBSE",
+          medium: "English",
+          capacity: editingClass.capacity,
+          description: editingClass.description || "",
+          sectionName: editingClass.sections[0]?.name || "Section A",
+          roomNumber: editingClass.sections[0]?.roomNumber || "Room 101",
+          classTeacherId: editingClass.sections[0]?.classTeacherId || teachers[0]?.id || "tch-01",
+        });
+      } else {
+        reset({
+          name: "",
+          gradeLevel: 10,
+          category: "High School",
+          branchId: activeBranchId !== "all" ? activeBranchId : "br-apex-01",
+          board: "CBSE",
+          medium: "English",
+          capacity: 120,
+          description: "",
+          sectionName: "Section A",
+          roomNumber: "Room 101",
+          classTeacherId: teachers[0]?.id || "tch-01",
+        });
+      }
     }
-  }, [open, activeBranchId, reset, teachers]);
+  }, [open, editingClass, activeBranchId, reset, teachers]);
 
   const onSubmit = (data: ClassFormValues) => {
     const targetBranch = branches.find((b) => b.id === data.branchId) || branches[0];
     const assignedTeacher = teachers.find((t) => t.id === data.classTeacherId) || teachers[0];
+
+    if (isEditing && editingClass) {
+      const updated: ClassRoom = {
+        ...editingClass,
+        name: data.name,
+        gradeLevel: Number(data.gradeLevel),
+        category: data.category as ClassRoom["category"],
+        branchId: targetBranch.id,
+        branchName: targetBranch.name,
+        capacity: Number(data.capacity),
+        description: data.description || editingClass.description,
+      };
+      // update first section meta if needed (keep other sections)
+      if (updated.sections.length > 0) {
+        updated.sections[0] = {
+          ...updated.sections[0],
+          name: data.sectionName || updated.sections[0].name,
+          roomNumber: data.roomNumber || updated.sections[0].roomNumber,
+          classTeacherId: assignedTeacher?.id || updated.sections[0].classTeacherId,
+          classTeacherName: assignedTeacher?.fullName || updated.sections[0].classTeacherName,
+        };
+      }
+      mockDb.saveClass(updated);
+      onOpenChange(false);
+      if (onSuccess) onSuccess();
+      return;
+    }
 
     const classPayload: Omit<ClassRoom, "id"> = {
       name: data.name,
@@ -148,9 +193,9 @@ export function ClassFormDialog({ open, onOpenChange, onSuccess }: ClassFormDial
               <BookOpen className="h-5 w-5" />
             </div>
             <div>
-              <DialogTitle className="text-xl font-bold">Add Academic Class / Grade</DialogTitle>
+              <DialogTitle className="text-xl font-bold">{isEditing ? "Edit Academic Class" : "Add Academic Class / Grade"}</DialogTitle>
               <DialogDescription>
-                Define a new grade level, capacity quota, and initial section.
+                {isEditing ? "Update grade level, capacity and section details." : "Define a new grade level, capacity quota, and initial section."}
               </DialogDescription>
             </div>
           </div>
@@ -306,7 +351,7 @@ export function ClassFormDialog({ open, onOpenChange, onSuccess }: ClassFormDial
               Cancel
             </Button>
             <Button type="submit" disabled={isSubmitting} variant="gradient">
-              {isSubmitting ? "Creating..." : "Create Class"}
+              {isSubmitting ? (isEditing ? "Updating..." : "Creating...") : isEditing ? "Update Class" : "Create Class"}
             </Button>
           </DialogFooter>
         </form>

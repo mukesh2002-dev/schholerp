@@ -1,2 +1,2 @@
-export * from "./exam-metrics-ribbon";
-export * from "./exam-metrics-ribbon.skeleton";
+export { ExamMetricsRibbon } from "./exam-metrics-ribbon";
+export { ExamMetricsRibbonSkeleton } from "./exam-metrics-ribbon.skeleton";

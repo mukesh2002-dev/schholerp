@@ -1,14 +1,17 @@
 import { Period, Timetable, TimetableSlot } from "@/types";
 
 export const defaultPeriods: Period[] = [
-  { id: "per-1", number: 1, label: "Period 1", startTime: "08:00", endTime: "08:45" },
-  { id: "per-2", number: 2, label: "Period 2", startTime: "08:45", endTime: "09:30" },
-  { id: "per-3", number: 3, label: "Period 3", startTime: "09:45", endTime: "10:30" },
-  { id: "per-4", number: 4, label: "Period 4", startTime: "10:30", endTime: "11:15" },
-  { id: "per-5", number: 5, label: "Period 5", startTime: "11:30", endTime: "12:15" },
-  { id: "per-6", number: 6, label: "Period 6", startTime: "12:15", endTime: "13:00" },
-  { id: "per-7", number: 7, label: "Period 7", startTime: "14:00", endTime: "14:45" },
-  { id: "per-8", number: 8, label: "Period 8", startTime: "14:45", endTime: "15:30" },
+  { id: "per-1", number: 1, label: "Period 1", startTime: "08:00", endTime: "08:45", type: "LECTURE" },
+  { id: "per-2", number: 2, label: "Period 2", startTime: "08:45", endTime: "09:30", type: "LECTURE" },
+  { id: "per-break-1", number: 99, label: "Short Break", startTime: "09:30", endTime: "09:45", type: "BREAK", isBreak: true },
+  { id: "per-3", number: 3, label: "Period 3", startTime: "09:45", endTime: "10:30", type: "LECTURE" },
+  { id: "per-4", number: 4, label: "Period 4", startTime: "10:30", endTime: "11:15", type: "LECTURE" },
+  { id: "per-break-2", number: 98, label: "Tea Break", startTime: "11:15", endTime: "11:30", type: "BREAK", isBreak: true },
+  { id: "per-5", number: 5, label: "Period 5", startTime: "11:30", endTime: "12:15", type: "LECTURE" },
+  { id: "per-6", number: 6, label: "Period 6", startTime: "12:15", endTime: "13:00", type: "LECTURE" },
+  { id: "per-lunch", number: 0, label: "Lunch Break", startTime: "13:00", endTime: "14:00", type: "LUNCH", isBreak: true },
+  { id: "per-7", number: 7, label: "Period 7", startTime: "14:00", endTime: "14:45", type: "LECTURE" },
+  { id: "per-8", number: 8, label: "Period 8", startTime: "14:45", endTime: "15:30", type: "LECTURE" },
 ];
 
 export const initialTimetableSlots: TimetableSlot[] = [

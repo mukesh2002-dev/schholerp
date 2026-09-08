@@ -46,6 +46,7 @@ export function StudentDirectoryView() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [classFilter, setClassFilter] = useState<string>("ALL");
+  const [levelFilter, setLevelFilter] = useState<string>("ALL");
   const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -66,14 +67,23 @@ export function StudentDirectoryView() {
         s.fullName.toLowerCase().includes(q) ||
         s.rollNumber.toLowerCase().includes(q) ||
         s.admissionNumber.toLowerCase().includes(q) ||
+        s.enrollmentNumber?.toLowerCase().includes(q) ||
+        s.universityPrn?.toLowerCase().includes(q) ||
+        s.program?.toLowerCase().includes(q) ||
+        s.department?.toLowerCase().includes(q) ||
         s.guardian.name.toLowerCase().includes(q);
 
       const matchesStatus = statusFilter === "ALL" || s.status === statusFilter;
       const matchesClass = classFilter === "ALL" || s.classId === classFilter;
+      const isCollege = !!s.program;
+      const matchesLevel =
+        levelFilter === "ALL" ||
+        (levelFilter === "COLLEGE" && isCollege) ||
+        (levelFilter === "SCHOOL" && !isCollege);
 
-      return matchesSearch && matchesStatus && matchesClass;
+      return matchesSearch && matchesStatus && matchesClass && matchesLevel;
     });
-  }, [students, debouncedQuery, statusFilter, classFilter]);
+  }, [students, debouncedQuery, statusFilter, classFilter, levelFilter]);
 
   const {
     page,
@@ -97,19 +107,30 @@ export function StudentDirectoryView() {
     <div className="space-y-4">
       {/* Controls Bar */}
       <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 p-3 rounded-xl bg-card border border-border/70">
-        <div className="flex flex-1 items-center gap-2">
-          <div className="relative flex-1 max-w-sm">
+        <div className="flex flex-1 items-center gap-2 flex-wrap">
+          <div className="relative flex-1 max-w-sm min-w-[200px]">
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by student name, roll #, admission #, parent..."
+              placeholder="Search name, roll / PRN, program, dept, parent..."
               className="pl-9 h-9 text-xs"
             />
           </div>
 
+          <Select value={levelFilter} onValueChange={setLevelFilter}>
+            <SelectTrigger className="w-[125px] h-9 text-xs">
+              <SelectValue placeholder="Level" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All Levels</SelectItem>
+              <SelectItem value="SCHOOL">School (Nur–12)</SelectItem>
+              <SelectItem value="COLLEGE">College (UG/PG)</SelectItem>
+            </SelectContent>
+          </Select>
+
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[130px] h-9 text-xs">
+            <SelectTrigger className="w-[125px] h-9 text-xs">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
@@ -126,7 +147,7 @@ export function StudentDirectoryView() {
               <SelectValue placeholder="Filter Class" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="ALL">All Classes</SelectItem>
+              <SelectItem value="ALL">All Classes / Programs</SelectItem>
               {classes.map((c) => (
                 <SelectItem key={c.id} value={c.id}>
                   {c.name}
@@ -214,12 +235,23 @@ export function StudentDirectoryView() {
                     </div>
                   </TableCell>
                   <TableCell className="text-xs font-medium">
-                    {s.className} - {s.sectionName}
+                    <div className="flex flex-col">
+                      <span>{s.className} - {s.sectionName}</span>
+                      {s.program && (
+                        <span className="text-[11px] text-muted-foreground font-normal">
+                          {s.program} • {s.department} {s.semester ? `• Sem ${s.semester}` : ""} {s.universityPrn ? `• PRN ${s.universityPrn}` : ""}
+                        </span>
+                      )}
+                    </div>
                   </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">{s.branchName}</TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
+                    <span className="block">{s.branchName}</span>
+                    {s.program && <Badge variant="outline" className="text-[9px] py-0 px-1 mt-0.5">{s.program}</Badge>}
+                  </TableCell>
                   <TableCell className="text-xs">
                     <span className="font-medium text-foreground block">{s.guardian.name}</span>
                     <span className="text-[11px] text-muted-foreground block">{s.guardian.phone}</span>
+                    {s.mentorName && <span className="text-[10px] text-primary block">Mentor: {s.mentorName}</span>}
                   </TableCell>
                   <TableCell className="text-right tabular-nums text-xs font-mono font-semibold">
                     <span className={(s.attendanceSummary?.attendanceRate ?? 0) >= 95 ? "text-emerald-600" : "text-amber-600"}>

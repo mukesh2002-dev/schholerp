@@ -30,7 +30,7 @@ export function StudentHeader() {
               </Badge>
             </div>
             <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-              360° student records, roll assignments, guardian details, and multi-campus academic tracks.
+              School (Nursery–12 + CBSE/ICSE/State) aur College (UG/PG/Diploma — B.Tech, BCA, B.Com, MBA) dono ke liye unified — PRN, semester, hostel & scholarship tracks.
             </p>
           </div>
 

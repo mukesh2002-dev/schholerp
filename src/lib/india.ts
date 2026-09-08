@@ -145,6 +145,106 @@ export const CBSE_SUBJECTS: Record<string, string[]> = {
 };
 
 // ---------------------------------------------------------------------------
+// College / Higher-Ed (UG/PG/Diploma) — unified with school model
+// ---------------------------------------------------------------------------
+export const COLLEGE_PROGRAMS = [
+  "B.Tech",
+  "B.E.",
+  "B.Sc",
+  "B.Com",
+  "BA",
+  "BCA",
+  "BBA",
+  "B.Arch",
+  "B.Pharm",
+  "B.Ed",
+  "LLB",
+  "MBBS",
+  "Diploma (Polytechnic)",
+  "M.Tech",
+  "M.Sc",
+  "M.Com",
+  "MA",
+  "MCA",
+  "MBA",
+  "PGDM",
+] as const;
+export type CollegeProgram = (typeof COLLEGE_PROGRAMS)[number];
+
+export const COLLEGE_DEPARTMENTS = [
+  "CSE",
+  "ECE",
+  "Mechanical",
+  "Civil",
+  "Electrical",
+  "IT",
+  "AI & DS",
+  "AI & ML",
+  "Chemical",
+  "Biotechnology",
+  "Commerce",
+  "Science",
+  "Arts",
+  "Management",
+  "Pharmacy",
+  "Law",
+  "Education",
+  "Architecture",
+  "Agriculture",
+] as const;
+
+export const COLLEGE_YEARS = [1, 2, 3, 4] as const;
+export const COLLEGE_SEMESTERS = [1, 2, 3, 4, 5, 6, 7, 8] as const;
+
+export const UNIVERSITIES = [
+  "SPPU (Pune)",
+  "Mumbai University",
+  "VTU (Belagavi)",
+  "RTU (Jaipur)",
+  "GTU (Ahmedabad)",
+  "Anna University",
+  "Delhi University",
+  "AKTU (Lucknow)",
+  "JNTU (Hyderabad)",
+  "Autonomous",
+] as const;
+
+export const ENTRANCE_EXAMS = [
+  "JEE Main",
+  "JEE Advanced",
+  "MHT-CET",
+  "CUET",
+  "NEET",
+  "CAT",
+  "MAT",
+  "XAT",
+  "GATE",
+  "NATA",
+  "CLAT",
+  "C-CET (State CET)",
+  "Merit (12th %)",
+  "Diploma Lateral Entry",
+] as const;
+
+export const ADMISSION_QUOTAS = [
+  "MERIT (CAP Round)",
+  "MANAGEMENT",
+  "NRI",
+  "SPORTS",
+  "EWS",
+  "TFWS",
+  "Minority",
+  "J&K / PMSSS",
+  "Lateral Entry",
+] as const;
+
+export const ADMISSION_TYPES = ["REGULAR", "LATERAL_ENTRY", "REPEATER", "DISTANCE", "PART_TIME"] as const;
+
+export const SCHOLARSHIP_TYPES = ["None", "Merit", "EWS", "SC/ST Govt", "Minority", "Sports", "TFWS"] as const;
+
+export const ACADEMIC_STATUSES = ["PROMOTED", "DETAINED", "ATKT", "PASS_OUT", "DROP"] as const;
+
+// ---------------------------------------------------------------------------
 // Fee heads (Indian private-school chart, UDISE/RTE compatible)
 // ---------------------------------------------------------------------------
 export type FeeHeadCategory =

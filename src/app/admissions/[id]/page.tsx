@@ -164,8 +164,11 @@ export default function AdmissionDetailPage() {
                 {application.applicantFullName}
               </h1>
               <p className="text-xs sm:text-sm text-muted-foreground font-medium">
-                Applied for <strong className="text-foreground">{application.gradeApplied}</strong> at{" "}
+                Applied for <strong className="text-foreground">{application.programApplied ? `${application.programApplied} ${application.departmentPreference ?? ""}`.trim() : application.gradeApplied}</strong> at{" "}
                 <span className="text-primary font-semibold">{application.branchName}</span>
+                {application.entranceExam && <span> • {application.entranceExam} {application.entranceRank ?? ""}</span>}
+                {application.quotaType && <span> • Quota: {application.quotaType}</span>}
+                {application.hostelRequired ? " • Hostel" : ""}
               </p>
             </div>
           </div>

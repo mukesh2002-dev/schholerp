@@ -11,6 +11,8 @@ export function StudentMetricsRibbon() {
   const students = mockDb.getStudents(activeBranchId);
 
   const activeStudents = students.filter((s) => s.status === "ACTIVE").length;
+  const collegeCount = students.filter((s) => !!(s as any).program).length;
+  const schoolCount = students.length - collegeCount;
   const avgAttendance = Math.round(
     students.reduce((acc, s) => acc + (s.attendanceSummary?.attendanceRate || 0), 0) / (students.length || 1)
   );
@@ -26,7 +28,7 @@ export function StudentMetricsRibbon() {
           <GraduationCap className="h-4 w-4 text-blue-500" />
         </div>
         <span className="text-2xl font-bold text-foreground mt-1 block">{students.length}</span>
-        <span className="text-[11px] text-muted-foreground">Across all grades</span>
+        <span className="text-[11px] text-muted-foreground">{schoolCount} School • {collegeCount} College (UG/PG)</span>
       </Card>
 
       <Card className="p-4 border-border/70 shadow-2xs">
@@ -48,7 +50,7 @@ export function StudentMetricsRibbon() {
           <CheckCircle2 className="h-4 w-4 text-purple-500" />
         </div>
         <span className="text-2xl font-bold text-foreground mt-1 block">{avgAttendance}%</span>
-        <span className="text-[11px] text-purple-600 font-medium">Synced via RFID</span>
+        <span className="text-[11px] text-purple-600 font-medium">Synced via RFID / Biometric</span>
       </Card>
 
       <Card className="p-4 border-border/70 shadow-2xs">
@@ -59,7 +61,7 @@ export function StudentMetricsRibbon() {
           <DollarSign className="h-4 w-4 text-emerald-500" />
         </div>
         <span className="text-2xl font-bold text-foreground mt-1 block">{paidFeesCount}</span>
-        <span className="text-[11px] text-emerald-600 font-medium">Term 1 settled</span>
+        <span className="text-[11px] text-emerald-600 font-medium">School fees + College sem fees</span>
       </Card>
     </div>
   );

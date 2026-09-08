@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useERP } from "@/components/providers/erp-provider";
 import { mockDb } from "@/lib/services/mock-db";
 import { Teacher, TeacherStatus } from "@/types";
@@ -18,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -25,7 +26,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Users } from "lucide-react";
+import { AppImage } from "@/components/ui/app-image";
+import { Users, Upload, Image as ImageIcon, FileText, X, Plus, Trash2 } from "lucide-react";
 import {
   SOCIAL_CATEGORIES,
   TEACHING_DESIGNATIONS,
@@ -34,6 +36,7 @@ import {
   normaliseIndianMobile,
   isValidAadhaar,
 } from "@/lib/india";
+import { toast } from "sonner";
 
 interface TeacherFormDialogProps {
   open: boolean;
@@ -100,6 +103,11 @@ export function TeacherFormDialog({
   onSuccess,
 }: TeacherFormDialogProps) {
   const { branches, activeBranchId } = useERP();
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [avatarDataUrl, setAvatarDataUrl] = useState<string>("");
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const docInputRef = useRef<HTMLInputElement>(null);
+  const [docs, setDocs] = useState<{ id: string; name: string; type: string; size: string; fileUrl?: string; verified: boolean; uploadedAt: string }[]>([]);
 
   const {
     register,
@@ -166,6 +174,15 @@ export function TeacherFormDialog({
           allowances: teacherToEdit.salarySummary.allowances,
           bio: teacherToEdit.bio || "",
         });
+        setAvatarPreview(teacherToEdit.avatar || null);
+        setAvatarDataUrl("");
+        // load existing documents for this teacher from central store
+        const existingDocs = mockDb.getDocuments().filter((d) => d.ownerId === teacherToEdit.id && d.ownerType === "TEACHER");
+        if (existingDocs.length) {
+          setDocs(existingDocs.map((d) => ({ id: d.id, name: d.name, type: d.fileType, size: d.fileSize, verified: d.verificationStatus === "VERIFIED", uploadedAt: d.uploadDate, fileUrl: undefined })));
+        } else {
+          setDocs([]);
+        }
       } else {
         reset({
           firstName: "",
@@ -189,13 +206,61 @@ export function TeacherFormDialog({
           allowances: 14000,
           bio: "",
         });
+        setAvatarPreview(null);
+        setAvatarDataUrl("");
+        setDocs([]);
       }
     }
   }, [teacherToEdit, open, activeBranchId, reset]);
 
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { toast.error("Please select an image file"); return; }
+    if (file.size > 2 * 1024 * 1024) { toast.error("Image must be < 2MB"); return; }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const dataUrl = String(ev.target?.result || "");
+      setAvatarPreview(dataUrl);
+      setAvatarDataUrl(dataUrl);
+      toast.success("Photo attached — will be saved with faculty profile");
+    };
+    reader.readAsDataURL(file);
+    if (avatarInputRef.current) avatarInputRef.current.value = "";
+  };
+
+  const handleDocUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    Array.from(files).forEach((file) => {
+      if (file.size > 5 * 1024 * 1024) { toast.error(`${file.name} too large (>5MB)`); return; }
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const dataUrl = String(ev.target?.result || "");
+        const newDoc = {
+          id: `doc-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,5)}`,
+          name: file.name,
+          type: file.name.split(".").pop()?.toUpperCase() || "PDF",
+          size: `${(file.size/1024).toFixed(1)} KB`,
+          fileUrl: dataUrl,
+          verified: false,
+          uploadedAt: new Date().toISOString().split("T")[0],
+        };
+        setDocs((prev) => [...prev, newDoc]);
+        toast.success(`${file.name} added — will be stored in Documents module`);
+      };
+      reader.readAsDataURL(file);
+    });
+    if (docInputRef.current) docInputRef.current.value = "";
+  };
+
+  const removeDoc = (id: string) => setDocs((prev) => prev.filter((d) => d.id !== id));
+  const toggleVerified = (id: string) => setDocs((prev) => prev.map((d) => d.id === id ? { ...d, verified: !d.verified } : d));
+
   const onSubmit = (data: TeacherFormValues) => {
     const targetBranch = branches.find((b) => b.id === data.branchId) || branches[0];
     const subjects = (data.subjectsString || "").split(",").map((s) => s.trim()).filter(Boolean);
+    const avatar = avatarDataUrl || teacherToEdit?.avatar || `https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150`;
 
     const teacherPayload: Omit<Teacher, "id" | "createdAt" | "updatedAt"> & { id?: string } = {
       ...(teacherToEdit?.id ? { id: teacherToEdit.id } : {}),
@@ -203,7 +268,7 @@ export function TeacherFormDialog({
       firstName: data.firstName,
       lastName: data.lastName,
       fullName: `${data.firstName} ${data.lastName}`,
-      avatar: teacherToEdit?.avatar || `https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150`,
+      avatar,
       email: data.email,
       phone: data.phone ? `+91 ${normaliseIndianMobile(data.phone)}` : "+91 98220 00000",
       gender: data.gender as "Male" | "Female" | "Other",
@@ -242,7 +307,50 @@ export function TeacherFormDialog({
     };
 
     setTimeout(() => {
-      mockDb.saveTeacher(teacherPayload);
+      const saved = mockDb.saveTeacher(teacherPayload);
+      // persist documents to central Document store — Documents module me bhi dikhega
+      docs.forEach((d) => {
+        // if already exists (id starts with doc- from stored), update, else create
+        const isExisting = mockDb.getDocumentById(d.id);
+        if (isExisting) {
+          mockDb.saveDocument({
+            id: d.id,
+            name: `${saved.fullName} — ${d.name}`,
+            category: d.name.toLowerCase().includes("degree") || d.name.toLowerCase().includes("certificate") ? "EMPLOYMENT" : d.name.toLowerCase().includes("aadhaar") || d.name.toLowerCase().includes("pan") ? "IDENTITY" : "OTHER",
+            description: `Faculty ${saved.employeeId} document`,
+            ownerId: saved.id,
+            ownerName: saved.fullName,
+            ownerType: "TEACHER",
+            branchId: saved.branchId,
+            branchName: saved.branchName,
+            fileType: d.type,
+            fileSize: d.size,
+            uploadDate: d.uploadedAt,
+            verificationStatus: d.verified ? "VERIFIED" : "PENDING",
+            tags: ["faculty"],
+          } as any);
+        } else {
+          mockDb.saveDocument({
+            name: `${saved.fullName} — ${d.name}`,
+            category: d.name.toLowerCase().includes("degree") || d.name.toLowerCase().includes("certificate") ? "EMPLOYMENT" : d.name.toLowerCase().includes("aadhaar") || d.name.toLowerCase().includes("pan") ? "IDENTITY" : "OTHER",
+            description: `Faculty ${saved.employeeId} document`,
+            ownerId: saved.id,
+            ownerName: saved.fullName,
+            ownerType: "TEACHER",
+            branchId: saved.branchId,
+            branchName: saved.branchName,
+            fileType: d.type,
+            fileSize: d.size,
+            uploadDate: d.uploadedAt,
+            verificationStatus: d.verified ? "VERIFIED" : "PENDING",
+            tags: ["faculty"],
+          } as any);
+        }
+      });
+      if (avatarDataUrl) {
+        toast.success("Photo uploaded and saved");
+      }
+      toast.success(teacherToEdit ? "Faculty updated" : "Faculty registered", { description: `${saved.fullName} • ${saved.employeeId}` });
       onOpenChange(false);
       if (onSuccess) onSuccess();
     }, 400);
@@ -261,11 +369,25 @@ export function TeacherFormDialog({
                 {teacherToEdit ? `Edit Faculty: ${teacherToEdit.fullName}` : "Add Faculty Instructor"}
               </DialogTitle>
               <DialogDescription>
-                Record teacher credentials, department assignment, subject specializations, and payroll base.
+                Photo + qualifications / certificates upload — sab Documents module me bhi store hoga.
               </DialogDescription>
             </div>
           </div>
         </DialogHeader>
+
+        {/* Photo upload — preview & store */}
+        <div className="flex items-center gap-4 p-3 rounded-xl border bg-muted/20">
+          <div className="relative">
+            <AppImage src={avatarPreview || teacherToEdit?.avatar || "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150"} alt="Faculty photo" className="h-16 w-16 rounded-xl ring-1 ring-border object-cover" />
+            {avatarPreview && <button type="button" onClick={() => { setAvatarPreview(null); setAvatarDataUrl(""); }} className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-destructive text-white flex items-center justify-center"><X className="h-3 w-3" /></button>}
+          </div>
+          <div className="space-y-1 flex-1">
+            <div className="text-xs font-semibold flex items-center gap-1"><ImageIcon className="h-3.5 w-3.5" /> Faculty Photo *</div>
+            <p className="text-[11px] text-muted-foreground">JPG/PNG, {"<"}2MB. Yehi photo directory aur profile me dikhega. localStorage me save hoga.</p>
+            <Button type="button" variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={() => avatarInputRef.current?.click()}><Upload className="h-3.5 w-3.5" /> {avatarPreview ? "Change Photo" : "Upload Photo"}</Button>
+            <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
+          </div>
+        </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-2">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -469,6 +591,38 @@ export function TeacherFormDialog({
               placeholder="B.Ed. background, NTSE/Olympiad mentoring, board-examiner experience..."
               rows={2}
             />
+          </div>
+
+          {/* Documents upload — stored in Documents module */}
+          <div className="space-y-3 p-3 rounded-xl border bg-muted/20">
+            <h4 className="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-2"><FileText className="h-3.5 w-3.5" /> Faculty Documents — Upload & Store <Badge variant="outline" className="text-[10px]">{docs.length} files</Badge></h4>
+            <p className="text-[11px] text-muted-foreground">Degree, B.Ed, Aadhaar, PAN, experience letters yahan upload karein — yehi files <strong>Documents</strong> module me bhi dikhengi, verification ke saath.</p>
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" size="sm" className="h-8 text-xs gap-1" onClick={() => docInputRef.current?.click()}><Plus className="h-3.5 w-3.5" /> Add Document</Button>
+              <input ref={docInputRef} type="file" multiple accept=".pdf,.jpg,.jpeg,.png" className="hidden" onChange={handleDocUpload} />
+              <span className="text-[11px] text-muted-foreground self-center">PDF / JPG / PNG — multiple, max 5MB each</span>
+            </div>
+            {docs.length === 0 ? (
+              <div className="text-xs text-muted-foreground p-3 border border-dashed rounded-lg text-center">No documents yet — upload Degree, PAN, Aadhaar etc. (jaise student me kiya)</div>
+            ) : (
+              <div className="space-y-2 max-h-[180px] overflow-y-auto pr-1">
+                {docs.map((d) => (
+                  <div key={d.id} className="flex items-center justify-between p-2 rounded-lg border bg-card">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <FileText className="h-4 w-4 text-primary shrink-0" />
+                      <div className="min-w-0">
+                        <div className="text-xs font-medium truncate">{d.name}</div>
+                        <div className="text-[11px] text-muted-foreground">{d.type} • {d.size} • {d.uploadedAt}</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button type="button" onClick={() => toggleVerified(d.id)} className={`text-[10px] px-2 py-1 rounded-full border ${d.verified ? "bg-emerald-500 text-white border-emerald-600" : "bg-muted text-muted-foreground"}`}>{d.verified ? "Verified" : "Pending"}</button>
+                      <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => removeDoc(d.id)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <DialogFooter className="gap-2 pt-2">

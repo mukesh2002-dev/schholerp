@@ -41,6 +41,7 @@ export function AdmissionsPipelineView() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [gradeFilter, setGradeFilter] = useState<string>("ALL");
+  const [levelFilter, setLevelFilter] = useState<string>("ALL");
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const refreshList = () => {
@@ -49,33 +50,53 @@ export function AdmissionsPipelineView() {
 
   const filteredAdmissions = useMemo(() => {
     return admissions.filter((a) => {
+      const q = searchQuery.toLowerCase();
       const matchesSearch =
-        a.applicantFullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        a.applicationNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        a.parentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        a.parentEmail.toLowerCase().includes(searchQuery.toLowerCase());
+        a.applicantFullName.toLowerCase().includes(q) ||
+        a.applicationNumber.toLowerCase().includes(q) ||
+        a.parentName.toLowerCase().includes(q) ||
+        a.parentEmail.toLowerCase().includes(q) ||
+        a.programApplied?.toLowerCase().includes(q) ||
+        a.departmentPreference?.toLowerCase().includes(q) ||
+        a.entranceExam?.toLowerCase().includes(q);
 
       const matchesStatus = statusFilter === "ALL" || a.status === statusFilter;
       const matchesGrade = gradeFilter === "ALL" || a.gradeApplied === gradeFilter;
+      const isCollege = !!a.programApplied;
+      const matchesLevel =
+        levelFilter === "ALL" ||
+        (levelFilter === "COLLEGE" && isCollege) ||
+        (levelFilter === "SCHOOL" && !isCollege);
 
-      return matchesSearch && matchesStatus && matchesGrade;
+      return matchesSearch && matchesStatus && matchesGrade && matchesLevel;
     });
-  }, [admissions, searchQuery, statusFilter, gradeFilter]);
+  }, [admissions, searchQuery, statusFilter, gradeFilter, levelFilter]);
 
   return (
     <div className="space-y-4">
       {/* Controls Bar */}
       <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 p-3 rounded-xl bg-card border border-border/70">
-        <div className="flex flex-1 items-center gap-2">
-          <div className="relative flex-1 max-w-sm">
+        <div className="flex flex-1 items-center gap-2 flex-wrap">
+          <div className="relative flex-1 max-w-sm min-w-[200px]">
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search applicant, app #, parent, email..."
+              placeholder="Search applicant, program, entrance, parent..."
               className="pl-9 h-9 text-xs"
             />
           </div>
+
+          <Select value={levelFilter} onValueChange={setLevelFilter}>
+            <SelectTrigger className="w-[130px] h-9 text-xs">
+              <SelectValue placeholder="Level" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All Levels</SelectItem>
+              <SelectItem value="SCHOOL">School</SelectItem>
+              <SelectItem value="COLLEGE">College (UG/PG)</SelectItem>
+            </SelectContent>
+          </Select>
 
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-[150px] h-9 text-xs">
@@ -94,15 +115,17 @@ export function AdmissionsPipelineView() {
 
           <Select value={gradeFilter} onValueChange={setGradeFilter}>
             <SelectTrigger className="w-[140px] h-9 text-xs hidden sm:flex">
-              <SelectValue placeholder="Grade Applied" />
+              <SelectValue placeholder="Grade / Program" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="ALL">All Grades</SelectItem>
-              <SelectItem value="Grade 1">Grade 1</SelectItem>
-              <SelectItem value="Grade 5">Grade 5</SelectItem>
-              <SelectItem value="Grade 9">Grade 9</SelectItem>
-              <SelectItem value="Grade 10">Grade 10</SelectItem>
-              <SelectItem value="Grade 11">Grade 11</SelectItem>
+              <SelectItem value="ALL">All Grades/Programs</SelectItem>
+              <SelectItem value="Class 9">Class 9</SelectItem>
+              <SelectItem value="Class 10">Class 10</SelectItem>
+              <SelectItem value="Class 11">Class 11</SelectItem>
+              <SelectItem value="B.Tech CSE">B.Tech CSE</SelectItem>
+              <SelectItem value="B.Com">B.Com</SelectItem>
+              <SelectItem value="BCA">BCA</SelectItem>
+              <SelectItem value="MBA">MBA</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -159,13 +182,19 @@ export function AdmissionsPipelineView() {
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline" className="text-xs font-medium">
-                        {a.gradeApplied}
+                        {a.programApplied ? `${a.programApplied} ${a.departmentPreference ?? ""}`.trim() : a.gradeApplied}
                       </Badge>
-                      {a.entranceTestScore !== undefined && (
+                      {a.entranceExam && (
+                        <span className="text-[11px] text-muted-foreground block mt-0.5">
+                          {a.entranceExam}: <strong className="text-foreground">{a.entranceRank ?? `${a.entranceTestScore ?? ""}%`}</strong>
+                        </span>
+                      )}
+                      {!a.entranceExam && a.entranceTestScore !== undefined && (
                         <span className="text-[11px] text-muted-foreground block mt-0.5">
                           Score: <strong className="text-foreground">{a.entranceTestScore}%</strong>
                         </span>
                       )}
+                      {a.quotaType && <span className="text-[10px] text-primary block">{a.quotaType}</span>}
                     </TableCell>
                     <TableCell>
                       <div className="text-xs">

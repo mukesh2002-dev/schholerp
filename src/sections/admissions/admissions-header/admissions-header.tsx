@@ -30,7 +30,7 @@ export function AdmissionsHeader() {
               </Badge>
             </div>
             <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-              Review applicant dossiers, entrance exams, interview schedules, and document checklists.
+              School (Class 1–12) + College (B.Tech/BCA/B.Com/MBA — CET/JEE/CUET/CAT, quota, hostel) unified pipeline — CAP round, merit & management quota.
             </p>
           </div>
 

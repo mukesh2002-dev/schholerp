@@ -1,31 +1,29 @@
 "use client";
 
-import React, { Suspense } from "react";
-import {
-  ExamHeader,
-  ExamHeaderSkeleton,
-  ExamMetricsRibbon,
-  ExamMetricsRibbonSkeleton,
-  ExamScheduleView,
-  ExamScheduleViewSkeleton,
-} from "@/sections/exams";
+import React, { Suspense, useCallback, useState } from "react";
+import { ExamHeader, ExamHeaderSkeleton, ExamMetricsRibbon, ExamMetricsRibbonSkeleton, ExamWorkspace, ExamWorkspaceSkeleton } from "@/sections/exams";
 
 export default function ExamsPage() {
+  const [refreshKey, setRefreshKey] = useState(0);
+  const handleNew = useCallback(() => {
+    // trigger tab to exams and open dialog via custom event
+    window.history.pushState({}, "", "/exams?tab=exams");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    setTimeout(() => window.dispatchEvent(new CustomEvent("exams:new")), 100);
+  }, []);
+
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
-      {/* 1. Header & Actions */}
       <Suspense fallback={<ExamHeaderSkeleton />}>
-        <ExamHeader />
+        <ExamHeader onNewExam={handleNew} />
       </Suspense>
 
-      {/* 2. Key Metrics Ribbon */}
       <Suspense fallback={<ExamMetricsRibbonSkeleton />}>
-        <ExamMetricsRibbon />
+        <ExamMetricsRibbon key={refreshKey} />
       </Suspense>
 
-      {/* 3. Schedules, Published Results & Rubric Tabs */}
-      <Suspense fallback={<ExamScheduleViewSkeleton />}>
-        <ExamScheduleView />
+      <Suspense fallback={<ExamWorkspaceSkeleton />}>
+        <ExamWorkspace />
       </Suspense>
     </div>
   );

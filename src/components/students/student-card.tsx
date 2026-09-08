@@ -91,8 +91,11 @@ export const StudentCard = React.memo(function StudentCard({ student, onEdit }: 
                 {student.fullName}
               </Link>
               <span className="text-xs text-muted-foreground block truncate">
-                {student.className} • {student.sectionName}
+                {student.program ? `${student.program} ${student.department ?? ""} • Sem ${student.semester ?? ""}` : `${student.className} • ${student.sectionName}`}
               </span>
+              {student.universityPrn && (
+                <span className="text-[10px] font-mono text-muted-foreground block truncate">PRN: {student.universityPrn}</span>
+              )}
             </div>
           </div>
 
@@ -127,7 +130,15 @@ export const StudentCard = React.memo(function StudentCard({ student, onEdit }: 
             {feeBadge(student.feeSummary.status)}
           </div>
           <div className="text-[11px] truncate pt-0.5">
-            Guardian: <strong className="text-foreground">{student.guardian.name}</strong> ({student.guardian.phone})
+            {student.program ? (
+              <span>
+                {student.yearOfStudy ? `Year ${student.yearOfStudy}` : ""} {student.hostelRequired ? "• Hostel" : "• Day Scholar"} {student.scholarshipType && student.scholarshipType !== "None" ? `• ${student.scholarshipType}` : ""}
+              </span>
+            ) : (
+              <span>
+                Guardian: <strong className="text-foreground">{student.guardian.name}</strong> ({student.guardian.phone})
+              </span>
+            )}
           </div>
         </div>
 
@@ -140,9 +151,9 @@ export const StudentCard = React.memo(function StudentCard({ student, onEdit }: 
             </span>
           </div>
           <div className="p-2 rounded-lg bg-background border border-border/60">
-            <span className="text-[10px] text-muted-foreground block">Latest Term GPA</span>
+            <span className="text-[10px] text-muted-foreground block">{student.program ? "Latest CGPA" : "Latest Term GPA"}</span>
             <span className="font-bold text-foreground">
-              {student.academicHistory[0]?.gpa ? `${student.academicHistory[0].gpa} / 4.0` : "A"}
+              {student.academicHistory[0]?.gpa ? `${student.academicHistory[0].gpa} ${student.program ? "/ 10" : "/ 4.0"}` : "A"}
             </span>
           </div>
         </div>
