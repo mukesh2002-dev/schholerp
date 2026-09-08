@@ -26,6 +26,9 @@ import {
   Award,
   Layers,
   CalendarDays,
+  FileText,
+  ShieldCheck,
+  Upload,
 } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
@@ -290,6 +293,47 @@ export default function TeacherDetailPage() {
           </Card>
         </div>
       </div>
+
+      {/* Faculty Documents — stored & verified (same as Students) */}
+      <Card className="border-border/80 shadow-xs">
+        <CardHeader>
+          <CardTitle className="text-base font-bold flex items-center gap-2">
+            <FileText className="h-4 w-4 text-primary" />
+            Faculty Documents & Certificates
+          </CardTitle>
+          <CardDescription>
+            Uploaded via Faculty form — stored in Documents module. PDF/JPG/PNG, verified toggle.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {(() => {
+            const docs = mockDb.getDocuments().filter((d) => d.ownerId === teacher.id && d.ownerType === "TEACHER");
+            if (docs.length === 0) {
+              return (
+                <div className="p-4 rounded-xl border border-dashed text-center text-xs text-muted-foreground">
+                  No documents yet — edit faculty and upload Degree, B.Ed, Aadhaar, PAN etc. (jaise Admissions/Students me kiya). Yehi files yahan aur Documents module me dikhengi.
+                </div>
+              );
+            }
+            return docs.map((doc) => (
+              <div key={doc.id} className="flex items-center justify-between p-3 rounded-xl border border-border/70 bg-card">
+                <div className="flex items-center gap-3 min-w-0">
+                  <FileText className="h-5 w-5 text-primary shrink-0" />
+                  <div className="min-w-0">
+                    <span className="text-xs font-semibold text-foreground block truncate">{doc.name}</span>
+                    <span className="text-[11px] text-muted-foreground">
+                      {doc.fileType} • {doc.fileSize} • {formatDate(doc.uploadDate)} • {doc.category}
+                    </span>
+                  </div>
+                </div>
+                <Badge variant={doc.verificationStatus === "VERIFIED" ? "success" : "outline"} className="text-[10px] shrink-0">
+                  {doc.verificationStatus}
+                </Badge>
+              </div>
+            ));
+          })()}
+        </CardContent>
+      </Card>
 
       {/* Edit Teacher Dialog */}
       <TeacherFormDialog

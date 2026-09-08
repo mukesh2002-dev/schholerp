@@ -11,6 +11,7 @@ export function InventoryHeader() {
   const { activeBranchId } = useERP();
   const items = mockDb.getInventoryItems(activeBranchId);
   const suppliers = mockDb.getInventorySuppliers();
+  const locs = mockDb.getStoreLocations(activeBranchId);
 
   return (
     <div className="space-y-4">
@@ -18,17 +19,17 @@ export function InventoryHeader() {
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
               <Package className="h-6 w-6 text-primary" />
-              Inventory, Assets &amp; Procurement
+              Inventory & Stock — Centralized Store
             </h1>
             <Badge variant="outline" className="text-xs">
-              {items.length} Stock SKUs • {suppliers.length} Approved Vendors
+              {items.length} SKUs • {locs.length} Stores • {suppliers.length} Vendors
             </Badge>
           </div>
           <p className="text-xs sm:text-sm text-muted-foreground">
-            School assets, lab consumables, uniform stock, vendor orders, and reorder alerts across campuses.
+            Categories • Uniform size-wise • Stock Entry/Out • School Counter POS (Student) • Transfers • Low Stock • Audit — Small School → Large College ready.
           </p>
         </div>
       </div>

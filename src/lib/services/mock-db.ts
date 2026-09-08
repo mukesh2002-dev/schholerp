@@ -10,6 +10,9 @@ import {
   AdmissionApplication,
   Student,
   ClassRoom,
+  Subject,
+  SubjectTopic,
+  Section,
   Teacher,
   AdmissionStatus,
   FeeHead,
@@ -27,6 +30,7 @@ import {
   TimetableSlot,
   Homework,
   HomeworkSubmission,
+  Exam,
   ExamType,
   ExamSchedule,
   MarkEntry,
@@ -34,6 +38,7 @@ import {
   Result,
   Vehicle,
   TransportRoute,
+  TransportFeeSlab,
   Driver,
   BusHelper,
   StudentTransportAssignment,
@@ -51,6 +56,13 @@ import {
   PurchaseEntry,
   InventoryTransaction,
   StockAlert,
+  StoreLocation,
+  StoreSale,
+  SaleItem,
+  ReturnExchangeRecord,
+  StockTransfer,
+  StockAdjustment,
+  StoreSalePaymentMethod,
   ExpenseCategory,
   ExpenseEntry,
   MonthlyExpenseSummary,
@@ -91,11 +103,12 @@ import { initialAttendanceRecords, computeDaySummaries, computeReportEntries } f
 import { initialEnrolledUsers, initialSyncLogs } from "../mock-data/biometric";
 import { initialTimetables, initialTimetableSlots, defaultPeriods } from "../mock-data/timetable";
 import { initialHomework, initialHomeworkSubmissions } from "../mock-data/homework";
-import { initialExamTypes, initialExamSchedules, initialMarkEntries, initialGradeScale, initialResults } from "../mock-data/exams";
-import { initialVehicles, initialTransportRoutes, initialDrivers, initialBusHelpers, initialStudentTransportAssignments, initialVehicleMaintenance } from "../mock-data/transport";
+import { initialExams, initialExamTypes, initialExamSchedules, initialMarkEntries, initialGradeScale, initialResults } from "../mock-data/exams";
+import { initialVehicles, initialTransportRoutes, initialDrivers, initialBusHelpers, initialStudentTransportAssignments, initialVehicleMaintenance, initialTransportFeeSlabs } from "../mock-data/transport";
+import { proratedFee as calcProratedFee } from "../transport/transport-fee-utils";
 import { initialAnnouncements, initialMessages, initialMessageThreads, initialNotifications, initialNotificationPreferences } from "../mock-data/notifications";
 import { initialCalendarEvents, initialEventVenues } from "../mock-data/events";
-import { initialInventoryCategories, initialInventoryItems, initialInventorySuppliers, initialPurchaseEntries, initialInventoryTransactions, initialStockAlerts } from "../mock-data/inventory";
+import { initialInventoryCategories, initialInventoryItems, initialInventorySuppliers, initialPurchaseEntries, initialInventoryTransactions, initialStockAlerts, initialStoreLocations } from "../mock-data/inventory";
 import { initialExpenseCategories, initialExpenseEntries, initialMonthlyExpenseSummary } from "../mock-data/expenses";
 import { initialSalaryStructures, initialPayrollRecords } from "../mock-data/payroll";
 import { initialDocuments } from "../mock-data/documents";
@@ -118,6 +131,7 @@ const ADMISSIONS_STORAGE_KEY = "school_erp_admissions_v1";
 const TIMETABLE_STORAGE_KEY = "school_erp_timetable_v1";
 const HOMEWORK_STORAGE_KEY = "school_erp_homework_v1";
 const HOMEWORK_SUBMISSIONS_STORAGE_KEY = "school_erp_homework_submissions_v1";
+const EXAMS_STORAGE_KEY = "school_erp_exams_v1";
 const EXAM_TYPES_STORAGE_KEY = "school_erp_exam_types_v1";
 const EXAM_SCHEDULES_STORAGE_KEY = "school_erp_exam_schedules_v1";
 const MARK_ENTRIES_STORAGE_KEY = "school_erp_mark_entries_v1";
@@ -141,6 +155,11 @@ const INVENTORY_SUPPLIERS_STORAGE_KEY = "school_erp_inventory_suppliers_v1";
 const PURCHASE_ENTRIES_STORAGE_KEY = "school_erp_purchase_entries_v1";
 const INVENTORY_TRANSACTIONS_STORAGE_KEY = "school_erp_inventory_transactions_v1";
 const STOCK_ALERTS_STORAGE_KEY = "school_erp_stock_alerts_v1";
+const STORE_LOCATIONS_STORAGE_KEY = "school_erp_store_locations_v1";
+const STORE_SALES_STORAGE_KEY = "school_erp_store_sales_v1";
+const STOCK_TRANSFERS_STORAGE_KEY = "school_erp_stock_transfers_v1";
+const STOCK_ADJUSTMENTS_STORAGE_KEY = "school_erp_stock_adjustments_v1";
+const RETURN_EXCHANGE_STORAGE_KEY = "school_erp_return_exchange_v1";
 const EXPENSE_CATEGORIES_STORAGE_KEY = "school_erp_expense_categories_v1";
 const EXPENSE_ENTRIES_STORAGE_KEY = "school_erp_expense_entries_v1";
 const SALARY_STRUCTURES_STORAGE_KEY = "school_erp_salary_structures_v1";
@@ -160,6 +179,7 @@ const LIBRARY_ISSUES_STORAGE_KEY = "school_erp_library_issues_v1";
 const LIBRARY_FINES_STORAGE_KEY = "school_erp_library_fines_v1";
 const STAFF_MEMBERS_STORAGE_KEY = "school_erp_staff_members_v1";
 const LEAVE_RECORDS_STORAGE_KEY = "school_erp_leave_records_v1";
+const TRANSPORT_SLABS_STORAGE_KEY = "school_erp_transport_slabs_v1";
 
 class MockDatabaseService {
   private isBrowser(): boolean {
@@ -379,6 +399,120 @@ class MockDatabaseService {
       localStorage.setItem(CLASSES_STORAGE_KEY, JSON.stringify(classes));
     }
     return newClass;
+  }
+
+  public deleteClass(id: string): boolean {
+    const classes = this.getClasses();
+    const idx = classes.findIndex((c) => c.id === id);
+    if (idx === -1) return false;
+    classes.splice(idx, 1);
+    if (this.isBrowser()) localStorage.setItem(CLASSES_STORAGE_KEY, JSON.stringify(classes));
+    return true;
+  }
+
+  // ── Subjects & Topics nested inside ClassRoom ──
+  public getAllSubjects(branchId?: string): (Subject & { classId: string; className: string; branchId: string; branchName: string })[] {
+    const classes = this.getClasses(branchId);
+    const out: any[] = [];
+    for (const c of classes) {
+      for (const s of c.subjects) out.push({ ...s, classId: c.id, className: c.name, branchId: c.branchId, branchName: c.branchName });
+    }
+    return out;
+  }
+
+  public saveSubject(classId: string, subject: Omit<Subject, "id"> & { id?: string }): Subject | null {
+    const classes = this.getClasses();
+    const idx = classes.findIndex((c) => c.id === classId);
+    if (idx === -1) return null;
+    const cls = classes[idx];
+    if (subject.id) {
+      const sIdx = cls.subjects.findIndex((s) => s.id === subject.id);
+      if (sIdx !== -1) {
+        const updated: Subject = { ...cls.subjects[sIdx], ...subject, id: subject.id };
+        cls.subjects[sIdx] = updated;
+        if (this.isBrowser()) localStorage.setItem(CLASSES_STORAGE_KEY, JSON.stringify(classes));
+        return updated;
+      }
+    }
+    const newSub: Subject = { ...subject, id: subject.id || `sub-${Date.now().toString(36)}`, topics: subject.topics || [] } as Subject;
+    cls.subjects.push(newSub);
+    if (this.isBrowser()) localStorage.setItem(CLASSES_STORAGE_KEY, JSON.stringify(classes));
+    return newSub;
+  }
+
+  public deleteSubject(classId: string, subjectId: string): boolean {
+    const classes = this.getClasses();
+    const idx = classes.findIndex((c) => c.id === classId);
+    if (idx === -1) return false;
+    const before = classes[idx].subjects.length;
+    classes[idx].subjects = classes[idx].subjects.filter((s) => s.id !== subjectId);
+    if (classes[idx].subjects.length === before) return false;
+    if (this.isBrowser()) localStorage.setItem(CLASSES_STORAGE_KEY, JSON.stringify(classes));
+    return true;
+  }
+
+  public saveTopic(classId: string, subjectId: string, topic: Omit<SubjectTopic, "id" | "createdAt" | "updatedAt"> & { id?: string }): SubjectTopic | null {
+    const classes = this.getClasses();
+    const cIdx = classes.findIndex((c) => c.id === classId);
+    if (cIdx === -1) return null;
+    const sIdx = classes[cIdx].subjects.findIndex((s) => s.id === subjectId);
+    if (sIdx === -1) return null;
+    const subj = classes[cIdx].subjects[sIdx];
+    if (!subj.topics) subj.topics = [];
+    const now = new Date().toISOString();
+    if (topic.id) {
+      const tIdx = subj.topics.findIndex((t) => t.id === topic.id);
+      if (tIdx !== -1) {
+        const updated: SubjectTopic = { ...subj.topics[tIdx], ...topic, id: topic.id, updatedAt: now };
+        subj.topics[tIdx] = updated;
+        if (this.isBrowser()) localStorage.setItem(CLASSES_STORAGE_KEY, JSON.stringify(classes));
+        return updated;
+      }
+    }
+    const newTopic: SubjectTopic = { id: `top-${Date.now().toString(36)}`, title: topic.title, description: topic.description, order: topic.order ?? subj.topics.length + 1, status: topic.status || "PLANNED", createdAt: now, updatedAt: now };
+    subj.topics.push(newTopic);
+    if (this.isBrowser()) localStorage.setItem(CLASSES_STORAGE_KEY, JSON.stringify(classes));
+    return newTopic;
+  }
+
+  public deleteTopic(classId: string, subjectId: string, topicId: string): boolean {
+    const classes = this.getClasses();
+    const cIdx = classes.findIndex((c) => c.id === classId);
+    if (cIdx === -1) return false;
+    const sIdx = classes[cIdx].subjects.findIndex((s) => s.id === subjectId);
+    if (sIdx === -1) return false;
+    const subj = classes[cIdx].subjects[sIdx];
+    if (!subj.topics) return false;
+    const before = subj.topics.length;
+    subj.topics = subj.topics.filter((t) => t.id !== topicId);
+    if (subj.topics.length === before) return false;
+    if (this.isBrowser()) localStorage.setItem(CLASSES_STORAGE_KEY, JSON.stringify(classes));
+    return true;
+  }
+
+  public updateSection(classId: string, section: Section): boolean {
+    const classes = this.getClasses();
+    const cIdx = classes.findIndex((c) => c.id === classId);
+    if (cIdx === -1) return false;
+    const sIdx = classes[cIdx].sections.findIndex((s) => s.id === section.id);
+    if (sIdx !== -1) {
+      classes[cIdx].sections[sIdx] = section;
+    } else {
+      classes[cIdx].sections.push(section);
+    }
+    if (this.isBrowser()) localStorage.setItem(CLASSES_STORAGE_KEY, JSON.stringify(classes));
+    return true;
+  }
+
+  public deleteSection(classId: string, sectionId: string): boolean {
+    const classes = this.getClasses();
+    const cIdx = classes.findIndex((c) => c.id === classId);
+    if (cIdx === -1) return false;
+    const before = classes[cIdx].sections.length;
+    classes[cIdx].sections = classes[cIdx].sections.filter((s) => s.id !== sectionId);
+    if (classes[cIdx].sections.length === before) return false;
+    if (this.isBrowser()) localStorage.setItem(CLASSES_STORAGE_KEY, JSON.stringify(classes));
+    return true;
   }
 
   // ==================== STUDENTS ====================
@@ -627,10 +761,45 @@ class MockDatabaseService {
     if (branchId && branchId !== "all") structures = structures.filter((s) => s.branchId === branchId);
     return structures;
   }
+  private recomputeAssignment(a: FeeAssignment): FeeAssignment {
+    const due = Math.max(0, a.totalAssigned - (a.discount ?? 0) - a.totalPaid + (a.lateFee ?? 0));
+    a.totalPending = due;
+    // overdue detection: >15 days past due
+    const overdue = (() => {
+      if (!a.dueDate) return false;
+      const diff = Math.floor((Date.now() - new Date(a.dueDate).getTime()) / (1000 * 60 * 60 * 24));
+      return diff > 15 && due > 0;
+    })();
+    if (overdue) {
+      if (a.lateFee === 0) {
+        // auto apply 5% late fee if not set
+        a.lateFee = Math.round(((a.totalAssigned - (a.discount ?? 0) - a.totalPaid) * 0.05));
+        a.totalPending = Math.max(0, a.totalAssigned - (a.discount ?? 0) - a.totalPaid + a.lateFee);
+      }
+      a.totalOverdue = a.totalPending;
+      a.status = "OVERDUE";
+    } else if (due <= 0) {
+      a.status = "PAID";
+      a.totalOverdue = 0;
+    } else if (a.totalPaid > 0) {
+      a.status = "PARTIAL";
+      a.totalOverdue = 0;
+    } else {
+      a.status = "PENDING";
+      a.totalOverdue = 0;
+    }
+    return a;
+  }
+
   public getFeeAssignments(branchId?: string): FeeAssignment[] {
-    let assignments = initialFeeAssignments;
+    let assignments = initialFeeAssignments.map((a) => this.recomputeAssignment({ ...a, feeHeads: a.feeHeads ? [...a.feeHeads] : undefined }));
+    // also recompute original references to keep in sync
+    initialFeeAssignments.forEach((a) => this.recomputeAssignment(a));
     if (branchId && branchId !== "all") assignments = assignments.filter((a) => a.branchId === branchId);
     return assignments;
+  }
+  public getFeeAssignmentByStudentId(studentId: string): FeeAssignment | undefined {
+    return this.getFeeAssignments().find((a) => a.studentId === studentId);
   }
   public getInvoices(branchId?: string): Invoice[] {
     let invoices = initialInvoices;
@@ -642,30 +811,114 @@ class MockDatabaseService {
     if (branchId && branchId !== "all") payments = payments.filter((p) => p.branchId === branchId);
     return payments;
   }
-  public recordPayment(invoiceId: string, amount: number, method: PaymentRecord["method"]): PaymentRecord | null {
+  public getPaymentsByStudentId(studentId: string): PaymentRecord[] {
+    return initialPayments.filter((p) => p.studentId === studentId);
+  }
+  private nextReceiptNumber(): string {
+    const year = new Date().getFullYear();
+    const key = "school_erp_receipt_counter_v1";
+    let counter = 1;
+    if (typeof window !== "undefined") {
+      try {
+        const raw = localStorage.getItem(key);
+        const parsed = raw ? JSON.parse(raw) : {};
+        counter = (parsed[year] ?? initialPayments.filter((p) => p.receiptNumber.startsWith(`RCP-${year}-`)).length) + 1;
+        parsed[year] = counter;
+        localStorage.setItem(key, JSON.stringify(parsed));
+      } catch {
+        counter = initialPayments.length + 1;
+      }
+    } else {
+      counter = initialPayments.length + 1;
+    }
+    return `RCP-${year}-${String(counter).padStart(5, "0")}`;
+  }
+  public recordPayment(invoiceId: string, amount: number, method: PaymentRecord["method"], feeHeadIds?: string[]): PaymentRecord | null {
     const invoice = initialInvoices.find((i) => i.id === invoiceId);
     if (!invoice) return null;
+    const nowDate = new Date().toISOString().split("T")[0];
+    const feeHeadNames = feeHeadIds
+      ? feeHeadIds.map((id) => initialFeeHeads.find((h) => h.id === id)?.name ?? id)
+      : undefined;
     const newPayment: PaymentRecord = {
       id: `pay-${Date.now().toString(36)}`,
       invoiceId, invoiceNumber: invoice.invoiceNumber, studentId: invoice.studentId, studentName: invoice.studentName,
-      amount, method, transactionId: `TXN-${Math.random().toString(36).slice(2,8).toUpperCase()}`, receiptNumber: `RCT-${Date.now().toString(36).toUpperCase()}`,
-      date: new Date().toISOString().split("T")[0], branchId: invoice.branchId, branchName: invoice.branchName,
+      amount, method, transactionId: `TXN-${Math.random().toString(36).slice(2,8).toUpperCase()}`, receiptNumber: this.nextReceiptNumber(),
+      date: nowDate, branchId: invoice.branchId, branchName: invoice.branchName,
+      feeHeadIds, feeHeadNames,
     };
     initialPayments.unshift(newPayment);
     invoice.paidAmount += amount;
     invoice.balanceAmount = Math.max(0, invoice.totalAmount - invoice.paidAmount);
     if (invoice.balanceAmount === 0) invoice.status = "PAID";
-    else if (invoice.paidAmount > 0) invoice.status = "PARTIAL";
-    // update assignments
+    else if (invoice.paidAmount > 0) {
+      // check overdue
+      const diff = Math.floor((Date.now() - new Date(invoice.dueDate).getTime()) / (1000 * 60 * 60 * 24));
+      invoice.status = diff > 15 ? "OVERDUE" : "PARTIAL";
+    }
+    // update assignments with discount-aware formula Due = Assigned - Discount - Paid + LateFee
     const assignment = initialFeeAssignments.find((a) => a.studentId === invoice.studentId);
     if (assignment) {
       assignment.totalPaid += amount;
-      assignment.totalPending = Math.max(0, assignment.totalAssigned - assignment.totalPaid);
-      if (assignment.totalPending === 0) assignment.status = "PAID";
-      else if (assignment.totalPaid > 0) assignment.status = "PARTIAL";
+      assignment.lastPaymentDate = nowDate;
+      // update feeHeads breakdown if present
+      if (assignment.feeHeads && feeHeadIds) {
+        for (const fh of assignment.feeHeads) {
+          if (feeHeadIds.includes(fh.feeHeadId)) {
+            const perHead = Math.round(amount / feeHeadIds.length);
+            fh.paidAmount += perHead;
+            fh.dueAmount = Math.max(0, fh.amount - fh.discount - fh.paidAmount);
+          }
+        }
+      } else if (assignment.feeHeads) {
+        // distribute proportionally to first pending head
+        const pendingHeads = assignment.feeHeads.filter((h) => h.dueAmount > 0);
+        let remain = amount;
+        for (const h of pendingHeads) {
+          if (remain <= 0) break;
+          const pay = Math.min(h.dueAmount, remain);
+          h.paidAmount += pay;
+          h.dueAmount = Math.max(0, h.amount - h.discount - h.paidAmount);
+          remain -= pay;
+        }
+      }
+      this.recomputeAssignment(assignment);
     }
-    this.addActivity({ user: { name: "Accounts Officer", avatar: "", role: "ACCOUNTANT" }, action: "PAYMENT", module: "Fees", entityName: invoice.invoiceNumber, entityId: invoice.id, branchId: invoice.branchId, branchName: invoice.branchName, details: `Recorded ${method} payment of ₹${amount} for ${invoice.studentName}.`, status: "SUCCESS" });
+    this.addActivity({ user: { name: "Accounts Officer", avatar: "", role: "ACCOUNTANT" }, action: "PAYMENT", module: "Fees", entityName: invoice.invoiceNumber, entityId: invoice.id, branchId: invoice.branchId, branchName: invoice.branchName, details: `Recorded ${method} payment of ₹${amount} for ${invoice.studentName}. Receipt ${newPayment.receiptNumber}`, status: "SUCCESS" });
     return newPayment;
+  }
+  public recordDirectPayment(studentId: string, amount: number, method: PaymentRecord["method"], feeHeadIds?: string[]): PaymentRecord | null {
+    const assignment = initialFeeAssignments.find((a) => a.studentId === studentId);
+    if (!assignment) return null;
+    // find first pending invoice for student or create ad-hoc
+    const pendingInv = initialInvoices.find((i) => i.studentId === studentId && i.balanceAmount > 0);
+    if (pendingInv) {
+      return this.recordPayment(pendingInv.id, Math.min(amount, pendingInv.balanceAmount), method, feeHeadIds);
+    }
+    // no invoice: create payment against assignment directly
+    const nowDate = new Date().toISOString().split("T")[0];
+    const feeHeadNames = feeHeadIds ? feeHeadIds.map((id) => initialFeeHeads.find((h) => h.id === id)?.name ?? id) : undefined;
+    const newPayment: PaymentRecord = {
+      id: `pay-${Date.now().toString(36)}`,
+      invoiceId: `inv-ad-hoc-${studentId}`, invoiceNumber: `INV-ADHOC-${studentId.slice(-4).toUpperCase()}`,
+      studentId, studentName: assignment.studentName,
+      amount, method, transactionId: `TXN-${Math.random().toString(36).slice(2,8).toUpperCase()}`, receiptNumber: this.nextReceiptNumber(),
+      date: nowDate, branchId: assignment.branchId, branchName: assignment.branchName,
+      feeHeadIds, feeHeadNames,
+    };
+    initialPayments.unshift(newPayment);
+    assignment.totalPaid += amount;
+    assignment.lastPaymentDate = nowDate;
+    this.recomputeAssignment(assignment);
+    this.addActivity({ user: { name: "Accounts Officer", avatar: "", role: "ACCOUNTANT" }, action: "PAYMENT", module: "Fees", entityName: assignment.studentName, entityId: assignment.id, branchId: assignment.branchId, branchName: assignment.branchName, details: `Direct payment ₹${amount} (${method}) for ${assignment.studentName}. Receipt ${newPayment.receiptNumber}`, status: "SUCCESS" });
+    return newPayment;
+  }
+  public getTodayCollection(branchId?: string): number {
+    const today = new Date().toISOString().split("T")[0];
+    return this.getPayments(branchId).filter((p) => p.date === today).reduce((s, p) => s + p.amount, 0);
+  }
+  public getDefaulters(branchId?: string): FeeAssignment[] {
+    return this.getFeeAssignments(branchId).filter((a) => a.status === "OVERDUE" || (a.totalPending > 0 && a.status !== "PAID"));
   }
 
   // ==================== ATTENDANCE ====================
@@ -1102,6 +1355,55 @@ class MockDatabaseService {
   }
 
   // ==================== EXAMS & RESULTS ====================
+  // Exams (header) — spec §1
+  public getExams(branchId?: string): Exam[] {
+    let exams = initialExams;
+    if (this.isBrowser()) {
+      try {
+        const stored = localStorage.getItem(EXAMS_STORAGE_KEY);
+        if (stored) exams = JSON.parse(stored);
+        else localStorage.setItem(EXAMS_STORAGE_KEY, JSON.stringify(initialExams));
+      } catch { exams = initialExams; }
+    }
+    if (!branchId || branchId === "all") return exams;
+    return exams.filter((e) => e.branchId === branchId);
+  }
+  public getExamById(id: string): Exam | undefined { return this.getExams().find((e) => e.id === id); }
+  public saveExam(data: Omit<Exam, "id" | "createdAt" | "updatedAt"> & { id?: string }): Exam {
+    const exams = this.getExams();
+    const now = new Date().toISOString();
+    if (data.startDate > data.endDate) throw new Error("Start Date cannot be after End Date");
+    if (data.id) {
+      const idx = exams.findIndex((e) => e.id === data.id);
+      if (idx !== -1) {
+        const updated: Exam = { ...exams[idx], ...data, id: data.id, updatedAt: now };
+        exams[idx] = updated;
+        initialExams[idx] = updated;
+        if (this.isBrowser()) localStorage.setItem(EXAMS_STORAGE_KEY, JSON.stringify(exams));
+        this.addActivity({ user: { name: "Admin", avatar: "", role: "SUPER_ADMIN" }, action: "UPDATE", module: "Exams", entityName: updated.name, entityId: updated.id, branchId: updated.branchId, branchName: updated.branchName, details: `Updated exam ${updated.name} (${updated.className}) ${updated.startDate}→${updated.endDate}`, status: "SUCCESS" });
+        return updated;
+      }
+    }
+    const newExam: Exam = { ...data, id: data.id || `ex-${Date.now().toString(36)}`, createdAt: now, updatedAt: now };
+    exams.unshift(newExam);
+    initialExams.unshift(newExam);
+    if (this.isBrowser()) localStorage.setItem(EXAMS_STORAGE_KEY, JSON.stringify(exams));
+    this.addActivity({ user: { name: "Admin", avatar: "", role: "SUPER_ADMIN" }, action: "CREATE", module: "Exams", entityName: newExam.name, entityId: newExam.id, branchId: newExam.branchId, branchName: newExam.branchName, details: `Created exam ${newExam.name} for ${newExam.className} ${newExam.sectionName} (${newExam.academicYear}) ${newExam.startDate}–${newExam.endDate}`, status: "SUCCESS" });
+    // notify students/parents
+    this.pushExamNotification(`New Exam: ${newExam.name}`, `${newExam.className} ${newExam.sectionName} — ${newExam.startDate} to ${newExam.endDate}`, newExam.branchId, newExam.branchName);
+    return newExam;
+  }
+  public deleteExam(id: string): boolean {
+    const exams = this.getExams();
+    const idx = exams.findIndex((e) => e.id === id);
+    if (idx === -1) return false;
+    exams.splice(idx, 1);
+    const g = initialExams.findIndex((e) => e.id === id);
+    if (g !== -1) initialExams.splice(g, 1);
+    if (this.isBrowser()) localStorage.setItem(EXAMS_STORAGE_KEY, JSON.stringify(exams));
+    return true;
+  }
+
   public getExamTypes(): ExamType[] {
     let types = initialExamTypes;
     if (this.isBrowser()) {
@@ -1126,7 +1428,7 @@ class MockDatabaseService {
     return scale;
   }
 
-  public getExamSchedules(branchId?: string): ExamSchedule[] {
+  public getExamSchedules(branchId?: string, examId?: string): ExamSchedule[] {
     let schedules = initialExamSchedules;
     if (this.isBrowser()) {
       try {
@@ -1135,22 +1437,92 @@ class MockDatabaseService {
         else localStorage.setItem(EXAM_SCHEDULES_STORAGE_KEY, JSON.stringify(initialExamSchedules));
       } catch { schedules = initialExamSchedules; }
     }
-    if (!branchId || branchId === "all") return schedules;
-    return schedules.filter((s) => s.branchId === branchId);
+    if (branchId && branchId !== "all") schedules = schedules.filter((s) => s.branchId === branchId);
+    if (examId) schedules = schedules.filter((s) => s.examId === examId);
+    return schedules;
   }
 
   public getExamScheduleById(id: string): ExamSchedule | undefined {
     return this.getExamSchedules().find((s) => s.id === id);
   }
 
+  private isOverlapping(s1: ExamSchedule, s2: ExamSchedule): boolean {
+    if (s1.classId !== s2.classId || s1.sectionId !== s2.sectionId || s1.examDate !== s2.examDate) return false;
+    const toMin = (t: string) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; };
+    const aStart = toMin(s1.startTime), aEnd = toMin(s1.endTime), bStart = toMin(s2.startTime), bEnd = toMin(s2.endTime);
+    return aStart < bEnd && bStart < aEnd;
+  }
+
   public saveExamSchedule(data: Omit<ExamSchedule, "id"> & { id?: string }): ExamSchedule {
+    // validate no overlap for same class+section+date+time
     const schedules = this.getExamSchedules();
-    const newSchedule: ExamSchedule = { ...data, id: data.id || `es-${Date.now().toString(36)}` };
-    const index = schedules.findIndex((s) => s.id === newSchedule.id);
-    if (index !== -1) schedules[index] = newSchedule;
-    else schedules.unshift(newSchedule);
+    const candidate: ExamSchedule = { ...data, id: data.id || `es-${Date.now().toString(36)}` } as ExamSchedule;
+    for (const s of schedules) {
+      if (s.id === candidate.id) continue;
+      if (this.isOverlapping(candidate, s)) throw new Error(`Overlapping exam: ${s.subjectName} at ${s.startTime}-${s.endTime} on ${s.examDate} for ${s.className} ${s.sectionName}`);
+    }
+    const index = schedules.findIndex((s) => s.id === candidate.id);
+    const isNew = index === -1;
+    if (index !== -1) schedules[index] = candidate;
+    else schedules.unshift(candidate);
+    // sync initial
+    const gIdx = initialExamSchedules.findIndex((s) => s.id === candidate.id);
+    if (gIdx !== -1) initialExamSchedules[gIdx] = candidate;
+    else if (isNew) initialExamSchedules.unshift(candidate);
     if (this.isBrowser()) localStorage.setItem(EXAM_SCHEDULES_STORAGE_KEY, JSON.stringify(schedules));
-    return newSchedule;
+    if (isNew) {
+      this.addActivity({ user: { name: "Admin", avatar: "", role: "SUPER_ADMIN" }, action: "CREATE", module: "Exams", entityName: candidate.examName, entityId: candidate.id, branchId: candidate.branchId, branchName: candidate.branchName, details: `Published schedule ${candidate.subjectName} on ${candidate.examDate} ${candidate.startTime}-${candidate.endTime} ${candidate.room} for ${candidate.className}`, status: "SUCCESS" });
+      this.pushExamNotification("Exam Schedule Published", `${candidate.examName} — ${candidate.subjectName} on ${candidate.examDate} ${candidate.startTime} ${candidate.room}`, candidate.branchId, candidate.branchName);
+    }
+    return candidate;
+  }
+
+  public publishExamNotice(examId: string, by?: string, instructions?: string): Exam | null {
+    const ex = this.getExamById(examId);
+    if (!ex) return null;
+    const updated: Exam = { ...ex, status: "PUBLISHED", instructions: instructions ?? ex.instructions, noticePublishedAt: new Date().toISOString(), noticePublishedBy: by || "Admin", updatedAt: new Date().toISOString() };
+    this.saveExam(updated as any);
+    this.pushExamNotification("Exam Notice Published", `${updated.name} (${updated.examTypeName} - ${updated.examMode}) — ${updated.className} ${updated.sectionName} ${updated.startDate}→${updated.endDate}. ${instructions || ""}`.trim(), updated.branchId, updated.branchName);
+    this.addActivity({ user: { name: by || "Admin", avatar: "", role: "SUPER_ADMIN" }, action: "APPROVE", module: "Exams", entityName: updated.name, entityId: updated.id, branchId: updated.branchId, branchName: updated.branchName, details: `Published exam notice for ${updated.name} — notified students/parents`, status: "SUCCESS" });
+    return updated;
+  }
+
+  public publishTimetable(examId: string, by?: string): number {
+    const schedules = this.getExamSchedules(undefined, examId);
+    if (schedules.length === 0) throw new Error("No timetable to publish");
+    let count = 0;
+    for (const s of schedules) {
+      if (!s.isPublished) {
+        this.saveExamSchedule({ ...s, publicationStatus: "PUBLISHED", isPublished: true } as any);
+        count++;
+      }
+    }
+    const ex = this.getExamById(examId);
+    if (ex) {
+      this.pushExamNotification("Exam Timetable Published", `${ex.name} — ${ex.className} ${ex.sectionName} timetable (${schedules.length} subjects) is live`, ex.branchId, ex.branchName);
+      this.addActivity({ user: { name: by || "Admin", avatar: "", role: "SUPER_ADMIN" }, action: "APPROVE", module: "Exams", entityName: ex.name, entityId: ex.id, branchId: ex.branchId, branchName: ex.branchName, details: `Published timetable for ${ex.name} — ${count} subjects`, status: "SUCCESS" });
+    }
+    return count;
+  }
+
+  public rescheduleExam(scheduleId: string, newDate: string, newStart?: string, newEnd?: string, reason?: string, by?: string): ExamSchedule | null {
+    const s = this.getExamScheduleById(scheduleId);
+    if (!s) return null;
+    if (!reason || !reason.trim()) throw new Error("Reschedule reason is required");
+    const prev = s.examDate;
+    const prevStart = s.startTime;
+    const prevEnd = s.endTime;
+    const updated: ExamSchedule = { ...s, examDate: newDate, startTime: newStart || s.startTime, endTime: newEnd || s.endTime, previousDate: prev, previousStartTime: prevStart, previousEndTime: prevEnd, rescheduleReason: reason, rescheduledAt: new Date().toISOString(), rescheduledBy: by || "Admin" };
+    // validate overlap after change
+    const schedules = this.getExamSchedules();
+    for (const o of schedules) {
+      if (o.id === updated.id) continue;
+      if (this.isOverlapping(updated, o)) throw new Error(`Reschedule conflicts with ${o.subjectName} ${o.startTime}-${o.endTime} on ${newDate}`);
+    }
+    this.saveExamSchedule(updated);
+    this.addActivity({ user: { name: by || "Admin", avatar: "", role: "SUPER_ADMIN" }, action: "UPDATE", module: "Exams", entityName: s.examName, entityId: s.id, branchId: s.branchId, branchName: s.branchName, details: `Rescheduled ${s.subjectName} from ${prev} to ${newDate}: ${reason}`, status: "WARNING" });
+    this.pushExamNotification("Exam Rescheduled", `${updated.subjectName} moved from ${prev} to ${newDate} — ${reason}`, updated.branchId, updated.branchName);
+    return updated;
   }
 
   public getMarkEntries(examScheduleId?: string): MarkEntry[] {
@@ -1175,12 +1547,42 @@ class MockDatabaseService {
         else localStorage.setItem(MARK_ENTRIES_STORAGE_KEY, JSON.stringify(initialMarkEntries));
       } catch { entries = initialMarkEntries; }
     }
-    const newEntry: MarkEntry = { ...data, id: data.id || `mk-${Date.now().toString(36)}`, enteredAt: new Date().toISOString() };
+    // validation: marks cannot exceed max, handle AB
+    if (!data.isAbsent && (data.marksObtained < 0 || data.marksObtained > data.totalMarks)) throw new Error(`Marks ${data.marksObtained} exceeds max ${data.totalMarks}`);
+    if (data.isAbsent) { data.marksObtained = 0; data.percentage = 0; data.grade = "E"; data.status = "FAIL"; }
+    // lock check
+    if (data.id) {
+      const existing = entries.find((e) => e.id === data.id);
+      if (existing?.workflowStatus === "LOCKED") throw new Error("Locked marks require authorization to edit");
+      // history when corrected
+      if (existing && (existing.marksObtained !== data.marksObtained || existing.grade !== data.grade)) {
+        const hist = existing.history || [];
+        hist.push({ marksObtained: existing.marksObtained, grade: existing.grade, status: existing.status, correctedAt: new Date().toISOString(), correctedBy: data.enteredBy, reason: (data as any).correctionReason });
+        (data as any).history = hist;
+      }
+    }
+    if (!data.workflowStatus) (data as any).workflowStatus = "DRAFT";
+    const newEntry: MarkEntry = { ...data, id: data.id || `mk-${Date.now().toString(36)}`, enteredAt: new Date().toISOString() } as MarkEntry;
     const index = entries.findIndex((e) => e.id === newEntry.id);
     if (index !== -1) entries[index] = newEntry;
     else entries.unshift(newEntry);
+    // sync initial
+    const gIdx = initialMarkEntries.findIndex((e) => e.id === newEntry.id);
+    if (gIdx !== -1) initialMarkEntries[gIdx] = newEntry;
+    else if (index === -1) initialMarkEntries.unshift(newEntry);
     if (this.isBrowser()) localStorage.setItem(MARK_ENTRIES_STORAGE_KEY, JSON.stringify(entries));
     return newEntry;
+  }
+
+  public updateMarkWorkflow(id: string, to: MarkEntry["workflowStatus"], by?: string): MarkEntry | null {
+    const e = this.getMarkEntries().find((x) => x.id === id);
+    if (!e) return null;
+    const order: MarkEntry["workflowStatus"][] = ["DRAFT", "SUBMITTED", "VERIFIED", "LOCKED"];
+    const curIdx = order.indexOf(e.workflowStatus || "DRAFT");
+    const nextIdx = order.indexOf(to as any);
+    if (nextIdx < curIdx) throw new Error("Cannot move backwards in workflow without correction");
+    if (to === "LOCKED" && (by !== "Admin" && by !== "SUPER_ADMIN")) throw new Error("Only Admin can lock marks");
+    return this.saveMarkEntry({ ...e, workflowStatus: to, verifiedBy: by || e.verifiedBy } as any);
   }
 
   public getResults(branchId?: string, examTypeId?: string): Result[] {
@@ -1205,6 +1607,10 @@ class MockDatabaseService {
     return this.getResults().filter((r) => r.studentId === studentId);
   }
 
+  public getPublishedResultsForStudent(studentId: string): Result[] {
+    return this.getResultByStudent(studentId).filter((r) => r.isPublished);
+  }
+
   public saveResult(data: Omit<Result, "id" | "createdAt" | "updatedAt"> & { id?: string }): Result {
     const results = this.getResults();
     const now = new Date().toISOString();
@@ -1213,6 +1619,8 @@ class MockDatabaseService {
       if (index !== -1) {
         const updated: Result = { ...results[index], ...data, id: data.id, updatedAt: now };
         results[index] = updated;
+        const g = initialResults.findIndex((r) => r.id === data.id);
+        if (g !== -1) initialResults[g] = updated;
         if (this.isBrowser()) localStorage.setItem(RESULTS_STORAGE_KEY, JSON.stringify(results));
         return updated;
       }
@@ -1220,8 +1628,108 @@ class MockDatabaseService {
     const newId = `res-${Date.now().toString(36)}`;
     const newResult: Result = { ...data, id: newId, createdAt: now, updatedAt: now };
     results.unshift(newResult);
+    initialResults.unshift(newResult);
     if (this.isBrowser()) localStorage.setItem(RESULTS_STORAGE_KEY, JSON.stringify(results));
     return newResult;
+  }
+
+  // Result Generation — spec: class/section-wise, configurable grading, status GENERATED -> PUBLISHED
+  public generateResultsForExam(examId: string, classId?: string, sectionId?: string): Result[] {
+    const exam = this.getExamById(examId);
+    if (!exam) throw new Error("Exam not found");
+    const filterClass = classId || exam.classId;
+    const filterSection = sectionId || exam.sectionId;
+    const schedules = this.getExamSchedules(undefined, examId).filter((s) => s.classId === filterClass && s.sectionId === filterSection);
+    if (schedules.length === 0) throw new Error("No schedules for this exam/class/section — create subject-wise timetable first");
+    const classStudents = this.getStudents(exam.branchId).filter((s) => s.classId === filterClass && s.sectionId === filterSection);
+    const allMarks = schedules.flatMap((es) => this.getMarkEntries(es.id));
+    if (allMarks.length === 0) throw new Error("No marks entered yet — teachers must submit marks first");
+    const byStudent = new Map<string, MarkEntry[]>();
+    for (const m of allMarks) {
+      const arr = byStudent.get(m.studentId) || [];
+      arr.push(m);
+      byStudent.set(m.studentId, arr);
+    }
+    const gradeScale = this.getGradeScale();
+    const toGrade = (p: number) => gradeScale.find((g) => p >= g.minPercentage && p <= g.maxPercentage)?.grade || "E";
+    const toGpa = (p: number) => gradeScale.find((g) => p >= g.minPercentage && p <= g.maxPercentage)?.gpa ?? 0;
+    const generated: Result[] = [];
+    for (const [sid, marks] of byStudent.entries()) {
+      const stu = this.getStudents().find((s) => s.id === sid) || classStudents.find((s) => s.id === sid);
+      if (!stu) continue;
+      const totalMarks = marks.reduce((a, m) => a + m.totalMarks, 0);
+      const obtained = marks.reduce((a, m) => a + (m.isAbsent ? 0 : m.marksObtained), 0);
+      const pct = totalMarks ? (obtained / totalMarks) * 100 : 0;
+      const hasFail = marks.some((m) => m.status === "FAIL" || m.isAbsent);
+      const overallGrade = toGrade(pct);
+      const result: Omit<Result, "id" | "createdAt" | "updatedAt"> = {
+        studentId: sid,
+        studentName: stu.fullName,
+        studentRoll: stu.rollNumber,
+        admissionNumber: (stu as any).admissionNumber || stu.rollNumber,
+        classId: filterClass,
+        className: clsName(filterClass),
+        sectionId: filterSection,
+        sectionName: secName(filterClass, filterSection),
+        branchId: exam.branchId,
+        branchName: exam.branchName,
+        examId: exam.id,
+        examTypeId: exam.examTypeId,
+        examTypeName: exam.examTypeName,
+        examMode: exam.examMode,
+        academicYear: exam.academicYear,
+        totalMarks,
+        marksObtained: obtained,
+        percentage: Number(pct.toFixed(2)),
+        overallGrade,
+        gpa: toGpa(pct),
+        rank: 0,
+        totalStudents: byStudent.size,
+        status: hasFail ? "FAIL" : "PASS",
+        isPublished: false,
+        publicationStatus: "GENERATED",
+        generatedAt: new Date().toISOString(),
+        subjects: marks.map((m) => ({ subjectId: m.subjectId, subjectName: m.subjectName, marksObtained: m.isAbsent ? 0 : m.marksObtained, totalMarks: m.totalMarks, percentage: m.percentage, grade: m.grade, status: m.isAbsent ? "FAIL" : m.status })),
+        remarks: hasFail ? "Needs improvement" : "Good performance",
+      };
+      const existing = this.getResults().find((r) => r.studentId === sid && r.examId === examId && r.classId === filterClass && r.sectionId === filterSection);
+      const saved = this.saveResult({ ...result, id: existing?.id } as any);
+      generated.push(saved);
+    }
+    generated.sort((a, b) => b.percentage - a.percentage);
+    generated.forEach((r, idx) => { r.rank = idx + 1; this.saveResult(r as any); });
+    this.addActivity({ user: { name: "Admin", avatar: "", role: "SUPER_ADMIN" }, action: "CREATE", module: "Results", entityName: exam!.name, entityId: exam!.id, branchId: exam!.branchId, branchName: exam!.branchName, details: `Generated ${generated.length} results for ${exam!.name} ${exam!.className} (${exam!.academicYear}) class ${filterClass} sec ${filterSection}`, status: "SUCCESS" });
+    return generated;
+    function clsName(id: string) { const cls = mockDb.getClasses().find((x) => x.id === id); return cls?.name || exam!.className; }
+    function secName(cId: string, sId: string) { const cls = mockDb.getClasses().find((x) => x.id === cId); return cls?.sections.find((s) => s.id === sId)?.name || exam!.sectionName; }
+  }
+
+  public publishResults(examId: string, by?: string): number {
+    const exam = this.getExamById(examId);
+    if (!exam) throw new Error("Exam not found");
+    const results = this.getResults().filter((r) => r.examId === examId);
+    if (results.length === 0) throw new Error("No results to publish — generate first");
+    let count = 0;
+    for (const r of results) {
+      if (!r.isPublished) {
+        this.saveResult({ ...r, isPublished: true, publicationStatus: "PUBLISHED", publishedAt: new Date().toISOString(), verifiedBy: by || "Admin" } as any);
+        count++;
+      }
+    }
+    this.pushExamNotification("Result Published", `${exam.name} — ${exam.className} ${exam.sectionName} (${exam.academicYear}) results are live`, exam.branchId, exam.branchName);
+    this.addActivity({ user: { name: by || "Admin", avatar: "", role: "SUPER_ADMIN" }, action: "APPROVE", module: "Results", entityName: exam.name, entityId: exam.id, branchId: exam.branchId, branchName: exam.branchName, details: `Published ${count} results for ${exam.name}`, status: "SUCCESS" });
+    return count;
+  }
+
+  private pushExamNotification(title: string, message: string, branchId: string, branchName: string) {
+    // reuse notifications storage
+    try {
+      const existing = this.getNotifications();
+      const n: any = { id: `notif-${Date.now().toString(36)}`, title, message, category: "ACADEMIC", priority: "HIGH", isRead: false, isArchived: false, userId: "all", branchId, branchName, icon: "GraduationCap", channels: ["IN_APP"], deliveredChannels: ["IN_APP"], createdAt: new Date().toISOString() };
+      existing.unshift(n);
+      initialNotifications?.unshift?.(n);
+      if (this.isBrowser()) localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify(existing.slice(0, 100)));
+    } catch {}
   }
 
   // ==================== TRANSPORT ====================
@@ -1365,6 +1873,49 @@ class MockDatabaseService {
     return newHelper;
   }
 
+  // ---- Transport Fee Slabs (zone → fee) ----
+  public getTransportFeeSlabs(branchId?: string): import("@/types").TransportFeeSlab[] {
+    let slabs = initialTransportFeeSlabs;
+    if (this.isBrowser()) {
+      try {
+        const stored = localStorage.getItem(TRANSPORT_SLABS_STORAGE_KEY);
+        if (stored) slabs = JSON.parse(stored);
+        else localStorage.setItem(TRANSPORT_SLABS_STORAGE_KEY, JSON.stringify(initialTransportFeeSlabs));
+      } catch { slabs = initialTransportFeeSlabs; }
+    }
+    if (!branchId || branchId === "all") return slabs;
+    return slabs.filter((s) => s.branchId === "all" || s.branchId === branchId);
+  }
+
+  public saveTransportFeeSlab(data: Omit<import("@/types").TransportFeeSlab, "id"> & { id?: string }): import("@/types").TransportFeeSlab {
+    const slabs = this.getTransportFeeSlabs();
+    const now = new Date().toISOString();
+    if (data.id) {
+      const idx = slabs.findIndex((s) => s.id === data.id);
+      if (idx !== -1) {
+        const updated = { ...slabs[idx], ...data, id: data.id };
+        slabs[idx] = updated;
+        if (this.isBrowser()) localStorage.setItem(TRANSPORT_SLABS_STORAGE_KEY, JSON.stringify(slabs));
+        const gIdx = initialTransportFeeSlabs.findIndex((s) => s.id === data.id);
+        if (gIdx !== -1) initialTransportFeeSlabs[gIdx] = updated;
+        return updated;
+      }
+    }
+    const newSlab = { ...data, id: data.id || `slab-${Date.now().toString(36)}` } as import("@/types").TransportFeeSlab;
+    slabs.unshift(newSlab);
+    initialTransportFeeSlabs.unshift(newSlab);
+    if (this.isBrowser()) localStorage.setItem(TRANSPORT_SLABS_STORAGE_KEY, JSON.stringify(slabs));
+    return newSlab;
+  }
+
+  public getTransportFeeForDistance(km: number, branchId?: string): import("@/types").TransportFeeSlab | undefined {
+    return this.getTransportFeeSlabs(branchId).find((s) => s.isActive && km >= s.minDistance && km < s.maxDistance);
+  }
+
+  public getTransportFeeForZone(zone: "A" | "B" | "C" | "D", branchId?: string): import("@/types").TransportFeeSlab | undefined {
+    return this.getTransportFeeSlabs(branchId).find((s) => s.isActive && s.zone === zone);
+  }
+
   public getStudentTransportAssignments(branchId?: string): StudentTransportAssignment[] {
     let assignments = initialStudentTransportAssignments;
     if (this.isBrowser()) {
@@ -1378,6 +1929,31 @@ class MockDatabaseService {
     return assignments.filter((a) => a.branchId === branchId);
   }
 
+  public getStudentTransportAssignmentByStudentId(studentId: string): StudentTransportAssignment | undefined {
+    return this.getStudentTransportAssignments().find((a) => a.studentId === studentId && a.status === "ACTIVE");
+  }
+
+  private syncTransportFeeToAssignment(studentId: string, transportFee: number, zone: string): void {
+    const fa = initialFeeAssignments.find((a) => a.studentId === studentId);
+    if (!fa) return;
+    // Ensure transport head exists or update
+    if (!fa.feeHeads) fa.feeHeads = [];
+    let th = fa.feeHeads.find((h) => h.feeHeadId === "fh-04");
+    if (!th) {
+      th = { feeHeadId: "fh-04", feeHeadName: "Transport Fee", amount: transportFee, discount: 0, paidAmount: 0, dueAmount: transportFee, isRecurring: true, frequency: "MONTHLY" };
+      fa.feeHeads.push(th);
+      fa.totalAssigned += transportFee;
+    } else {
+      const delta = transportFee - th.amount;
+      th.amount = transportFee;
+      th.dueAmount = Math.max(0, transportFee - th.discount - th.paidAmount);
+      fa.totalAssigned += delta;
+    }
+    // recompute pending with discount/lateFee
+    (fa as any).totalPending = Math.max(0, fa.totalAssigned - (fa.discount ?? 0) - fa.totalPaid + (fa.lateFee ?? 0));
+    this.recomputeAssignment(fa);
+  }
+
   public saveStudentTransportAssignment(data: Omit<StudentTransportAssignment, "id"> & { id?: string }): StudentTransportAssignment {
     let assignments = initialStudentTransportAssignments;
     if (this.isBrowser()) {
@@ -1387,12 +1963,101 @@ class MockDatabaseService {
         else localStorage.setItem(STUDENT_TRANSPORT_STORAGE_KEY, JSON.stringify(initialStudentTransportAssignments));
       } catch { assignments = initialStudentTransportAssignments; }
     }
-    const newAssignment: StudentTransportAssignment = { ...data, id: data.id || `sta-${Date.now().toString(36)}` };
-    const index = assignments.findIndex((a) => a.id === newAssignment.id);
-    if (index !== -1) assignments[index] = newAssignment;
-    else assignments.unshift(newAssignment);
+    const existingIdx = assignments.findIndex((a) => a.id === (data as any).id);
+    const existing = existingIdx !== -1 ? assignments[existingIdx] : undefined;
+
+    // capacity check for new assignments
+    if (!existing) {
+      const route = initialTransportRoutes.find((r) => r.id === data.routeId);
+      if (route && route.studentCount >= route.capacity) {
+        throw new Error(`Route ${route.routeName} is at capacity (${route.capacity}). Cannot assign more students.`);
+      }
+    }
+
+    // zone-derived fee slab — auto amount if not provided
+    let feePerMonth = (data as any).feePerMonth;
+    if (feePerMonth === undefined || feePerMonth === null) {
+      const slab = this.getTransportFeeForZone((data.zone as any) || "A");
+      feePerMonth = slab?.feePerMonth ?? 800;
+    }
+
+    // prorated for mid-month join
+    let isProrated = (data as any).isProrated ?? false;
+    let proratedFee: number | undefined = (data as any).proratedFee;
+    const eff = (data as any).effectiveFrom || data.assignedDate;
+    if (!isProrated) {
+      // auto-detect mid-month join (>1st)
+      const d = new Date(eff);
+      if (!isNaN(d.getTime()) && d.getDate() > 1) {
+        const calc = calcProratedFee(feePerMonth, eff);
+        if (calc !== feePerMonth) {
+          isProrated = true;
+          proratedFee = calc;
+        }
+      }
+    }
+
+    // versioned history on route/stop change
+    let history = (data as any).history || existing?.history || [];
+    if (existing && (existing.routeId !== data.routeId || existing.stopId !== data.stopId)) {
+      history = [...history, { routeId: existing.routeId, routeName: existing.routeName, stopId: existing.stopId, stopName: existing.stopName, zone: existing.zone, feePerMonth: existing.feePerMonth, changedAt: new Date().toISOString(), reason: (data as any).historyReason || "Stop/route change" }];
+    }
+
+    const newAssignment: StudentTransportAssignment = {
+      ...(existing || {}),
+      ...data,
+      id: (data as any).id || `sta-${Date.now().toString(36)}`,
+      feePerMonth,
+      isProrated,
+      proratedFee,
+      effectiveFrom: eff,
+      history,
+    } as StudentTransportAssignment;
+
+    if (existingIdx !== -1) assignments[existingIdx] = newAssignment;
+    else {
+      assignments.unshift(newAssignment);
+      // bump route studentCount
+      const route = initialTransportRoutes.find((r) => r.id === data.routeId);
+      if (route) route.studentCount += 1;
+      const stop = route?.stops.find((s) => s.id === data.stopId);
+      if (stop) stop.studentCount += 1;
+    }
     if (this.isBrowser()) localStorage.setItem(STUDENT_TRANSPORT_STORAGE_KEY, JSON.stringify(assignments));
+    // sync to Fee Assignment as conditional Transport Fee head
+    this.syncTransportFeeToAssignment(newAssignment.studentId, feePerMonth, newAssignment.zone);
+    this.addActivity({ user: { name: "Transport Admin", avatar: "", role: "SUPER_ADMIN" }, action: existing ? "UPDATE" : "CREATE", module: "Transport", entityName: newAssignment.studentName, entityId: newAssignment.id, branchId: newAssignment.branchId, branchName: newAssignment.branchName, details: existing ? `Reassigned ${newAssignment.studentName} to ${newAssignment.routeName} / ${newAssignment.stopName} (${newAssignment.zone} → ₹${feePerMonth}/mo${isProrated ? ` prorated ₹${proratedFee}` : ""})` : `Assigned ${newAssignment.studentName} to ${newAssignment.routeName} ${newAssignment.stopName} Zone ${newAssignment.zone} ₹${feePerMonth}/mo`, status: "SUCCESS" });
     return newAssignment;
+  }
+
+  public removeStudentTransportAssignment(studentId: string): { success: boolean; refundAmount: number } {
+    const assignments = this.getStudentTransportAssignments();
+    const idx = assignments.findIndex((a) => a.studentId === studentId && a.status === "ACTIVE");
+    if (idx === -1) return { success: false, refundAmount: 0 };
+    const a = assignments[idx];
+    a.status = "INACTIVE";
+    // refund — remaining months at annual 2000 example simplified to 2 months as per issue spec
+    const monthsRemaining = 2; // could be dynamic
+    const refund = a.feePerMonth * monthsRemaining;
+    a.refundAmount = refund;
+    if (this.isBrowser()) localStorage.setItem(STUDENT_TRANSPORT_STORAGE_KEY, JSON.stringify(assignments));
+    // adjust fee assignment — reduce transport fee and track refund adjustment
+    const fa = initialFeeAssignments.find((f) => f.studentId === studentId);
+    if (fa && fa.feeHeads) {
+      const th = fa.feeHeads.find((h) => h.feeHeadId === "fh-04");
+      if (th) {
+        fa.totalAssigned = Math.max(0, fa.totalAssigned - th.amount);
+        th.amount = 0;
+        th.dueAmount = 0;
+        fa.totalPending = Math.max(0, fa.totalAssigned - (fa.discount ?? 0) - fa.totalPaid + (fa.lateFee ?? 0));
+        this.recomputeAssignment(fa);
+      }
+    }
+    // decrement route counts
+    const route = initialTransportRoutes.find((r) => r.id === a.routeId);
+    if (route) route.studentCount = Math.max(0, route.studentCount - 1);
+    this.addActivity({ user: { name: "Transport Admin", avatar: "", role: "SUPER_ADMIN" }, action: "DELETE", module: "Transport", entityName: a.studentName, entityId: a.id, branchId: a.branchId, branchName: a.branchName, details: `Dropped transport for ${a.studentName} — refund ₹${refund} for prepaid months`, status: "WARNING" });
+    return { success: true, refundAmount: refund };
   }
 
   public getVehicleMaintenance(vehicleId?: string): VehicleMaintenance[] {
@@ -1640,7 +2305,7 @@ class MockDatabaseService {
   // ==================== INVENTORY ====================
   public getInventoryCategories(): InventoryCategory[] { return initialInventoryCategories; }
 
-  public getInventoryItems(branchId?: string): InventoryItem[] {
+  public getInventoryItems(branchId?: string, storeLocationId?: string): InventoryItem[] {
     let items = initialInventoryItems;
     if (this.isBrowser()) {
       try {
@@ -1649,8 +2314,19 @@ class MockDatabaseService {
         else localStorage.setItem(INVENTORY_ITEMS_STORAGE_KEY, JSON.stringify(initialInventoryItems));
       } catch { items = initialInventoryItems; }
     }
-    if (!branchId || branchId === "all") return items;
-    return items.filter((i) => i.branchId === branchId);
+    // normalize legacy data (before unified spec)
+    const catMap: Record<string, string> = { "Uniform & Dress": "Uniform", "Books & Diary": "Books", "Stationery": "Stationery", "Lab Equipment": "Laboratory Items", "IT Hardware": "Office Supplies", "Furniture": "Office Supplies", "Sports Equipment": "Sports Items", "Cleaning Supplies": "Cleaning Supplies" };
+    for (const it of items as any[]) {
+      if (catMap[it.categoryName]) it.categoryName = catMap[it.categoryName];
+      if (!it.unit) it.unit = "pcs";
+      if (it.sellingPrice == null) it.sellingPrice = it.unitPrice ?? 0;
+      if (it.purchasePrice == null) it.purchasePrice = Math.round((it.sellingPrice || it.unitPrice) * 0.85) || it.sellingPrice || 0;
+      if (!it.storeLocationId) it.storeLocationId = it.location === "Uniform Store" || it.location === "Uniform Counter" ? "loc-uniform" : it.location === "Stationery Counter" || it.location === "Store Room A" ? "loc-stationery" : it.location === "Science Lab" || it.location?.includes("Lab") ? "loc-lab" : it.location === "Sports Store" ? "loc-sports" : "loc-main";
+      if (!it.storeLocationName) it.storeLocationName = this.getStoreLocations().find((l) => l.id === it.storeLocationId)?.name || it.location;
+    }
+    if (branchId && branchId !== "all") items = items.filter((i) => i.branchId === branchId || (i as any).branchId === "all");
+    if (storeLocationId && storeLocationId !== "ALL") items = items.filter((i) => (i.storeLocationId || "loc-main") === storeLocationId);
+    return items;
   }
 
   public getInventoryItemById(id: string): InventoryItem | undefined {
@@ -1660,23 +2336,83 @@ class MockDatabaseService {
   public saveInventoryItem(data: Omit<InventoryItem, "id" | "createdAt" | "updatedAt"> & { id?: string }): InventoryItem {
     const items = this.getInventoryItems();
     const now = new Date().toISOString();
+    // normalize quantity from variants if present
+    if (data.variants && data.variants.length > 0) {
+      const total = data.variants.reduce((a, v) => a + (v.quantity || 0), 0);
+      (data as any).quantity = total;
+      (data as any).totalValue = total * ((data as any).purchasePrice || (data as any).unitPrice || 0);
+    }
+    if ((data as any).sellingPrice && !(data as any).unitPrice) (data as any).unitPrice = (data as any).sellingPrice;
+    if ((data as any).unitPrice && !(data as any).sellingPrice) (data as any).sellingPrice = (data as any).unitPrice;
+    if ((data as any).purchasePrice == null) (data as any).purchasePrice = (data as any).unitPrice || 0;
+    if (!(data as any).unit) (data as any).unit = "pcs";
     if (data.id) {
       const index = items.findIndex((i) => i.id === data.id);
       if (index !== -1) {
-        const updated: InventoryItem = { ...items[index], ...data, id: data.id, updatedAt: now };
+        const updated: InventoryItem = { ...items[index], ...data, id: data.id, updatedAt: now } as InventoryItem;
+        // status recalc
+        updated.status = updated.quantity === 0 ? "OUT_OF_STOCK" : updated.quantity <= updated.minStock ? "LOW_STOCK" : "IN_STOCK";
         items[index] = updated;
         if (this.isBrowser()) localStorage.setItem(INVENTORY_ITEMS_STORAGE_KEY, JSON.stringify(items));
+        // keep initial array in sync for SSR fallback
+        const gIdx = initialInventoryItems.findIndex((i) => i.id === data.id);
+        if (gIdx !== -1) initialInventoryItems[gIdx] = updated;
         return updated;
       }
     }
     const newId = `inv-${Date.now().toString(36)}`;
-    const newItem: InventoryItem = { ...data, id: newId, createdAt: now, updatedAt: now };
+    const newItem: InventoryItem = { ...data, id: newId, createdAt: now, updatedAt: now } as InventoryItem;
+    newItem.status = newItem.quantity === 0 ? "OUT_OF_STOCK" : newItem.quantity <= newItem.minStock ? "LOW_STOCK" : "IN_STOCK";
     items.unshift(newItem);
+    initialInventoryItems.unshift(newItem);
     if (this.isBrowser()) localStorage.setItem(INVENTORY_ITEMS_STORAGE_KEY, JSON.stringify(items));
     return newItem;
   }
 
-  public getInventorySuppliers(): InventorySupplier[] { return initialInventorySuppliers; }
+  public getStoreLocations(branchId?: string): StoreLocation[] {
+    let locs = initialStoreLocations;
+    if (this.isBrowser()) {
+      try {
+        const stored = localStorage.getItem(STORE_LOCATIONS_STORAGE_KEY);
+        if (stored) locs = JSON.parse(stored);
+        else localStorage.setItem(STORE_LOCATIONS_STORAGE_KEY, JSON.stringify(initialStoreLocations));
+      } catch { locs = initialStoreLocations; }
+    }
+    if (!branchId || branchId === "all") return locs;
+    return locs.filter((l) => l.branchId === "all" || l.branchId === branchId);
+  }
+
+  public getStoreLocationById(id: string): StoreLocation | undefined { return this.getStoreLocations().find((l) => l.id === id); }
+
+  public saveStoreLocation(data: Omit<StoreLocation, "id"> & { id?: string }): StoreLocation {
+    const locs = this.getStoreLocations();
+    if (data.id) {
+      const idx = locs.findIndex((l) => l.id === data.id);
+      if (idx !== -1) { locs[idx] = { ...locs[idx], ...data, id: data.id } as StoreLocation; if (this.isBrowser()) localStorage.setItem(STORE_LOCATIONS_STORAGE_KEY, JSON.stringify(locs)); return locs[idx]; }
+    }
+    const newLoc: StoreLocation = { ...data, id: data.id || `loc-${Date.now().toString(36)}` } as StoreLocation;
+    locs.push(newLoc);
+    initialStoreLocations.push(newLoc);
+    if (this.isBrowser()) localStorage.setItem(STORE_LOCATIONS_STORAGE_KEY, JSON.stringify(locs));
+    return newLoc;
+  }
+
+  public getInventorySuppliers(): InventorySupplier[] {
+    let sups = initialInventorySuppliers;
+    if (this.isBrowser()) { try { const s = localStorage.getItem(INVENTORY_SUPPLIERS_STORAGE_KEY); if (s) sups = JSON.parse(s); else localStorage.setItem(INVENTORY_SUPPLIERS_STORAGE_KEY, JSON.stringify(initialInventorySuppliers)); } catch { sups = initialInventorySuppliers; } }
+    return sups;
+  }
+
+  public saveInventorySupplier(data: Omit<InventorySupplier, "id" | "createdAt"> & { id?: string }): InventorySupplier {
+    const sups = this.getInventorySuppliers();
+    const now = new Date().toISOString();
+    if (data.id) { const idx = sups.findIndex((s) => s.id === data.id); if (idx !== -1) { const upd = { ...sups[idx], ...data, id: data.id } as InventorySupplier; sups[idx] = upd; if (this.isBrowser()) localStorage.setItem(INVENTORY_SUPPLIERS_STORAGE_KEY, JSON.stringify(sups)); return upd; } }
+    const newSup: InventorySupplier = { ...data, id: data.id || `sup-${Date.now().toString(36)}`, createdAt: now } as InventorySupplier;
+    sups.push(newSup);
+    initialInventorySuppliers.push(newSup);
+    if (this.isBrowser()) localStorage.setItem(INVENTORY_SUPPLIERS_STORAGE_KEY, JSON.stringify(sups));
+    return newSup;
+  }
 
   public getPurchaseEntries(branchId?: string): PurchaseEntry[] {
     let entries = initialPurchaseEntries;
@@ -1691,10 +2427,20 @@ class MockDatabaseService {
     return entries.filter((e) => e.branchId === branchId);
   }
 
-  public getInventoryTransactions(itemId?: string): InventoryTransaction[] {
+  public getInventoryTransactions(itemId?: string, branchId?: string): InventoryTransaction[] {
     let txns = initialInventoryTransactions;
+    if (this.isBrowser()) { try { const stored = localStorage.getItem(INVENTORY_TRANSACTIONS_STORAGE_KEY); if (stored) txns = JSON.parse(stored); else localStorage.setItem(INVENTORY_TRANSACTIONS_STORAGE_KEY, JSON.stringify(initialInventoryTransactions)); } catch { txns = initialInventoryTransactions; } }
     if (itemId) txns = txns.filter((t) => t.itemId === itemId);
+    if (branchId && branchId !== "all") txns = txns.filter((t) => t.branchId === branchId);
     return txns;
+  }
+
+  public saveInventoryTransaction(txn: InventoryTransaction): InventoryTransaction {
+    const txns = this.getInventoryTransactions();
+    txns.unshift(txn);
+    initialInventoryTransactions.unshift(txn);
+    if (this.isBrowser()) localStorage.setItem(INVENTORY_TRANSACTIONS_STORAGE_KEY, JSON.stringify(txns.slice(0, 500)));
+    return txn;
   }
 
   public getStockAlerts(branchId?: string): StockAlert[] {
@@ -1706,8 +2452,243 @@ class MockDatabaseService {
         else localStorage.setItem(STOCK_ALERTS_STORAGE_KEY, JSON.stringify(initialStockAlerts));
       } catch { alerts = initialStockAlerts; }
     }
-    if (!branchId || branchId === "all") return alerts;
-    return alerts.filter((a) => a.branchId === branchId);
+    // recompute live from items (variant-aware)
+    const live: StockAlert[] = [];
+    const items = this.getInventoryItems(branchId);
+    for (const it of items) {
+      if (it.variants && it.variants.length) {
+        for (const v of it.variants) {
+          if (v.quantity <= (v.minStock ?? it.minStock)) {
+            live.push({ id: `sa-${it.id}-${v.size}`, itemId: it.id, itemName: it.name, itemSku: v.sku || it.sku, variantSize: v.size, currentQuantity: v.quantity, minStock: v.minStock ?? it.minStock, branchId: it.branchId, branchName: it.branchName, storeLocationId: it.storeLocationId, severity: v.quantity === 0 ? "CRITICAL" : "WARNING", createdAt: new Date().toISOString(), acknowledged: false });
+          }
+        }
+      } else if (it.quantity <= it.minStock) {
+        live.push({ id: `sa-${it.id}`, itemId: it.id, itemName: it.name, itemSku: it.sku, currentQuantity: it.quantity, minStock: it.minStock, branchId: it.branchId, branchName: it.branchName, storeLocationId: it.storeLocationId, severity: it.quantity === 0 ? "CRITICAL" : "WARNING", createdAt: new Date().toISOString(), acknowledged: false });
+      }
+    }
+    // merge persisted acknowledged state
+    for (const a of alerts) { if (a.acknowledged) { const m = live.find((l) => l.id === a.id); if (m) m.acknowledged = true; } }
+    return live.length ? live : alerts.filter((a) => !a.acknowledged);
+  }
+
+  public acknowledgeStockAlert(alertId: string): void {
+    const alerts = this.getStockAlerts();
+    const all = initialStockAlerts;
+    const target = all.find((a) => a.id === alertId);
+    if (target) target.acknowledged = true;
+    if (this.isBrowser()) localStorage.setItem(STOCK_ALERTS_STORAGE_KEY, JSON.stringify(all));
+  }
+
+  // ── Stock Entry (spec §4) ──
+  public createStockEntry(params: { itemId: string; variantSize?: string; quantity: number; purchasePrice?: number; sellingPrice?: number; supplierId: string; invoiceNumber?: string; branchId: string; performedBy?: string; }): { item: InventoryItem; transaction: InventoryTransaction; purchase: PurchaseEntry } {
+    const item = this.getInventoryItemById(params.itemId);
+    if (!item) throw new Error("Item not found");
+    const qty = Math.max(1, Math.floor(params.quantity));
+    const prevQty = item.variants?.find((v) => v.size === params.variantSize)?.quantity ?? item.quantity;
+    let newQty = prevQty;
+    if (item.variants && params.variantSize) {
+      const v = item.variants.find((x) => x.size === params.variantSize);
+      if (!v) throw new Error("Variant size not found");
+      v.quantity += qty;
+      item.quantity = item.variants.reduce((a, b) => a + b.quantity, 0);
+      newQty = v.quantity;
+      if (params.purchasePrice) item.purchasePrice = params.purchasePrice;
+      if (params.sellingPrice) { item.sellingPrice = params.sellingPrice; item.unitPrice = params.sellingPrice; }
+    } else {
+      item.quantity += qty;
+      newQty = item.quantity;
+      if (params.purchasePrice) item.purchasePrice = params.purchasePrice;
+      if (params.sellingPrice) { item.sellingPrice = params.sellingPrice; item.unitPrice = params.sellingPrice; }
+      item.totalValue = item.quantity * (item.purchasePrice || item.unitPrice);
+    }
+    item.quantity = Math.max(0, item.quantity);
+    item.totalValue = item.quantity * (item.purchasePrice || item.unitPrice);
+    item.status = item.quantity === 0 ? "OUT_OF_STOCK" : item.quantity <= item.minStock ? "LOW_STOCK" : "IN_STOCK";
+    item.lastRestocked = new Date().toISOString().split("T")[0];
+    item.updatedAt = new Date().toISOString();
+    this.saveInventoryItem(item as any);
+    const supplier = this.getInventorySuppliers().find((s) => s.id === params.supplierId);
+    const txn: InventoryTransaction = { id: `txn-${Date.now().toString(36)}`, itemId: item.id, itemName: item.name, itemSku: item.sku, variantSize: params.variantSize, type: "PURCHASE", quantity: qty, previousQuantity: prevQty, currentQuantity: newQty, branchId: item.branchId, branchName: item.branchName, storeLocationId: item.storeLocationId, storeLocationName: item.storeLocationName, performedBy: params.performedBy || "Store Manager", reason: `Stock Entry — ${supplier?.name || "Supplier"}${params.invoiceNumber ? ` (${params.invoiceNumber})` : ""}`, date: new Date().toISOString().split("T")[0] };
+    this.saveInventoryTransaction(txn);
+    const entries = this.getPurchaseEntries();
+    const purchase: PurchaseEntry = { id: `pur-${Date.now().toString(36)}`, itemId: item.id, itemName: item.name, itemSku: item.sku, variantSize: params.variantSize, supplierId: params.supplierId, supplierName: supplier?.name || "Supplier", quantity: qty, unitPrice: params.purchasePrice || item.purchasePrice, totalAmount: qty * (params.purchasePrice || item.purchasePrice), branchId: item.branchId, branchName: item.branchName, storeLocationId: item.storeLocationId, storeLocationName: item.storeLocationName, purchaseDate: new Date().toISOString().split("T")[0], status: "RECEIVED", invoiceNumber: params.invoiceNumber || `INV-${Date.now().toString().slice(-6)}`, createdAt: new Date().toISOString() };
+    entries.unshift(purchase);
+    initialPurchaseEntries.unshift(purchase);
+    if (this.isBrowser()) localStorage.setItem(PURCHASE_ENTRIES_STORAGE_KEY, JSON.stringify(entries));
+    this.addActivity({ user: { name: params.performedBy || "Store Manager", avatar: "", role: "STORE_MANAGER" }, action: "CREATE", module: "Inventory", entityName: `${item.name}${params.variantSize ? ` Size ${params.variantSize}` : ""}`, entityId: item.id, branchId: item.branchId, branchName: item.branchName, details: `Stock Entry: +${qty} ${item.unit} @ ₹${params.purchasePrice || item.purchasePrice} — ${supplier?.name || ""} ${params.invoiceNumber || ""}`, status: "SUCCESS" });
+    return { item, transaction: txn, purchase };
+  }
+
+  // ── Stock Out / Issue (spec §5 — never negative) ──
+  public createStockOut(params: { itemId: string; variantSize?: string; quantity: number; reason: string; recipientName?: string; recipientId?: string; performedBy?: string; branchId?: string; remarks?: string; }): { item: InventoryItem; transaction: InventoryTransaction } {
+    const item = this.getInventoryItemById(params.itemId);
+    if (!item) throw new Error("Item not found");
+    const qty = Math.max(1, Math.floor(params.quantity));
+    const targetQty = item.variants?.find((v) => v.size === params.variantSize)?.quantity ?? item.quantity;
+    if (qty > targetQty) throw new Error(`Only ${targetQty} units available${params.variantSize ? ` for Size ${params.variantSize}` : ""}`);
+    const prevQty = targetQty;
+    let newQty = prevQty - qty;
+    if (item.variants && params.variantSize) {
+      const v = item.variants.find((x) => x.size === params.variantSize)!;
+      v.quantity = newQty;
+      item.quantity = item.variants.reduce((a, b) => a + b.quantity, 0);
+    } else {
+      item.quantity = newQty;
+    }
+    item.totalValue = item.quantity * (item.purchasePrice || item.unitPrice);
+    item.status = item.quantity === 0 ? "OUT_OF_STOCK" : item.quantity <= item.minStock ? "LOW_STOCK" : "IN_STOCK";
+    item.updatedAt = new Date().toISOString();
+    this.saveInventoryItem(item as any);
+    const typeMap: Record<string, InventoryTransaction["type"]> = { "Student Sale": "SALE", "Free Distribution": "ISSUE", "Staff Issue": "ISSUE", "Department Issue": "ISSUE", "Damaged Item": "DAMAGE", "Lost Item": "LOST", "Expired Item": "EXPIRED", "Return to Supplier": "RETURN" };
+    const txn: InventoryTransaction = { id: `txn-${Date.now().toString(36)}`, itemId: item.id, itemName: item.name, itemSku: item.sku, variantSize: params.variantSize, type: (typeMap[params.reason] || "ISSUE"), quantity: qty, previousQuantity: prevQty, currentQuantity: newQty, branchId: item.branchId, branchName: item.branchName, storeLocationId: item.storeLocationId, storeLocationName: item.storeLocationName, performedBy: params.performedBy || "Counter Staff", recipientName: params.recipientName, recipientId: params.recipientId, reason: params.remarks ? `${params.reason} — ${params.remarks}` : params.reason, date: new Date().toISOString().split("T")[0] };
+    this.saveInventoryTransaction(txn);
+    return { item, transaction: txn };
+  }
+
+  // ── POS / Store Sale (spec §6-8) — separate from Fee Payment ──
+  public getStoreSales(branchId?: string, storeLocationId?: string): StoreSale[] {
+    let sales: StoreSale[] = [];
+    if (this.isBrowser()) { try { const s = localStorage.getItem(STORE_SALES_STORAGE_KEY); if (s) sales = JSON.parse(s); } catch { sales = []; } }
+    if (branchId && branchId !== "all") sales = sales.filter((x) => x.branchId === branchId);
+    if (storeLocationId && storeLocationId !== "ALL") sales = sales.filter((x) => x.storeLocationId === storeLocationId);
+    return sales;
+  }
+  public getStoreSaleById(id: string): StoreSale | undefined { return this.getStoreSales().find((s) => s.id === id); }
+  public getStudentPurchaseHistory(studentId: string): StoreSale[] { return this.getStoreSales().filter((s) => s.studentId === studentId); }
+
+  public createStoreSale(params: { branchId: string; storeLocationId: string; studentId: string; items: { itemId: string; variantSize?: string; quantity: number }[]; paymentMethod: StoreSalePaymentMethod; discount?: number; createdBy?: string; notes?: string; }): StoreSale {
+    const student = this.getStudents().find((s) => s.id === params.studentId);
+    if (!student) throw new Error("Student not found");
+    if (!params.items.length) throw new Error("Cart empty");
+    const storeLoc = this.getStoreLocationById(params.storeLocationId) || this.getStoreLocations()[0];
+    const saleItems: SaleItem[] = [];
+    let subtotal = 0;
+    // validate & deduct stock per item (atomic check first)
+    for (const ci of params.items) {
+      const it = this.getInventoryItemById(ci.itemId);
+      if (!it) throw new Error(`Item ${ci.itemId} not found`);
+      const avail = it.variants?.find((v) => v.size === ci.variantSize)?.quantity ?? it.quantity;
+      if (ci.quantity > avail) throw new Error(`Insufficient stock for ${it.name}${ci.variantSize ? ` Size ${ci.variantSize}` : ""}: have ${avail}, need ${ci.quantity}`);
+    }
+    for (const ci of params.items) {
+      const it = this.getInventoryItemById(ci.itemId)!;
+      const prevQty = it.variants?.find((v) => v.size === ci.variantSize)?.quantity ?? it.quantity;
+      const unitPrice = it.sellingPrice || it.unitPrice;
+      const total = ci.quantity * unitPrice;
+      subtotal += total;
+      // deduct
+      if (it.variants && ci.variantSize) {
+        const v = it.variants.find((x) => x.size === ci.variantSize)!;
+        v.quantity -= ci.quantity;
+        it.quantity = it.variants.reduce((a, b) => a + b.quantity, 0);
+      } else {
+        it.quantity -= ci.quantity;
+      }
+      it.totalValue = it.quantity * (it.purchasePrice || unitPrice);
+      it.status = it.quantity === 0 ? "OUT_OF_STOCK" : it.quantity <= it.minStock ? "LOW_STOCK" : "IN_STOCK";
+      it.updatedAt = new Date().toISOString();
+      this.saveInventoryItem(it as any);
+      saleItems.push({ itemId: it.id, itemName: it.name, itemSku: it.sku, variantSize: ci.variantSize, quantity: ci.quantity, unitPrice, total });
+      const txn: InventoryTransaction = { id: `txn-${Date.now().toString(36)}-${ci.itemId}`, itemId: it.id, itemName: it.name, itemSku: it.sku, variantSize: ci.variantSize, type: "SALE", quantity: ci.quantity, previousQuantity: prevQty, currentQuantity: prevQty - ci.quantity, branchId: it.branchId, branchName: it.branchName, storeLocationId: it.storeLocationId, storeLocationName: it.storeLocationName, performedBy: params.createdBy || "Counter Staff", recipientName: `${student.fullName} (${student.rollNumber})`, recipientId: student.id, reason: "Student Sale", date: new Date().toISOString().split("T")[0], referenceId: `sale-${Date.now().toString(36)}` };
+      this.saveInventoryTransaction(txn);
+    }
+    const discount = Math.max(0, Math.min(params.discount || 0, subtotal));
+    const totalAmount = subtotal - discount;
+    const sale: StoreSale = { id: `sale-${Date.now().toString(36)}`, invoiceNumber: `SALE-${new Date().getFullYear()}-${Math.floor(Math.random() * 90000 + 10000)}`, branchId: student.branchId, branchName: student.branchName, storeLocationId: storeLoc.id, storeLocationName: storeLoc.name, studentId: student.id, studentName: student.fullName, studentRoll: student.admissionNumber || student.rollNumber, studentClass: student.className, studentSection: student.sectionName, items: saleItems, subtotal, discount, totalAmount, paymentMethod: params.paymentMethod, paymentStatus: "PAID", date: new Date().toISOString(), createdBy: params.createdBy || "Counter Staff", notes: params.notes };
+    const allSales = this.getStoreSales();
+    allSales.unshift(sale);
+    if (this.isBrowser()) localStorage.setItem(STORE_SALES_STORAGE_KEY, JSON.stringify(allSales.slice(0, 500)));
+    this.addActivity({ user: { name: params.createdBy || "Counter Staff", avatar: "", role: "STORE_MANAGER" }, action: "PAYMENT", module: "Inventory", entityName: sale.invoiceNumber, entityId: sale.id, branchId: sale.branchId, branchName: sale.branchName, details: `POS Sale: ${saleItems.map((i) => `${i.quantity}× ${i.itemName}${i.variantSize ? ` Size ${i.variantSize}` : ""}`).join(", ")} → ${student.fullName} (${student.admissionNumber || student.rollNumber}) — ${sale.paymentMethod} ₹${totalAmount}`, status: "SUCCESS" });
+    return sale;
+  }
+
+  public getStockTransfers(branchId?: string): StockTransfer[] {
+    let transfers: StockTransfer[] = [];
+    if (this.isBrowser()) { try { const t = localStorage.getItem(STOCK_TRANSFERS_STORAGE_KEY); if (t) transfers = JSON.parse(t); } catch { transfers = []; } }
+    if (branchId && branchId !== "all") transfers = transfers.filter((x) => x.branchId === branchId);
+    return transfers;
+  }
+  public createStockTransfer(params: { itemId: string; variantSize?: string; quantity: number; fromLocationId: string; toLocationId: string; performedBy?: string; notes?: string; }): StockTransfer {
+    if (params.fromLocationId === params.toLocationId) throw new Error("Source and destination must differ");
+    const item = this.getInventoryItemById(params.itemId);
+    if (!item) throw new Error("Item not found");
+    const fromLoc = this.getStoreLocationById(params.fromLocationId);
+    const toLoc = this.getStoreLocationById(params.toLocationId);
+    if (!fromLoc || !toLoc) throw new Error("Invalid store location");
+    const avail = item.variants?.find((v) => v.size === params.variantSize)?.quantity ?? item.quantity;
+    if (params.quantity > avail) throw new Error(`Only ${avail} available for transfer`);
+    // For simplicity, stock is logically per-item total; transfer just logs and updates storeLocationName meta.
+    // In a full multi-location ledger each location would have its own item row — here we log transfer and keep single row.
+    const transfer: StockTransfer = { id: `trf-${Date.now().toString(36)}`, itemId: item.id, itemName: item.name, itemSku: item.sku, variantSize: params.variantSize, fromLocationId: fromLoc.id, fromLocationName: fromLoc.name, toLocationId: toLoc.id, toLocationName: toLoc.name, quantity: params.quantity, date: new Date().toISOString().split("T")[0], performedBy: params.performedBy || "Store Manager", branchId: item.branchId, branchName: item.branchName, notes: params.notes };
+    const all = this.getStockTransfers();
+    all.unshift(transfer);
+    if (this.isBrowser()) localStorage.setItem(STOCK_TRANSFERS_STORAGE_KEY, JSON.stringify(all.slice(0, 500)));
+    // transactions: out + in
+    this.saveInventoryTransaction({ id: `txn-${Date.now().toString(36)}-out`, itemId: item.id, itemName: item.name, itemSku: item.sku, variantSize: params.variantSize, type: "TRANSFER_OUT", quantity: params.quantity, branchId: item.branchId, branchName: item.branchName, storeLocationId: fromLoc.id, storeLocationName: fromLoc.name, performedBy: params.performedBy || "Store Manager", reason: `Transfer → ${toLoc.name}`, date: transfer.date, referenceId: transfer.id });
+    this.saveInventoryTransaction({ id: `txn-${Date.now().toString(36)}-in`, itemId: item.id, itemName: item.name, itemSku: item.sku, variantSize: params.variantSize, type: "TRANSFER_IN", quantity: params.quantity, branchId: item.branchId, branchName: item.branchName, storeLocationId: toLoc.id, storeLocationName: toLoc.name, performedBy: params.performedBy || "Store Manager", reason: `Transfer ← ${fromLoc.name}`, date: transfer.date, referenceId: transfer.id });
+    return transfer;
+  }
+
+  public getStockAdjustments(branchId?: string): StockAdjustment[] {
+    let adj: StockAdjustment[] = [];
+    if (this.isBrowser()) { try { const a = localStorage.getItem(STOCK_ADJUSTMENTS_STORAGE_KEY); if (a) adj = JSON.parse(a); } catch { adj = []; } }
+    if (branchId && branchId !== "all") adj = adj.filter((x) => x.branchId === branchId);
+    return adj;
+  }
+  public createStockAdjustment(params: { itemId: string; variantSize?: string; newQuantity: number; reason: string; performedBy?: string; }): StockAdjustment {
+    const item = this.getInventoryItemById(params.itemId);
+    if (!item) throw new Error("Item not found");
+    const prevQty = item.variants?.find((v) => v.size === params.variantSize)?.quantity ?? item.quantity;
+    const newQty = Math.max(0, Math.floor(params.newQuantity));
+    if (item.variants && params.variantSize) {
+      const v = item.variants.find((x) => x.size === params.variantSize)!;
+      v.quantity = newQty;
+      item.quantity = item.variants.reduce((a, b) => a + b.quantity, 0);
+    } else {
+      item.quantity = newQty;
+    }
+    item.totalValue = item.quantity * (item.purchasePrice || item.unitPrice);
+    item.status = item.quantity === 0 ? "OUT_OF_STOCK" : item.quantity <= item.minStock ? "LOW_STOCK" : "IN_STOCK";
+    item.updatedAt = new Date().toISOString();
+    this.saveInventoryItem(item as any);
+    const delta = newQty - prevQty;
+    const adj: StockAdjustment = { id: `adj-${Date.now().toString(36)}`, itemId: item.id, itemName: item.name, itemSku: item.sku, variantSize: params.variantSize, previousQuantity: prevQty, newQuantity: newQty, delta, reason: params.reason, performedBy: params.performedBy || "Store Manager", date: new Date().toISOString(), branchId: item.branchId };
+    const all = this.getStockAdjustments();
+    all.unshift(adj);
+    if (this.isBrowser()) localStorage.setItem(STOCK_ADJUSTMENTS_STORAGE_KEY, JSON.stringify(all.slice(0, 500)));
+    this.saveInventoryTransaction({ id: `txn-${Date.now().toString(36)}`, itemId: item.id, itemName: item.name, itemSku: item.sku, variantSize: params.variantSize, type: "ADJUSTMENT", quantity: Math.abs(delta), previousQuantity: prevQty, currentQuantity: newQty, branchId: item.branchId, branchName: item.branchName, storeLocationId: item.storeLocationId, storeLocationName: item.storeLocationName, performedBy: params.performedBy || "Store Manager", reason: `Adjustment: ${params.reason} (${prevQty} → ${newQty})`, date: adj.date.split("T")[0] });
+    return adj;
+  }
+
+  public getReturnExchanges(branchId?: string): ReturnExchangeRecord[] {
+    let list: ReturnExchangeRecord[] = [];
+    if (this.isBrowser()) { try { const r = localStorage.getItem(RETURN_EXCHANGE_STORAGE_KEY); if (r) list = JSON.parse(r); } catch { list = []; } }
+    if (branchId && branchId !== "all") list = list.filter((x) => x.branchId === branchId);
+    return list;
+  }
+  public createReturnExchange(params: { saleId: string; oldItem: { itemId: string; variantSize?: string; quantity: number }; newItem?: { itemId: string; variantSize?: string; quantity: number }; reason?: string; performedBy?: string; }): ReturnExchangeRecord {
+    const sale = this.getStoreSaleById(params.saleId);
+    if (!sale) throw new Error("Original sale not found");
+    const oldIt = this.getInventoryItemById(params.oldItem.itemId);
+    if (!oldIt) throw new Error("Old item not found");
+    // return old size +1
+    this.createStockEntry({ itemId: oldIt.id, variantSize: params.oldItem.variantSize, quantity: params.oldItem.quantity, supplierId: oldIt.supplierId, branchId: oldIt.branchId, performedBy: params.performedBy || "Counter Staff" } as any);
+    // if exchange, deduct new size -1
+    let newSaleItem: SaleItem | undefined;
+    if (params.newItem) {
+      const newIt = this.getInventoryItemById(params.newItem.itemId);
+      if (!newIt) throw new Error("New item not found");
+      // use stockOut to validate
+      this.createStockOut({ itemId: newIt.id, variantSize: params.newItem.variantSize, quantity: params.newItem.quantity, reason: "Return & Exchange", performedBy: params.performedBy, branchId: newIt.branchId, remarks: `Exchange for ${oldIt.name} Size ${params.oldItem.variantSize || ""}` });
+      newSaleItem = { itemId: newIt.id, itemName: newIt.name, itemSku: newIt.sku, variantSize: params.newItem.variantSize, quantity: params.newItem.quantity, unitPrice: newIt.sellingPrice || newIt.unitPrice, total: params.newItem.quantity * (newIt.sellingPrice || newIt.unitPrice) };
+    }
+    const oldSaleItem: SaleItem = { itemId: oldIt.id, itemName: oldIt.name, itemSku: oldIt.sku, variantSize: params.oldItem.variantSize, quantity: params.oldItem.quantity, unitPrice: oldIt.sellingPrice || oldIt.unitPrice, total: params.oldItem.quantity * (oldIt.sellingPrice || oldIt.unitPrice) };
+    const rec: ReturnExchangeRecord = { id: `ret-${Date.now().toString(36)}`, saleId: sale.id, invoiceNumber: sale.invoiceNumber, studentId: sale.studentId, studentName: sale.studentName, type: params.newItem ? "EXCHANGE" : "RETURN", oldItem: oldSaleItem, newItem: newSaleItem, reason: params.reason || "Size exchange", date: new Date().toISOString(), performedBy: params.performedBy || "Counter Staff", branchId: sale.branchId };
+    const all = this.getReturnExchanges();
+    all.unshift(rec);
+    if (this.isBrowser()) localStorage.setItem(RETURN_EXCHANGE_STORAGE_KEY, JSON.stringify(all.slice(0, 300)));
+    this.saveInventoryTransaction({ id: `txn-${Date.now().toString(36)}`, itemId: oldIt.id, itemName: oldIt.name, itemSku: oldIt.sku, variantSize: params.oldItem.variantSize, type: params.newItem ? "EXCHANGE" : "RETURN", quantity: params.oldItem.quantity, branchId: oldIt.branchId, branchName: oldIt.branchName, performedBy: params.performedBy || "Counter Staff", recipientName: sale.studentName, recipientId: sale.studentId, reason: params.newItem ? `Exchange ${params.oldItem.variantSize} → ${params.newItem.variantSize}` : `Return ${params.oldItem.variantSize}`, date: new Date().toISOString().split("T")[0], referenceId: rec.id });
+    return rec;
   }
 
   // ==================== EXPENSES ====================

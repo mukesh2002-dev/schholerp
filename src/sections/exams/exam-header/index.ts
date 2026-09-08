@@ -1,2 +1,2 @@
-export * from "./exam-header";
-export * from "./exam-header.skeleton";
+export { ExamHeader } from "./exam-header";
+export { ExamHeaderSkeleton } from "./exam-header.skeleton";
