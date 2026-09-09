@@ -221,7 +221,7 @@ class MockDatabaseService {
           localStorage.setItem(BRANCHES_STORAGE_KEY, JSON.stringify(branches));
         }
         this.addActivity({
-          user: { name: "Current Admin", avatar: "", role: "SUPER_ADMIN" },
+          user: { name: "Current Admin", avatar: "", role: "ADMIN" },
           action: "UPDATE",
           module: "Branches",
           entityName: updatedBranch.name,
@@ -247,7 +247,7 @@ class MockDatabaseService {
       localStorage.setItem(BRANCHES_STORAGE_KEY, JSON.stringify(branches));
     }
     this.addActivity({
-      user: { name: "Current Admin", avatar: "", role: "SUPER_ADMIN" },
+      user: { name: "Current Admin", avatar: "", role: "ADMIN" },
       action: "CREATE",
       module: "Branches",
       entityName: newBranch.name,
@@ -269,7 +269,7 @@ class MockDatabaseService {
       localStorage.setItem(BRANCHES_STORAGE_KEY, JSON.stringify(filtered));
     }
     this.addActivity({
-      user: { name: "Current Admin", avatar: "", role: "SUPER_ADMIN" },
+      user: { name: "Current Admin", avatar: "", role: "ADMIN" },
       action: "DELETE",
       module: "Branches",
       entityName: target.name,
@@ -320,7 +320,7 @@ class MockDatabaseService {
           localStorage.setItem(TEACHERS_STORAGE_KEY, JSON.stringify(teachers));
         }
         this.addActivity({
-          user: { name: "Current Admin", avatar: "", role: "SUPER_ADMIN" },
+          user: { name: "Current Admin", avatar: "", role: "ADMIN" },
           action: "UPDATE",
           module: "Teachers",
           entityName: updated.fullName,
@@ -346,7 +346,7 @@ class MockDatabaseService {
       localStorage.setItem(TEACHERS_STORAGE_KEY, JSON.stringify(teachers));
     }
     this.addActivity({
-      user: { name: "Current Admin", avatar: "", role: "SUPER_ADMIN" },
+      user: { name: "Current Admin", avatar: "", role: "ADMIN" },
       action: "CREATE",
       module: "Teachers",
       entityName: newTeacher.fullName,
@@ -553,7 +553,7 @@ class MockDatabaseService {
           localStorage.setItem(STUDENTS_STORAGE_KEY, JSON.stringify(students));
         }
         this.addActivity({
-          user: { name: "Current Admin", avatar: "", role: "SUPER_ADMIN" },
+          user: { name: "Current Admin", avatar: "", role: "ADMIN" },
           action: "UPDATE",
           module: "Students",
           entityName: updated.fullName,
@@ -579,7 +579,7 @@ class MockDatabaseService {
       localStorage.setItem(STUDENTS_STORAGE_KEY, JSON.stringify(students));
     }
     this.addActivity({
-      user: { name: "Admissions Officer", avatar: "", role: "SUPER_ADMIN" },
+      user: { name: "Admissions Officer", avatar: "", role: "ADMIN" },
       action: "CREATE",
       module: "Students",
       entityName: newStudent.fullName,
@@ -630,7 +630,7 @@ class MockDatabaseService {
           localStorage.setItem(ADMISSIONS_STORAGE_KEY, JSON.stringify(admissions));
         }
         this.addActivity({
-          user: { name: "Admissions Head", avatar: "", role: "SUPER_ADMIN" },
+          user: { name: "Admissions Head", avatar: "", role: "ADMIN" },
           action: "UPDATE",
           module: "Admissions",
           entityName: `${updated.applicantFullName} (${updated.applicationNumber})`,
@@ -1380,7 +1380,7 @@ class MockDatabaseService {
         exams[idx] = updated;
         initialExams[idx] = updated;
         if (this.isBrowser()) localStorage.setItem(EXAMS_STORAGE_KEY, JSON.stringify(exams));
-        this.addActivity({ user: { name: "Admin", avatar: "", role: "SUPER_ADMIN" }, action: "UPDATE", module: "Exams", entityName: updated.name, entityId: updated.id, branchId: updated.branchId, branchName: updated.branchName, details: `Updated exam ${updated.name} (${updated.className}) ${updated.startDate}→${updated.endDate}`, status: "SUCCESS" });
+        this.addActivity({ user: { name: "Admin", avatar: "", role: "ADMIN" }, action: "UPDATE", module: "Exams", entityName: updated.name, entityId: updated.id, branchId: updated.branchId, branchName: updated.branchName, details: `Updated exam ${updated.name} (${updated.className}) ${updated.startDate}→${updated.endDate}`, status: "SUCCESS" });
         return updated;
       }
     }
@@ -1388,7 +1388,7 @@ class MockDatabaseService {
     exams.unshift(newExam);
     initialExams.unshift(newExam);
     if (this.isBrowser()) localStorage.setItem(EXAMS_STORAGE_KEY, JSON.stringify(exams));
-    this.addActivity({ user: { name: "Admin", avatar: "", role: "SUPER_ADMIN" }, action: "CREATE", module: "Exams", entityName: newExam.name, entityId: newExam.id, branchId: newExam.branchId, branchName: newExam.branchName, details: `Created exam ${newExam.name} for ${newExam.className} ${newExam.sectionName} (${newExam.academicYear}) ${newExam.startDate}–${newExam.endDate}`, status: "SUCCESS" });
+    this.addActivity({ user: { name: "Admin", avatar: "", role: "ADMIN" }, action: "CREATE", module: "Exams", entityName: newExam.name, entityId: newExam.id, branchId: newExam.branchId, branchName: newExam.branchName, details: `Created exam ${newExam.name} for ${newExam.className} ${newExam.sectionName} (${newExam.academicYear}) ${newExam.startDate}–${newExam.endDate}`, status: "SUCCESS" });
     // notify students/parents
     this.pushExamNotification(`New Exam: ${newExam.name}`, `${newExam.className} ${newExam.sectionName} — ${newExam.startDate} to ${newExam.endDate}`, newExam.branchId, newExam.branchName);
     return newExam;
@@ -1471,7 +1471,7 @@ class MockDatabaseService {
     else if (isNew) initialExamSchedules.unshift(candidate);
     if (this.isBrowser()) localStorage.setItem(EXAM_SCHEDULES_STORAGE_KEY, JSON.stringify(schedules));
     if (isNew) {
-      this.addActivity({ user: { name: "Admin", avatar: "", role: "SUPER_ADMIN" }, action: "CREATE", module: "Exams", entityName: candidate.examName, entityId: candidate.id, branchId: candidate.branchId, branchName: candidate.branchName, details: `Published schedule ${candidate.subjectName} on ${candidate.examDate} ${candidate.startTime}-${candidate.endTime} ${candidate.room} for ${candidate.className}`, status: "SUCCESS" });
+      this.addActivity({ user: { name: "Admin", avatar: "", role: "ADMIN" }, action: "CREATE", module: "Exams", entityName: candidate.examName, entityId: candidate.id, branchId: candidate.branchId, branchName: candidate.branchName, details: `Published schedule ${candidate.subjectName} on ${candidate.examDate} ${candidate.startTime}-${candidate.endTime} ${candidate.room} for ${candidate.className}`, status: "SUCCESS" });
       this.pushExamNotification("Exam Schedule Published", `${candidate.examName} — ${candidate.subjectName} on ${candidate.examDate} ${candidate.startTime} ${candidate.room}`, candidate.branchId, candidate.branchName);
     }
     return candidate;
@@ -1483,7 +1483,7 @@ class MockDatabaseService {
     const updated: Exam = { ...ex, status: "PUBLISHED", instructions: instructions ?? ex.instructions, noticePublishedAt: new Date().toISOString(), noticePublishedBy: by || "Admin", updatedAt: new Date().toISOString() };
     this.saveExam(updated as any);
     this.pushExamNotification("Exam Notice Published", `${updated.name} (${updated.examTypeName} - ${updated.examMode}) — ${updated.className} ${updated.sectionName} ${updated.startDate}→${updated.endDate}. ${instructions || ""}`.trim(), updated.branchId, updated.branchName);
-    this.addActivity({ user: { name: by || "Admin", avatar: "", role: "SUPER_ADMIN" }, action: "APPROVE", module: "Exams", entityName: updated.name, entityId: updated.id, branchId: updated.branchId, branchName: updated.branchName, details: `Published exam notice for ${updated.name} — notified students/parents`, status: "SUCCESS" });
+    this.addActivity({ user: { name: by || "Admin", avatar: "", role: "ADMIN" }, action: "APPROVE", module: "Exams", entityName: updated.name, entityId: updated.id, branchId: updated.branchId, branchName: updated.branchName, details: `Published exam notice for ${updated.name} — notified students/parents`, status: "SUCCESS" });
     return updated;
   }
 
@@ -1500,7 +1500,7 @@ class MockDatabaseService {
     const ex = this.getExamById(examId);
     if (ex) {
       this.pushExamNotification("Exam Timetable Published", `${ex.name} — ${ex.className} ${ex.sectionName} timetable (${schedules.length} subjects) is live`, ex.branchId, ex.branchName);
-      this.addActivity({ user: { name: by || "Admin", avatar: "", role: "SUPER_ADMIN" }, action: "APPROVE", module: "Exams", entityName: ex.name, entityId: ex.id, branchId: ex.branchId, branchName: ex.branchName, details: `Published timetable for ${ex.name} — ${count} subjects`, status: "SUCCESS" });
+      this.addActivity({ user: { name: by || "Admin", avatar: "", role: "ADMIN" }, action: "APPROVE", module: "Exams", entityName: ex.name, entityId: ex.id, branchId: ex.branchId, branchName: ex.branchName, details: `Published timetable for ${ex.name} — ${count} subjects`, status: "SUCCESS" });
     }
     return count;
   }
@@ -1520,7 +1520,7 @@ class MockDatabaseService {
       if (this.isOverlapping(updated, o)) throw new Error(`Reschedule conflicts with ${o.subjectName} ${o.startTime}-${o.endTime} on ${newDate}`);
     }
     this.saveExamSchedule(updated);
-    this.addActivity({ user: { name: by || "Admin", avatar: "", role: "SUPER_ADMIN" }, action: "UPDATE", module: "Exams", entityName: s.examName, entityId: s.id, branchId: s.branchId, branchName: s.branchName, details: `Rescheduled ${s.subjectName} from ${prev} to ${newDate}: ${reason}`, status: "WARNING" });
+    this.addActivity({ user: { name: by || "Admin", avatar: "", role: "ADMIN" }, action: "UPDATE", module: "Exams", entityName: s.examName, entityId: s.id, branchId: s.branchId, branchName: s.branchName, details: `Rescheduled ${s.subjectName} from ${prev} to ${newDate}: ${reason}`, status: "WARNING" });
     this.pushExamNotification("Exam Rescheduled", `${updated.subjectName} moved from ${prev} to ${newDate} — ${reason}`, updated.branchId, updated.branchName);
     return updated;
   }
@@ -1581,7 +1581,7 @@ class MockDatabaseService {
     const curIdx = order.indexOf(e.workflowStatus || "DRAFT");
     const nextIdx = order.indexOf(to as any);
     if (nextIdx < curIdx) throw new Error("Cannot move backwards in workflow without correction");
-    if (to === "LOCKED" && (by !== "Admin" && by !== "SUPER_ADMIN")) throw new Error("Only Admin can lock marks");
+    if (to === "LOCKED" && (by !== "Admin" && by !== "ADMIN")) throw new Error("Only Admin can lock marks");
     return this.saveMarkEntry({ ...e, workflowStatus: to, verifiedBy: by || e.verifiedBy } as any);
   }
 
@@ -1698,7 +1698,7 @@ class MockDatabaseService {
     }
     generated.sort((a, b) => b.percentage - a.percentage);
     generated.forEach((r, idx) => { r.rank = idx + 1; this.saveResult(r as any); });
-    this.addActivity({ user: { name: "Admin", avatar: "", role: "SUPER_ADMIN" }, action: "CREATE", module: "Results", entityName: exam!.name, entityId: exam!.id, branchId: exam!.branchId, branchName: exam!.branchName, details: `Generated ${generated.length} results for ${exam!.name} ${exam!.className} (${exam!.academicYear}) class ${filterClass} sec ${filterSection}`, status: "SUCCESS" });
+    this.addActivity({ user: { name: "Admin", avatar: "", role: "ADMIN" }, action: "CREATE", module: "Results", entityName: exam!.name, entityId: exam!.id, branchId: exam!.branchId, branchName: exam!.branchName, details: `Generated ${generated.length} results for ${exam!.name} ${exam!.className} (${exam!.academicYear}) class ${filterClass} sec ${filterSection}`, status: "SUCCESS" });
     return generated;
     function clsName(id: string) { const cls = mockDb.getClasses().find((x) => x.id === id); return cls?.name || exam!.className; }
     function secName(cId: string, sId: string) { const cls = mockDb.getClasses().find((x) => x.id === cId); return cls?.sections.find((s) => s.id === sId)?.name || exam!.sectionName; }
@@ -1717,7 +1717,7 @@ class MockDatabaseService {
       }
     }
     this.pushExamNotification("Result Published", `${exam.name} — ${exam.className} ${exam.sectionName} (${exam.academicYear}) results are live`, exam.branchId, exam.branchName);
-    this.addActivity({ user: { name: by || "Admin", avatar: "", role: "SUPER_ADMIN" }, action: "APPROVE", module: "Results", entityName: exam.name, entityId: exam.id, branchId: exam.branchId, branchName: exam.branchName, details: `Published ${count} results for ${exam.name}`, status: "SUCCESS" });
+    this.addActivity({ user: { name: by || "Admin", avatar: "", role: "ADMIN" }, action: "APPROVE", module: "Results", entityName: exam.name, entityId: exam.id, branchId: exam.branchId, branchName: exam.branchName, details: `Published ${count} results for ${exam.name}`, status: "SUCCESS" });
     return count;
   }
 
@@ -2026,7 +2026,7 @@ class MockDatabaseService {
     if (this.isBrowser()) localStorage.setItem(STUDENT_TRANSPORT_STORAGE_KEY, JSON.stringify(assignments));
     // sync to Fee Assignment as conditional Transport Fee head
     this.syncTransportFeeToAssignment(newAssignment.studentId, feePerMonth, newAssignment.zone);
-    this.addActivity({ user: { name: "Transport Admin", avatar: "", role: "SUPER_ADMIN" }, action: existing ? "UPDATE" : "CREATE", module: "Transport", entityName: newAssignment.studentName, entityId: newAssignment.id, branchId: newAssignment.branchId, branchName: newAssignment.branchName, details: existing ? `Reassigned ${newAssignment.studentName} to ${newAssignment.routeName} / ${newAssignment.stopName} (${newAssignment.zone} → ₹${feePerMonth}/mo${isProrated ? ` prorated ₹${proratedFee}` : ""})` : `Assigned ${newAssignment.studentName} to ${newAssignment.routeName} ${newAssignment.stopName} Zone ${newAssignment.zone} ₹${feePerMonth}/mo`, status: "SUCCESS" });
+    this.addActivity({ user: { name: "Transport Admin", avatar: "", role: "ADMIN" }, action: existing ? "UPDATE" : "CREATE", module: "Transport", entityName: newAssignment.studentName, entityId: newAssignment.id, branchId: newAssignment.branchId, branchName: newAssignment.branchName, details: existing ? `Reassigned ${newAssignment.studentName} to ${newAssignment.routeName} / ${newAssignment.stopName} (${newAssignment.zone} → ₹${feePerMonth}/mo${isProrated ? ` prorated ₹${proratedFee}` : ""})` : `Assigned ${newAssignment.studentName} to ${newAssignment.routeName} ${newAssignment.stopName} Zone ${newAssignment.zone} ₹${feePerMonth}/mo`, status: "SUCCESS" });
     return newAssignment;
   }
 
@@ -2056,7 +2056,7 @@ class MockDatabaseService {
     // decrement route counts
     const route = initialTransportRoutes.find((r) => r.id === a.routeId);
     if (route) route.studentCount = Math.max(0, route.studentCount - 1);
-    this.addActivity({ user: { name: "Transport Admin", avatar: "", role: "SUPER_ADMIN" }, action: "DELETE", module: "Transport", entityName: a.studentName, entityId: a.id, branchId: a.branchId, branchName: a.branchName, details: `Dropped transport for ${a.studentName} — refund ₹${refund} for prepaid months`, status: "WARNING" });
+    this.addActivity({ user: { name: "Transport Admin", avatar: "", role: "ADMIN" }, action: "DELETE", module: "Transport", entityName: a.studentName, entityId: a.id, branchId: a.branchId, branchName: a.branchName, details: `Dropped transport for ${a.studentName} — refund ₹${refund} for prepaid months`, status: "WARNING" });
     return { success: true, refundAmount: refund };
   }
 

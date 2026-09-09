@@ -39,7 +39,7 @@ const loginSchema = z.object({
 type LoginFormValues = z.infer<typeof loginSchema>;
 
 const ROLE_ICONS: Record<string, React.ElementType> = {
-  SUPER_ADMIN: ShieldCheck,
+  ADMIN: ShieldCheck,
   PRINCIPAL: GraduationCap,
   ACCOUNTANT: Calculator,
   HR_MANAGER: Users,
@@ -324,7 +324,7 @@ export default function LoginPage() {
             One login. Every campus, role-aware.
           </h2>
           <p className="mt-3 max-w-md text-sm leading-relaxed text-white/80">
-            Super Admin sees everything. Principals get their campus, Accountants get finance, HR
+            Admin sees everything. Principals get their campus, Accountants get finance, HR
             gets people — the sidebar reshapes itself the moment you sign in.
           </p>
           <div className="mt-6 flex items-center gap-3 text-xs text-white/70">

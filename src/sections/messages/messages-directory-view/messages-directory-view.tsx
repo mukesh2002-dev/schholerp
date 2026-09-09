@@ -117,7 +117,7 @@ export function MessagesDirectoryView() {
       body: values.body.trim(),
       senderId: "current-user",
       senderName: "Administrator",
-      senderRole: "SUPER_ADMIN",
+      senderRole: "ADMIN",
       recipientIds: [],
       recipientNames: [values.recipientType.replace("_", " ")],
       recipientType: values.recipientType,

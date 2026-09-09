@@ -93,7 +93,7 @@ export default function MessageDetailPage() {
       body: values.reply.trim(),
       senderId: "current-user",
       senderName: "Current User",
-      senderRole: "SUPER_ADMIN",
+      senderRole: "ADMIN",
       recipientIds: [message.senderId],
       recipientNames: [message.senderName],
       recipientType: "INDIVIDUAL",

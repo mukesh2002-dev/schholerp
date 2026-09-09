@@ -68,14 +68,14 @@ const MENU_GROUPS: MenuGroup[] = [
 const CATALOGUE: (RoleNavSubItem & { group: string })[] = [
   { title: "Exams", href: "/exams?tab=exams", icon: ClipboardList, group: "EXAM MANAGEMENT" },
   { title: "Exam Schedule", href: "/exams?tab=timetable", icon: CalendarDays, group: "EXAM MANAGEMENT" },
-  { title: "Marks Entry", href: "/exams?tab=marks", icon: PenLine, group: "EXAM MANAGEMENT", allowedRoles: ["SUPER_ADMIN", "PRINCIPAL", "TEACHER"] as StaffRole[] },
-  { title: "Exam Types", href: "/exams?tab=exam-types", icon: FileText, group: "EXAM MANAGEMENT", allowedRoles: ["SUPER_ADMIN", "PRINCIPAL"] as StaffRole[] },
+  { title: "Marks Entry", href: "/exams?tab=marks", icon: PenLine, group: "EXAM MANAGEMENT", allowedRoles: ["ADMIN", "PRINCIPAL"] as StaffRole[] },
+  { title: "Exam Types", href: "/exams?tab=exam-types", icon: FileText, group: "EXAM MANAGEMENT", allowedRoles: ["ADMIN", "PRINCIPAL"] as StaffRole[] },
   { title: "Results", href: "/exams?tab=results", icon: GraduationCap, group: "RESULTS & REPORTS" },
   { title: "Report Cards", href: "/exams?tab=cards", icon: FileBadge, group: "RESULTS & REPORTS" },
-  { title: "Publish Results", href: "/exams?tab=publish", icon: Send, group: "RESULTS & REPORTS", allowedRoles: ["SUPER_ADMIN", "PRINCIPAL"] as StaffRole[] },
-  { title: "Result Analytics", href: "/exams?tab=analytics", icon: BarChart3, group: "RESULTS & REPORTS", allowedRoles: ["SUPER_ADMIN", "PRINCIPAL"] as StaffRole[] },
-  { title: "Grading System", href: "/exams?tab=grading", icon: Award, group: "SETTINGS", allowedRoles: ["SUPER_ADMIN", "PRINCIPAL"] as StaffRole[] },
-  { title: "Assessment Settings", href: "/exams?tab=assessment", icon: Settings2, group: "SETTINGS", allowedRoles: ["SUPER_ADMIN", "PRINCIPAL"] as StaffRole[] },
+  { title: "Publish Results", href: "/exams?tab=publish", icon: Send, group: "RESULTS & REPORTS", allowedRoles: ["ADMIN", "PRINCIPAL"] as StaffRole[] },
+  { title: "Result Analytics", href: "/exams?tab=analytics", icon: BarChart3, group: "RESULTS & REPORTS", allowedRoles: ["ADMIN", "PRINCIPAL"] as StaffRole[] },
+  { title: "Grading System", href: "/exams?tab=grading", icon: Award, group: "SETTINGS", allowedRoles: ["ADMIN", "PRINCIPAL"] as StaffRole[] },
+  { title: "Assessment Settings", href: "/exams?tab=assessment", icon: Settings2, group: "SETTINGS", allowedRoles: ["ADMIN", "PRINCIPAL"] as StaffRole[] },
 ];
 
 function isItemActive(activeRoute: string, href: string): boolean {

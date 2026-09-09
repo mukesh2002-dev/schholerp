@@ -13,16 +13,16 @@ export const defaultUserSession: UserSession = {
   name: "Dr. Alexander Wright",
   email: "alexander.wright@schools-group.org",
   avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
-  role: "SUPER_ADMIN",
+  role: "ADMIN",
   branchId: "all",
-  roleLabel: "Super Admin (Global ERP)",
+  roleLabel: "Admin (Global ERP)",
   title: "Group Director & Chief Academic Officer",
 };
 
 export const demoRolesList: { role: UserSession["role"]; label: string; description: string; branchId: string }[] = [
   {
-    role: "SUPER_ADMIN",
-    label: "Super Admin (Global View)",
+    role: "ADMIN",
+    label: "Admin (Global View)",
     description: "Full multi-branch oversight, financial controls & system settings",
     branchId: "all",
   },
@@ -31,12 +31,6 @@ export const demoRolesList: { role: UserSession["role"]; label: string; descript
     label: "Principal (Apex Campus)",
     description: "Campus-wide academic, teacher & student administration",
     branchId: "br-apex-01",
-  },
-  {
-    role: "TEACHER",
-    label: "Senior Teacher (Westside STEM)",
-    description: "Attendance, assignments, grade entry & classroom portal",
-    branchId: "br-west-02",
   },
   {
     role: "ACCOUNTANT",
@@ -49,18 +43,6 @@ export const demoRolesList: { role: UserSession["role"]; label: string; descript
     label: "HR Director (Staff & Workers)",
     description: "Teacher recruitment, staff leaves, worker shifts & biometric logs",
     branchId: "all",
-  },
-  {
-    role: "PARENT",
-    label: "Parent Portal Demo",
-    description: "Child attendance, fee payments, report cards & teacher messages",
-    branchId: "br-green-04",
-  },
-  {
-    role: "STUDENT",
-    label: "Student Portal Demo",
-    description: "Timetable, homework, exam results & library access",
-    branchId: "br-horizon-05",
   },
 ];
 

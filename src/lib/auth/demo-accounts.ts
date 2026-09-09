@@ -7,16 +7,13 @@ import { Role, UserSession } from "@/types";
  * Teacher/Student/Parent now have dedicated portal access
  * with filtered Exams & Results views.
  */
-export type StaffRole = "SUPER_ADMIN" | "PRINCIPAL" | "ACCOUNTANT" | "HR_MANAGER" | "TEACHER" | "STUDENT" | "PARENT";
+export type StaffRole = "ADMIN" | "PRINCIPAL" | "ACCOUNTANT" | "HR_MANAGER";
 
 export const STAFF_ROLES: StaffRole[] = [
-  "SUPER_ADMIN",
+  "ADMIN",
   "PRINCIPAL",
   "ACCOUNTANT",
   "HR_MANAGER",
-  "TEACHER",
-  "STUDENT",
-  "PARENT",
 ];
 
 export interface DemoAccount {
@@ -35,8 +32,8 @@ const DEMO_PASSWORD = "admin123";
 
 export const DEMO_ACCOUNTS: DemoAccount[] = [
   {
-    role: "SUPER_ADMIN",
-    label: "Super Admin",
+    role: "ADMIN",
+    label: "Admin",
     title: "Group Director & Chief Administrator",
     description: "Full multi-campus oversight, finance controls & system settings.",
     email: "admin@gmail.com",
@@ -48,9 +45,9 @@ export const DEMO_ACCOUNTS: DemoAccount[] = [
       email: "admin@gmail.com",
       avatar:
         "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150&auto=format&fit=crop&q=80",
-      role: "SUPER_ADMIN",
+      role: "ADMIN",
       branchId: "all",
-      roleLabel: "Super Admin (Global ERP)",
+      roleLabel: "Admin (Global ERP)",
       title: "Group Director & Chief Administrator",
     },
   },
@@ -112,66 +109,6 @@ export const DEMO_ACCOUNTS: DemoAccount[] = [
       branchId: "all",
       roleLabel: "HR Manager (People & Culture)",
       title: "Director of People & Culture",
-    },
-  },
-  {
-    role: "TEACHER",
-    label: "Teacher",
-    title: "PGT Mathematics — Apex Global Campus",
-    description: "Assigned subjects only: enter marks, view exam timetable.",
-    email: "teacher@gmail.com",
-    password: DEMO_PASSWORD,
-    landingPage: "/exams",
-    session: {
-      id: "tch-01",
-      name: "Mrs. Sunita Rao",
-      email: "teacher@gmail.com",
-      avatar:
-        "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80",
-      role: "TEACHER",
-      branchId: "br-apex-01",
-      roleLabel: "Teacher (PGT Mathematics)",
-      title: "PGT Mathematics — Apex Global Campus",
-    },
-  },
-  {
-    role: "STUDENT",
-    label: "Student",
-    title: "Grade 10 — Section A (STEM Honors)",
-    description: "View own exam schedule, published results & report card.",
-    email: "student@gmail.com",
-    password: DEMO_PASSWORD,
-    landingPage: "/exams",
-    session: {
-      id: "stu-01",
-      name: "Aarav Sharma",
-      email: "student@gmail.com",
-      avatar:
-        "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80",
-      role: "STUDENT",
-      branchId: "br-apex-01",
-      roleLabel: "Student (STU-1042)",
-      title: "Grade 10 — Section A (STEM Honors)",
-    },
-  },
-  {
-    role: "PARENT",
-    label: "Parent",
-    title: "Parent of Aarav Sharma (Grade 10-A)",
-    description: "View linked child's exam schedule, results & report card.",
-    email: "parent@gmail.com",
-    password: DEMO_PASSWORD,
-    landingPage: "/exams",
-    session: {
-      id: "stu-01-guardian",
-      name: "Ramesh Sharma",
-      email: "parent@gmail.com",
-      avatar:
-        "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&auto=format&fit=crop&q=80",
-      role: "PARENT",
-      branchId: "br-apex-01",
-      roleLabel: "Parent (Aarav Sharma)",
-      title: "Parent of Aarav Sharma (Grade 10-A)",
     },
   },
 ];
