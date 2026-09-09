@@ -1539,6 +1539,73 @@ export interface StockAdjustment {
   branchId: string;
 }
 
+export type PurchaseRequestPriority = "LOW" | "MEDIUM" | "HIGH" | "URGENT";
+export type PurchaseRequestStatus = "PENDING" | "APPROVED" | "ORDERED" | "RECEIVED" | "COMPLETED" | "REJECTED";
+export interface PurchaseRequest {
+  id: string;
+  requestedBy: string;
+  department: string;
+  itemId?: string;
+  itemName: string;
+  quantity: number;
+  unit?: string;
+  requiredByDate: string;
+  priority: PurchaseRequestPriority;
+  reason: string;
+  status: PurchaseRequestStatus;
+  branchId: string;
+  branchName: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type AssetStatus = "ACTIVE" | "IN_USE" | "MAINTENANCE" | "DAMAGED" | "RETIRED";
+export interface Asset {
+  id: string;
+  assetId: string;
+  name: string;
+  categoryId: string;
+  categoryName: string;
+  brand?: string;
+  model?: string;
+  serialNumber?: string;
+  purchaseDate: string;
+  purchasePrice: number;
+  supplierId?: string;
+  supplierName?: string;
+  warrantyStart?: string;
+  warrantyEnd?: string;
+  locationId?: string;
+  locationName: string;
+  assignedTo?: string;
+  assignedToType?: "TEACHER" | "STAFF" | "DEPARTMENT" | "ROOM";
+  status: AssetStatus;
+  branchId: string;
+  branchName: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type AssetMaintenanceType = "REPAIR" | "ROUTINE" | "INSPECTION" | "REPLACEMENT";
+export type AssetMaintenanceStatus = "REPORTED" | "IN_PROGRESS" | "UNDER_REPAIR" | "COMPLETED" | "CANCELLED";
+export interface AssetMaintenance {
+  id: string;
+  assetId: string;
+  assetName: string;
+  maintenanceType: AssetMaintenanceType;
+  problem: string;
+  reportedDate: string;
+  priority: PurchaseRequestPriority;
+  technician?: string;
+  estimatedCost?: number;
+  actualCost?: number;
+  status: AssetMaintenanceStatus;
+  completedDate?: string;
+  branchId: string;
+  branchName: string;
+  createdAt: string;
+}
+
 // ==================== EXPENSES ====================
 export type ExpenseStatus = "PENDING" | "APPROVED" | "REJECTED" | "PAID";
 export type ExpenseApprovalLevel = "HOD" | "PRINCIPAL" | "ADMIN";

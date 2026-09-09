@@ -40,11 +40,6 @@ import {
   INDIAN_MOBILE_REGEX,
   normaliseIndianMobile,
   isValidAadhaar,
-  COLLEGE_PROGRAMS,
-  COLLEGE_DEPARTMENTS,
-  UNIVERSITIES,
-  ADMISSION_TYPES,
-  SCHOLARSHIP_TYPES,
 } from "@/lib/india";
 import { toast } from "sonner";
 
@@ -112,7 +107,6 @@ const studentSchema = z.object({
 });
 
 type StudentFormValues = z.infer<typeof studentSchema>;
-type Level = "SCHOOL" | "COLLEGE";
 
 export function StudentFormDialog({
   open,
@@ -122,7 +116,6 @@ export function StudentFormDialog({
 }: StudentFormDialogProps) {
   const { branches, activeBranchId } = useERP();
   const [classes, setClasses] = useState(() => mockDb.getClasses());
-  const [level, setLevel] = useState<Level>("SCHOOL");
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [avatarDataUrl, setAvatarDataUrl] = useState<string>("");
   const avatarInputRef = useRef<HTMLInputElement>(null);
@@ -194,11 +187,6 @@ export function StudentFormDialog({
   const house = watch("house");
   const guardianOccupation = watch("guardianOccupation");
   const state = watch("state");
-  const program = watch("program");
-  const department = watch("department");
-  const university = watch("university");
-  const admissionType = watch("admissionType");
-  const scholarshipType = watch("scholarshipType");
 
   const selectedClass = classes.find((c) => c.id === classId) || classes[0];
 
@@ -207,8 +195,6 @@ export function StudentFormDialog({
     setClasses(loadedClasses);
     if (open) {
       if (studentToEdit) {
-        const isCollege = !!(studentToEdit as any).program;
-        setLevel(isCollege ? "COLLEGE" : "SCHOOL");
         setAvatarPreview(studentToEdit.avatar || null);
         setAvatarDataUrl("");
         setStudentDocs((studentToEdit.documents || []).map((d) => ({ id: d.id, name: d.name, type: d.type, size: d.size, verified: d.verified, uploadedAt: d.uploadedAt, fileUrl: undefined })));
@@ -252,7 +238,6 @@ export function StudentFormDialog({
           emergencyContact: studentToEdit.guardian.emergencyContact,
         });
       } else {
-        setLevel("SCHOOL");
         setAvatarPreview(null);
         setAvatarDataUrl("");
         setStudentDocs([
@@ -349,7 +334,6 @@ export function StudentFormDialog({
   const onSubmit = (data: StudentFormValues) => {
     const targetBranch = branches.find((b) => b.id === data.branchId) || branches[0];
     const targetSection = selectedClass?.sections.find((s) => s.id === data.sectionId) || selectedClass?.sections[0];
-    const isCollege = level === "COLLEGE" || !!data.program;
 
     const avatar = avatarDataUrl || studentToEdit?.avatar || "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150";
 
@@ -422,17 +406,17 @@ export function StudentFormDialog({
       medium: data.medium,
       house: data.house || undefined,
       rteAdmission: data.rteAdmission || false,
-      program: isCollege ? (data.program || undefined) : undefined,
-      department: isCollege ? (data.department || undefined) : undefined,
-      yearOfStudy: isCollege && data.yearOfStudy ? Number(data.yearOfStudy) : undefined,
-      semester: isCollege && data.semester ? Number(data.semester) : undefined,
-      enrollmentNumber: isCollege ? (data.enrollmentNumber || undefined) : undefined,
-      universityPrn: isCollege ? (data.universityPrn || undefined) : undefined,
-      university: isCollege ? (data.university || undefined) : undefined,
-      admissionType: isCollege ? (data.admissionType || undefined) : undefined,
-      hostelRequired: isCollege ? (data.hostelRequired || false) : false,
-      scholarshipType: isCollege ? (data.scholarshipType || undefined) : undefined,
-      mentorName: isCollege ? (data.mentorName || undefined) : undefined,
+      program: undefined,
+      department: undefined,
+      yearOfStudy: undefined,
+      semester: undefined,
+      enrollmentNumber: undefined,
+      universityPrn: undefined,
+      university: undefined,
+      admissionType: undefined,
+      hostelRequired: false,
+      scholarshipType: undefined,
+      mentorName: undefined,
     } as any;
 
     setTimeout(() => {
@@ -452,16 +436,16 @@ export function StudentFormDialog({
           fileSize: d.size,
           uploadDate: d.uploadedAt,
           verificationStatus: d.verified ? "VERIFIED" : "PENDING",
-          tags: [level.toLowerCase(), "student"],
+          tags: ["school", "student"],
         } as any);
       });
-      toast.success(`${isCollege ? "College" : "School"} student ${studentToEdit ? "updated" : "enrolled"}`, { description: `${saved.fullName} • ${saved.rollNumber}` });
+      toast.success(`School student ${studentToEdit ? "updated" : "enrolled"}`, { description: `${saved.fullName} • ${saved.rollNumber}` });
       onOpenChange(false);
       if (onSuccess) onSuccess();
     }, 400);
   };
 
-  const filteredBranches = branches.filter((b) => level === "COLLEGE" ? b.type === "College" || b.name.toLowerCase().includes("institute") || b.id.includes("college") : !b.id.includes("college"));
+  const filteredBranches = branches.filter((b) => !b.id.includes("college"));
   const branchOptions = filteredBranches.length ? filteredBranches : branches;
 
   return (
@@ -474,15 +458,11 @@ export function StudentFormDialog({
             </div>
             <div className="flex-1">
               <DialogTitle className="text-xl font-bold">
-                {studentToEdit ? `Edit Student: ${studentToEdit.fullName}` : `Register New ${level === "COLLEGE" ? "College" : "School"} Student`}
+                {studentToEdit ? `Edit Student: ${studentToEdit.fullName}` : `Register New School Student`}
               </DialogTitle>
               <DialogDescription>
-                {level === "COLLEGE" ? "UG/PG/Diploma — B.Tech/BCA/B.Com/MBA — PRN, semester, hostel" : "Nursery–12 — CBSE/ICSE/State — class & section"} • Photo + Documents stored
+                Nursery–12 — CBSE/ICSE/State — class & section • Photo + Documents stored
               </DialogDescription>
-            </div>
-            <div className="flex rounded-lg border p-0.5 bg-muted/40">
-              <button type="button" onClick={() => setLevel("SCHOOL")} className={`px-3 py-1 text-xs font-semibold rounded-md ${level === "SCHOOL" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>School</button>
-              <button type="button" onClick={() => setLevel("COLLEGE")} className={`px-3 py-1 text-xs font-semibold rounded-md ${level === "COLLEGE" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>College</button>
             </div>
           </div>
         </DialogHeader>
@@ -499,7 +479,7 @@ export function StudentFormDialog({
             <Button type="button" variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={() => avatarInputRef.current?.click()}><Upload className="h-3.5 w-3.5" /> {avatarPreview ? "Change Photo" : "Upload Photo"}</Button>
             <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
           </div>
-          <Badge variant="outline" className="text-[10px] hidden sm:flex">{level}</Badge>
+          <Badge variant="outline" className="text-[10px] hidden sm:flex">School</Badge>
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-2">
@@ -699,7 +679,7 @@ export function StudentFormDialog({
           {/* Section: Academic Class & Campus Assignment */}
           <div className="space-y-3">
             <h4 className="text-xs font-semibold text-primary uppercase tracking-wider border-b border-border pb-1">
-              Campus, Class & Section {level === "COLLEGE" ? "(College — course & semester)" : "(School — class & section)"}
+              Campus, Class & Section (School — class & section)
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
@@ -719,22 +699,20 @@ export function StudentFormDialog({
               </div>
 
               <div>
-                <label className="text-xs font-medium text-foreground mb-1 block">{level === "COLLEGE" ? "Course / Program" : "Class / Grade"} *</label>
+                <label className="text-xs font-medium text-foreground mb-1 block">Class / Grade *</label>
                 <Select
                   value={classId}
                   onValueChange={(val) => {
                     const cl = classes.find((c) => c.id === val);
                     setValue("classId", val);
                     setValue("sectionId", cl?.sections[0]?.id || "");
-                    // auto set level based on class category
-                    if (cl?.category === "UG" || cl?.category === "PG" || cl?.category === "Diploma") setLevel("COLLEGE"); else if (cl) setLevel("SCHOOL");
                   }}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder={level === "COLLEGE" ? "Select Course" : "Select Class"} />
+                    <SelectValue placeholder="Select Class" />
                   </SelectTrigger>
                   <SelectContent>
-                    {classes.filter((c) => level === "COLLEGE" ? (c.category === "UG" || c.category === "PG" || c.category === "Diploma") : (c.category !== "UG" && c.category !== "PG")).map((c) => (
+                    {classes.filter((c) => c.category !== "UG" && c.category !== "PG" && c.category !== "Diploma").map((c) => (
                       <SelectItem key={c.id} value={c.id}>
                         {c.name} {c.program ? `(${c.program})` : ""}
                       </SelectItem>
@@ -744,10 +722,10 @@ export function StudentFormDialog({
               </div>
 
               <div>
-                <label className="text-xs font-medium text-foreground mb-1 block">{level === "COLLEGE" ? "Division" : "Section"} *</label>
+                <label className="text-xs font-medium text-foreground mb-1 block">Section *</label>
                 <Select value={sectionId} onValueChange={(val) => setValue("sectionId", val)}>
                   <SelectTrigger>
-                    <SelectValue placeholder={level === "COLLEGE" ? "Select Div" : "Select Section"} />
+                    <SelectValue placeholder="Select Section" />
                   </SelectTrigger>
                   <SelectContent>
                     {selectedClass?.sections.map((s) => (
@@ -776,117 +754,10 @@ export function StudentFormDialog({
             </div>
           </div>
 
-          {/* Section: College / Higher-Ed Details */}
-          {level === "COLLEGE" ? (
-            <div className="space-y-3 p-3 rounded-xl border-2 border-indigo-200 dark:border-indigo-900 bg-indigo-50/40 dark:bg-indigo-950/20">
-              <h4 className="text-xs font-bold text-indigo-700 dark:text-indigo-300 uppercase tracking-wider border-b border-indigo-200 pb-1 flex items-center gap-2">
-                College / Higher-Ed Details <Badge variant="info" className="text-[9px]">UG/PG — School se alag</Badge>
-              </h4>
-              <p className="text-[11px] text-muted-foreground">Ye college wala section hai — Program, Dept, Year/Sem, PRN, Hostel, Scholarship. School me ye fields nahi dikhte.</p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <label className="text-xs font-medium text-foreground mb-1 block">Program / Degree *</label>
-                  <Select value={program || ""} onValueChange={(val) => setValue("program", val === "__none" ? "" : val)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select program" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none">— Select —</SelectItem>
-                      {COLLEGE_PROGRAMS.map((p) => (
-                        <SelectItem key={p} value={p}>{p}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-foreground mb-1 block">Department / Stream *</label>
-                  <Select value={department || ""} onValueChange={(val) => setValue("department", val === "__none" ? "" : val)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Department" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none">— None —</SelectItem>
-                      {COLLEGE_DEPARTMENTS.map((d) => (
-                        <SelectItem key={d} value={d}>{d}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-foreground mb-1 block">University *</label>
-                  <Select value={university || "SPPU (Pune)"} onValueChange={(val) => setValue("university", val)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="University" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {UNIVERSITIES.map((u) => (
-                        <SelectItem key={u} value={u}>{u}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div>
-                  <label className="text-xs font-medium text-foreground mb-1 block">Year</label>
-                  <Input {...register("yearOfStudy")} placeholder="e.g. 3" inputMode="numeric" />
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-foreground mb-1 block">Semester *</label>
-                  <Input {...register("semester")} placeholder="e.g. 5" inputMode="numeric" />
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-foreground mb-1 block">Admission Type</label>
-                  <Select value={admissionType || "REGULAR"} onValueChange={(val) => setValue("admissionType", val)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {ADMISSION_TYPES.map((t) => (
-                        <SelectItem key={t} value={t}>{t}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-foreground mb-1 block">Scholarship</label>
-                  <Select value={scholarshipType || "None"} onValueChange={(val) => setValue("scholarshipType", val)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Scholarship" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {SCHOLARSHIP_TYPES.map((s) => (
-                        <SelectItem key={s} value={s}>{s}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <label className="text-xs font-medium text-foreground mb-1 block">Enrollment No. *</label>
-                  <Input {...register("enrollmentNumber")} placeholder="e.g. CET-2023-CSE-441" />
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-foreground mb-1 block">University PRN *</label>
-                  <Input {...register("universityPrn")} placeholder="e.g. 72250507F018" />
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-foreground mb-1 block">Mentor</label>
-                  <Input {...register("mentorName")} placeholder="e.g. Ms. Priya Menon" />
-                </div>
-              </div>
-              <label className="flex items-center gap-2 p-2 rounded-lg border bg-white dark:bg-card cursor-pointer text-xs">
-                <input type="checkbox" checked={watch("hostelRequired") || false} onChange={(e) => setValue("hostelRequired", e.target.checked)} className="rounded text-primary" />
-                <span>Hostel Required</span>
-              </label>
-            </div>
-          ) : (
-            <div className="p-3 rounded-xl border bg-amber-50/50 dark:bg-amber-950/20 text-xs flex items-center gap-2">
+          <div className="p-3 rounded-xl border bg-amber-50/50 dark:bg-amber-950/20 text-xs flex items-center gap-2">
               <GraduationCap className="h-3.5 w-3.5 text-amber-600" />
-              <span><strong>School flow</strong> — Nursery–12. College student ke liye upar <strong>College</strong> select karein, alag course/sem/PRN fields khulenge.</span>
+              <span><strong>School flow</strong> — Nursery–12. Class & Section only.</span>
             </div>
-          )}
 
           {/* Documents — stored & linked to Documents module */}
           <div className="space-y-3 p-3 rounded-xl border bg-muted/20">
@@ -1029,7 +900,7 @@ export function StudentFormDialog({
               Cancel
             </Button>
             <Button type="submit" disabled={isSubmitting} variant="gradient">
-              {isSubmitting ? "Saving..." : studentToEdit ? "Update Student" : `Enroll ${level} Student`}
+              {isSubmitting ? "Saving..." : studentToEdit ? "Update Student" : `Enroll School Student`}
             </Button>
           </DialogFooter>
         </form>

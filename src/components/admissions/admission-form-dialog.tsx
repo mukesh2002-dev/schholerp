@@ -27,7 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { AppImage } from "@/components/ui/app-image";
-import { UserPlus, Upload, Image as ImageIcon, FileText, GraduationCap, Building2, X } from "lucide-react";
+import { UserPlus, Upload, Image as ImageIcon, FileText, Building2, X } from "lucide-react";
 import {
   INDIAN_GRADES,
   SCHOOL_BOARDS,
@@ -39,11 +39,6 @@ import {
   INDIAN_PIN_REGEX,
   normaliseIndianMobile,
   isValidAadhaar,
-  COLLEGE_PROGRAMS,
-  COLLEGE_DEPARTMENTS,
-  ENTRANCE_EXAMS,
-  ADMISSION_QUOTAS,
-  UNIVERSITIES,
 } from "@/lib/india";
 import { toast } from "sonner";
 
@@ -107,7 +102,6 @@ const admissionSchema = z.object({
 
 type AdmissionFormValues = z.infer<typeof admissionSchema>;
 
-type Level = "SCHOOL" | "COLLEGE";
 type DocItem = { id: string; name: string; required: boolean; submitted: boolean; fileName?: string; fileUrl?: string; fileSize?: string; verified: boolean };
 
 const SCHOOL_DOCS_TEMPLATE: DocItem[] = [
@@ -116,17 +110,10 @@ const SCHOOL_DOCS_TEMPLATE: DocItem[] = [
   { id: "doc-3", name: "Aadhaar_Card.pdf", required: true, submitted: false, verified: false },
   { id: "doc-4", name: "Address_Proof.pdf", required: true, submitted: false, verified: false },
 ];
-const COLLEGE_DOCS_TEMPLATE: DocItem[] = [
-  { id: "doc-1", name: "MHT-CET_JEE_Scorecard.pdf", required: true, submitted: false, verified: false },
-  { id: "doc-2", name: "12th_Marksheet.pdf", required: true, submitted: false, verified: false },
-  { id: "doc-3", name: "Domicile_Certificate.pdf", required: true, submitted: false, verified: false },
-  { id: "doc-4", name: "Caste_Income_Certificate.pdf", required: false, submitted: false, verified: false },
-];
 
 export function AdmissionFormDialog({ open, onOpenChange, onSuccess }: AdmissionFormDialogProps) {
   const { branches, activeBranchId } = useERP();
   const [step, setStep] = useState<1 | 2>(1);
-  const [level, setLevel] = useState<Level>("SCHOOL");
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [avatarDataUrl, setAvatarDataUrl] = useState<string>("");
   const avatarInputRef = useRef<HTMLInputElement>(null);
@@ -188,26 +175,21 @@ export function AdmissionFormDialog({ open, onOpenChange, onSuccess }: Admission
   const motherTongue = watch("motherTongue");
   const board = watch("board");
   const state = watch("state");
-  const programApplied = watch("programApplied");
-  const departmentPreference = watch("departmentPreference");
-  const entranceExam = watch("entranceExam");
-  const quotaType = watch("quotaType");
-  const university = watch("university");
 
   useEffect(() => {
     if (open) {
       reset({
         firstName: "",
         lastName: "",
-        dateOfBirth: level === "COLLEGE" ? "2007-04-11" : "2012-05-15",
+        dateOfBirth: "2012-05-15",
         gender: "Male",
-        gradeApplied: level === "COLLEGE" ? "B.Tech CSE" : "Class 9",
-        branchId: level === "COLLEGE" ? "br-apex-college-07" : activeBranchId !== "all" ? activeBranchId : "br-apex-01",
+        gradeApplied: "Class 9",
+        branchId: activeBranchId !== "all" ? activeBranchId : "br-apex-01",
         academicYear: "2026-2027",
         category: "General",
         religion: "Hindu",
         motherTongue: "Hindi",
-        board: level === "COLLEGE" ? "State Board" : "CBSE",
+        board: "CBSE",
         aadhaarNumber: "",
         rteQuota: false,
         parentName: "",
@@ -221,11 +203,11 @@ export function AdmissionFormDialog({ open, onOpenChange, onSuccess }: Admission
         previousSchool: "",
         previousGrade: "",
         previousGpa: "",
-        entranceTestScore: level === "COLLEGE" ? 88 : 88,
+        entranceTestScore: 88,
         notes: "",
-        programApplied: level === "COLLEGE" ? "B.Tech" : "",
-        departmentPreference: level === "COLLEGE" ? "CSE" : "",
-        entranceExam: level === "COLLEGE" ? "MHT-CET" : "",
+        programApplied: "",
+        departmentPreference: "",
+        entranceExam: "",
         entranceRank: "",
         quotaType: "MERIT (CAP Round)",
         university: "SPPU (Pune)",
@@ -235,17 +217,9 @@ export function AdmissionFormDialog({ open, onOpenChange, onSuccess }: Admission
       setStep(1);
       setAvatarPreview(null);
       setAvatarDataUrl("");
-      setDocs(level === "COLLEGE" ? COLLEGE_DOCS_TEMPLATE.map((d)=>({...d})) : SCHOOL_DOCS_TEMPLATE.map((d)=>({...d})));
+      setDocs(SCHOOL_DOCS_TEMPLATE.map((d)=>({...d})));
     }
-  }, [open, activeBranchId, reset, level]);
-
-  // switch docs template when level changes while open
-  useEffect(() => {
-    if (!open) return;
-    setDocs(level === "COLLEGE" ? COLLEGE_DOCS_TEMPLATE.map((d)=>({...d})) : SCHOOL_DOCS_TEMPLATE.map((d)=>({...d})));
-    // update branch default
-    if (level === "COLLEGE") setValue("branchId", "br-apex-college-07");
-  }, [level, open, setValue]);
+  }, [open, activeBranchId, reset]);
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -281,8 +255,7 @@ export function AdmissionFormDialog({ open, onOpenChange, onSuccess }: Admission
 
   const onSubmit = (data: AdmissionFormValues) => {
     const targetBranch = branches.find((b) => b.id === data.branchId) || branches[0];
-    const isCollege = level === "COLLEGE";
-    const finalGrade = isCollege ? (data.programApplied ? `${data.programApplied}${data.departmentPreference ? " " + data.departmentPreference : ""}`.trim() : data.gradeApplied) : data.gradeApplied;
+    const finalGrade = data.gradeApplied;
 
     const avatar = avatarDataUrl || `https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150`;
 
@@ -308,8 +281,8 @@ export function AdmissionFormDialog({ open, onOpenChange, onSuccess }: Admission
       city: data.city || "Pune",
       state: data.state || "Maharashtra",
       postalCode: data.postalCode || "411038",
-      previousSchool: data.previousSchool || (isCollege ? "12th Science" : "Zilla Parishad School"),
-      previousGrade: data.previousGrade || (isCollege ? "Class 12" : "Class 8"),
+      previousSchool: data.previousSchool || "Zilla Parishad School",
+      previousGrade: data.previousGrade || "Class 8",
       previousGpa: data.previousGpa || "85%",
       entranceTestScore: Number(data.entranceTestScore) || 85,
       documents: docs.map((d) => ({ id: d.id, name: d.fileName || d.name, required: d.required, submitted: d.submitted, verified: false, fileUrl: d.fileUrl })),
@@ -320,14 +293,14 @@ export function AdmissionFormDialog({ open, onOpenChange, onSuccess }: Admission
       motherTongue: data.motherTongue,
       board: data.board,
       rteQuota: data.rteQuota || false,
-      programApplied: isCollege ? (data.programApplied || undefined) : undefined,
-      departmentPreference: isCollege ? (data.departmentPreference || undefined) : undefined,
-      entranceExam: isCollege ? (data.entranceExam || undefined) : undefined,
-      entranceRank: isCollege ? (data.entranceRank || undefined) : undefined,
-      quotaType: isCollege ? (data.quotaType || undefined) : undefined,
-      university: isCollege ? (data.university || undefined) : undefined,
-      previousDegree: isCollege ? (data.previousDegree || undefined) : undefined,
-      hostelRequired: isCollege ? (data.hostelRequired || false) : false,
+      programApplied: undefined,
+      departmentPreference: undefined,
+      entranceExam: undefined,
+      entranceRank: undefined,
+      quotaType: undefined,
+      university: undefined,
+      previousDegree: undefined,
+      hostelRequired: false,
     };
 
     setTimeout(() => {
@@ -348,7 +321,7 @@ export function AdmissionFormDialog({ open, onOpenChange, onSuccess }: Admission
             fileSize: d.fileSize || "1.2 MB",
             uploadDate: new Date().toISOString().split("T")[0],
             verificationStatus: "PENDING",
-            tags: [level.toLowerCase(), "admission"],
+            tags: ["school", "admission"],
           } as any);
         }
       });
@@ -370,14 +343,14 @@ export function AdmissionFormDialog({ open, onOpenChange, onSuccess }: Admission
           tags: ["photo", "admission"],
         } as any);
       }
-      toast.success(`${isCollege ? "College" : "School"} application submitted`, { description: `${saved.applicantFullName} • ${saved.applicationNumber}` });
+      toast.success(`School application submitted`, { description: `${saved.applicantFullName} • ${saved.applicationNumber}` });
       onOpenChange(false);
       setStep(1);
       if (onSuccess) onSuccess();
     }, 400);
   };
 
-  const filteredBranches = branches.filter((b) => level === "COLLEGE" ? b.type === "College" || b.name.toLowerCase().includes("institute") || b.id.includes("college") : !b.id.includes("college"));
+  const filteredBranches = branches.filter((b) => !b.id.includes("college"));
   const branchOptions = filteredBranches.length ? filteredBranches : branches;
 
   return (
@@ -389,14 +362,10 @@ export function AdmissionFormDialog({ open, onOpenChange, onSuccess }: Admission
               <UserPlus className="h-5 w-5" />
             </div>
             <div className="flex-1">
-              <DialogTitle className="text-xl font-bold">New {level === "COLLEGE" ? "College" : "School"} Admission Application</DialogTitle>
+              <DialogTitle className="text-xl font-bold">New School Admission Application</DialogTitle>
               <DialogDescription>
-                {level === "COLLEGE" ? "B.Tech / BCA / B.Com / MBA —  CET/JEE/CUET/CAT, quota, hostel — college flow" : "Class Nursery–12 — CBSE/ICSE/State — school flow"} • school & college unified
+                Class Nursery–12 — CBSE/ICSE/State — school flow
               </DialogDescription>
-            </div>
-            <div className="flex rounded-lg border p-0.5 bg-muted/40 ml-2">
-              <button type="button" onClick={() => setLevel("SCHOOL")} className={`px-3 py-1 text-xs font-semibold rounded-md ${level === "SCHOOL" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>School</button>
-              <button type="button" onClick={() => setLevel("COLLEGE")} className={`px-3 py-1 text-xs font-semibold rounded-md ${level === "COLLEGE" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>College</button>
             </div>
           </div>
         </DialogHeader>
@@ -413,7 +382,7 @@ export function AdmissionFormDialog({ open, onOpenChange, onSuccess }: Admission
             <Button type="button" variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={() => avatarInputRef.current?.click()}><Upload className="h-3.5 w-3.5" /> {avatarPreview ? "Change Photo" : "Upload Photo"}</Button>
             <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
           </div>
-          <Badge variant="outline" className="text-[10px] hidden sm:flex">{level === "COLLEGE" ? "College" : "School"}</Badge>
+          <Badge variant="outline" className="text-[10px] hidden sm:flex">School</Badge>
         </div>
 
         {/* Multi-step Header */}
@@ -425,7 +394,7 @@ export function AdmissionFormDialog({ open, onOpenChange, onSuccess }: Admission
               step === 1 ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"
             }`}
           >
-            <span>1. {level === "COLLEGE" ? "College" : "School"} & Campus</span>
+            <span>1. School & Campus</span>
           </button>
           <span className="text-muted-foreground">•</span>
           <button
@@ -489,8 +458,7 @@ export function AdmissionFormDialog({ open, onOpenChange, onSuccess }: Admission
                   </Select>
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-foreground mb-1 block">{level === "COLLEGE" ? "Course Applied" : "Grade Applied"} *</label>
-                  {level === "SCHOOL" ? (
+                  <label className="text-xs font-medium text-foreground mb-1 block">Grade Applied *</label>
                     <Select value={gradeApplied} onValueChange={(val) => setValue("gradeApplied", val)}>
                       <SelectTrigger>
                         <SelectValue placeholder="Grade" />
@@ -503,16 +471,6 @@ export function AdmissionFormDialog({ open, onOpenChange, onSuccess }: Admission
                         ))}
                       </SelectContent>
                     </Select>
-                  ) : (
-                    <Select value={watch("programApplied") || ""} onValueChange={(val) => { setValue("programApplied", val); setValue("gradeApplied", val); }}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Program" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {COLLEGE_PROGRAMS.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  )}
                 </div>
               </div>
 
@@ -533,10 +491,10 @@ export function AdmissionFormDialog({ open, onOpenChange, onSuccess }: Admission
                   </Select>
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-foreground mb-1 block">{level === "COLLEGE" ? "Previous Qualification" : "Previous School"}</label>
+                  <label className="text-xs font-medium text-foreground mb-1 block">Previous School</label>
                   <Input
                     {...register("previousSchool")}
-                    placeholder={level === "COLLEGE" ? "e.g. 12th Science 88%" : "e.g. Vidya Valley School"}
+                    placeholder="e.g. Vidya Valley School"
                   />
                 </div>
               </div>
@@ -558,8 +516,7 @@ export function AdmissionFormDialog({ open, onOpenChange, onSuccess }: Admission
                   </Select>
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-foreground mb-1 block">Board / University</label>
-                  {level === "SCHOOL" ? (
+                  <label className="text-xs font-medium text-foreground mb-1 block">Board</label>
                     <Select value={board} onValueChange={(val) => setValue("board", val)}>
                       <SelectTrigger>
                         <SelectValue placeholder="Board" />
@@ -572,14 +529,6 @@ export function AdmissionFormDialog({ open, onOpenChange, onSuccess }: Admission
                         ))}
                       </SelectContent>
                     </Select>
-                  ) : (
-                    <Select value={university || "SPPU (Pune)"} onValueChange={(val) => setValue("university", val)}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {UNIVERSITIES.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  )}
                 </div>
               </div>
 
@@ -627,7 +576,6 @@ export function AdmissionFormDialog({ open, onOpenChange, onSuccess }: Admission
                   />
                   {errors.aadhaarNumber && <p className="text-[11px] text-rose-500 mt-1">{errors.aadhaarNumber.message}</p>}
                 </div>
-                {level === "SCHOOL" ? (
                   <label className="flex items-center gap-2 p-2 rounded-lg border bg-muted/30 cursor-pointer self-end text-xs">
                     <input
                       type="checkbox"
@@ -637,7 +585,6 @@ export function AdmissionFormDialog({ open, onOpenChange, onSuccess }: Admission
                     />
                     <span>Admitted under <strong>RTE 25% quota</strong></span>
                   </label>
-                ) : <div className="text-[11px] text-muted-foreground self-end p-2">College admission — RTE not applicable</div>}
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -658,63 +605,10 @@ export function AdmissionFormDialog({ open, onOpenChange, onSuccess }: Admission
                 </div>
               </div>
 
-              {/* College / Higher-Ed Extension — only for COLLEGE level, with distinct styling */}
-              {level === "COLLEGE" ? (
-                <div className="space-y-3 pt-3 border-t-2 border-indigo-200 dark:border-indigo-900 bg-indigo-50/40 dark:bg-indigo-950/20 p-3 rounded-xl">
-                  <h4 className="text-xs font-bold text-indigo-700 dark:text-indigo-300 uppercase tracking-wider flex items-center gap-2"><GraduationCap className="h-3.5 w-3.5" /> College Admission Details <Badge variant="info" className="text-[9px]">UG/PG</Badge></h4>
-                  <p className="text-[11px] text-muted-foreground">College section — alag fields: Program, Dept, Entrance, Quota, Hostel. Ye school wala section nahi hai.</p>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div>
-                      <label className="text-xs font-medium text-foreground mb-1 block">Department / Stream *</label>
-                      <Select value={departmentPreference || ""} onValueChange={(val) => setValue("departmentPreference", val === "__none" ? "" : val)}>
-                        <SelectTrigger><SelectValue placeholder="Dept" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="__none">— Select —</SelectItem>
-                          {COLLEGE_DEPARTMENTS.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <label className="text-xs font-medium text-foreground mb-1 block">Entrance Exam *</label>
-                      <Select value={entranceExam || ""} onValueChange={(val) => setValue("entranceExam", val === "__none" ? "" : val)}>
-                        <SelectTrigger><SelectValue placeholder="Exam" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="__none">— None —</SelectItem>
-                          {ENTRANCE_EXAMS.map((e) => <SelectItem key={e} value={e}>{e}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <label className="text-xs font-medium text-foreground mb-1 block">Quota Type</label>
-                      <Select value={quotaType || "MERIT (CAP Round)"} onValueChange={(val) => setValue("quotaType", val)}>
-                        <SelectTrigger><SelectValue placeholder="Quota" /></SelectTrigger>
-                        <SelectContent>
-                          {ADMISSION_QUOTAS.map((q) => <SelectItem key={q} value={q}>{q}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div>
-                      <label className="text-xs font-medium text-foreground mb-1 block">Rank / Percentile</label>
-                      <Input {...register("entranceRank")} placeholder="e.g. 88.4 percentile" />
-                    </div>
-                    <div>
-                      <label className="text-xs font-medium text-foreground mb-1 block">Previous Degree / 12th %</label>
-                      <Input {...register("previousDegree")} placeholder="e.g. 12th 88% or B.Com 76%" />
-                    </div>
-                    <label className="flex items-center gap-2 p-2 rounded-lg border bg-white dark:bg-card cursor-pointer self-end text-xs">
-                      <input type="checkbox" checked={watch("hostelRequired") || false} onChange={(e) => setValue("hostelRequired", e.target.checked)} className="rounded text-primary" />
-                      <span>Hostel Required</span>
-                    </label>
-                  </div>
-                </div>
-              ) : (
-                <div className="p-3 rounded-xl border bg-amber-50/50 dark:bg-amber-950/20 flex items-center gap-2 text-xs">
+              <div className="p-3 rounded-xl border bg-amber-50/50 dark:bg-amber-950/20 flex items-center gap-2 text-xs">
                   <Building2 className="h-3.5 w-3.5 text-amber-600" />
-                  <span><strong>School flow</strong> — Class Nursery–12. College ke liye upar <strong>College</strong> tab select karein, alag fields dikhenge.</span>
+                  <span><strong>School flow</strong> — Class Nursery–12.</span>
                 </div>
-              )}
             </div>
           ) : (
             <div className="space-y-4">
@@ -867,7 +761,7 @@ export function AdmissionFormDialog({ open, onOpenChange, onSuccess }: Admission
                   Back
                 </Button>
                 <Button type="submit" disabled={isSubmitting} variant="gradient">
-                  {isSubmitting ? "Submitting..." : `Submit ${level} Application`}
+                  {isSubmitting ? "Submitting..." : `Submit School Application`}
                 </Button>
               </>
             ) : (

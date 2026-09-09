@@ -63,6 +63,9 @@ import {
   StockTransfer,
   StockAdjustment,
   StoreSalePaymentMethod,
+  PurchaseRequest,
+  Asset,
+  AssetMaintenance,
   ExpenseCategory,
   ExpenseEntry,
   MonthlyExpenseSummary,
@@ -108,7 +111,7 @@ import { initialVehicles, initialTransportRoutes, initialDrivers, initialBusHelp
 import { proratedFee as calcProratedFee } from "../transport/transport-fee-utils";
 import { initialAnnouncements, initialMessages, initialMessageThreads, initialNotifications, initialNotificationPreferences } from "../mock-data/notifications";
 import { initialCalendarEvents, initialEventVenues } from "../mock-data/events";
-import { initialInventoryCategories, initialInventoryItems, initialInventorySuppliers, initialPurchaseEntries, initialInventoryTransactions, initialStockAlerts, initialStoreLocations } from "../mock-data/inventory";
+import { initialInventoryCategories, initialInventoryItems, initialInventorySuppliers, initialPurchaseEntries, initialInventoryTransactions, initialStockAlerts, initialStoreLocations, initialPurchaseRequests, initialAssets, initialAssetMaintenance } from "../mock-data/inventory";
 import { initialExpenseCategories, initialExpenseEntries, initialMonthlyExpenseSummary } from "../mock-data/expenses";
 import { initialSalaryStructures, initialPayrollRecords } from "../mock-data/payroll";
 import { initialDocuments } from "../mock-data/documents";
@@ -160,6 +163,9 @@ const STORE_SALES_STORAGE_KEY = "school_erp_store_sales_v1";
 const STOCK_TRANSFERS_STORAGE_KEY = "school_erp_stock_transfers_v1";
 const STOCK_ADJUSTMENTS_STORAGE_KEY = "school_erp_stock_adjustments_v1";
 const RETURN_EXCHANGE_STORAGE_KEY = "school_erp_return_exchange_v1";
+const PURCHASE_REQUESTS_STORAGE_KEY = "school_erp_purchase_requests_v1";
+const ASSETS_STORAGE_KEY = "school_erp_assets_v1";
+const ASSET_MAINT_STORAGE_KEY = "school_erp_asset_maint_v1";
 const EXPENSE_CATEGORIES_STORAGE_KEY = "school_erp_expense_categories_v1";
 const EXPENSE_ENTRIES_STORAGE_KEY = "school_erp_expense_entries_v1";
 const SALARY_STRUCTURES_STORAGE_KEY = "school_erp_salary_structures_v1";
@@ -758,8 +764,28 @@ class MockDatabaseService {
   public getFeeHeads(): FeeHead[] { return initialFeeHeads; }
   public getFeeStructures(branchId?: string): FeeStructure[] {
     let structures = initialFeeStructures;
+    if (typeof window !== "undefined") {
+      try {
+        const s = localStorage.getItem("school_erp_fee_structures_v1");
+        if (s) structures = JSON.parse(s);
+        else localStorage.setItem("school_erp_fee_structures_v1", JSON.stringify(initialFeeStructures));
+      } catch {}
+    }
     if (branchId && branchId !== "all") structures = structures.filter((s) => s.branchId === branchId);
     return structures;
+  }
+  public saveFeeStructure(data: FeeStructure): FeeStructure {
+    const list = this.getFeeStructures();
+    const idx = list.findIndex((s) => s.id === data.id);
+    const rec = { ...data, totalAmount: data.items.reduce((a, b) => a + b.amount, 0) } as FeeStructure;
+    if (idx >= 0) list[idx] = rec;
+    else list.unshift(rec);
+    const gIdx = initialFeeStructures.findIndex((s) => s.id === data.id);
+    if (gIdx >= 0) initialFeeStructures[gIdx] = rec;
+    else initialFeeStructures.unshift(rec);
+    if (typeof window !== "undefined") localStorage.setItem("school_erp_fee_structures_v1", JSON.stringify(list));
+    window.dispatchEvent(new CustomEvent("fees:updated"));
+    return rec;
   }
   private recomputeAssignment(a: FeeAssignment): FeeAssignment {
     const due = Math.max(0, a.totalAssigned - (a.discount ?? 0) - a.totalPaid + (a.lateFee ?? 0));
@@ -1414,6 +1440,33 @@ class MockDatabaseService {
       } catch { types = initialExamTypes; }
     }
     return types;
+  }
+
+  public saveExamType(data: Omit<ExamType, "id"> & { id?: string }): ExamType {
+    const types = this.getExamTypes();
+    const item: ExamType = { ...data, id: data.id || `ety-${Date.now().toString(36)}` } as ExamType;
+    const idx = types.findIndex((t) => t.id === item.id);
+    if (idx !== -1) types[idx] = item;
+    else types.unshift(item);
+    const gIdx = initialExamTypes.findIndex((t) => t.id === item.id);
+    if (gIdx !== -1) initialExamTypes[gIdx] = item;
+    else initialExamTypes.unshift(item);
+    if (this.isBrowser()) localStorage.setItem(EXAM_TYPES_STORAGE_KEY, JSON.stringify(types));
+    // notify Create Exam dropdowns
+    if (this.isBrowser()) window.dispatchEvent(new CustomEvent("exam-types:updated"));
+    return item;
+  }
+
+  public deleteExamType(id: string): boolean {
+    const types = this.getExamTypes();
+    const idx = types.findIndex((t) => t.id === id);
+    if (idx === -1) return false;
+    types.splice(idx, 1);
+    const g = initialExamTypes.findIndex((t) => t.id === id);
+    if (g !== -1) initialExamTypes.splice(g, 1);
+    if (this.isBrowser()) localStorage.setItem(EXAM_TYPES_STORAGE_KEY, JSON.stringify(types));
+    if (this.isBrowser()) window.dispatchEvent(new CustomEvent("exam-types:updated"));
+    return true;
   }
 
   public getGradeScale(): GradeScale[] {
@@ -2691,6 +2744,49 @@ class MockDatabaseService {
     return rec;
   }
 
+  // ── Purchase Requests ──
+  public getPurchaseRequests(branchId?: string): PurchaseRequest[] {
+    let list = initialPurchaseRequests;
+    if (this.isBrowser()) { try { const s = localStorage.getItem(PURCHASE_REQUESTS_STORAGE_KEY); if (s) list = JSON.parse(s); else localStorage.setItem(PURCHASE_REQUESTS_STORAGE_KEY, JSON.stringify(initialPurchaseRequests)); } catch { list = initialPurchaseRequests; } }
+    if (!branchId || branchId === "all") return list;
+    return list.filter((r) => r.branchId === branchId || r.branchId === "all");
+  }
+  public savePurchaseRequest(data: Omit<PurchaseRequest, "id" | "createdAt" | "updatedAt"> & { id?: string }): PurchaseRequest {
+    const list = this.getPurchaseRequests();
+    const now = new Date().toISOString();
+    if (data.id) { const idx = list.findIndex((x) => x.id === data.id); if (idx !== -1) { const upd = { ...list[idx], ...data, id: data.id, updatedAt: now } as PurchaseRequest; list[idx] = upd; const g = initialPurchaseRequests.findIndex((x) => x.id === data.id); if (g !== -1) initialPurchaseRequests[g] = upd; if (this.isBrowser()) localStorage.setItem(PURCHASE_REQUESTS_STORAGE_KEY, JSON.stringify(list)); return upd; } }
+    const rec: PurchaseRequest = { ...data, id: `pr-${Date.now().toString(36)}`, createdAt: now, updatedAt: now } as PurchaseRequest;
+    list.unshift(rec); initialPurchaseRequests.unshift(rec); if (this.isBrowser()) localStorage.setItem(PURCHASE_REQUESTS_STORAGE_KEY, JSON.stringify(list)); return rec;
+  }
+
+  // ── Assets ──
+  public getAssets(branchId?: string): Asset[] {
+    let list = initialAssets;
+    if (this.isBrowser()) { try { const s = localStorage.getItem(ASSETS_STORAGE_KEY); if (s) list = JSON.parse(s); else localStorage.setItem(ASSETS_STORAGE_KEY, JSON.stringify(initialAssets)); } catch { list = initialAssets; } }
+    if (!branchId || branchId === "all") return list;
+    return list.filter((a) => a.branchId === branchId);
+  }
+  public saveAsset(data: Omit<Asset, "id" | "createdAt" | "updatedAt"> & { id?: string }): Asset {
+    const list = this.getAssets();
+    const now = new Date().toISOString();
+    if (data.id) { const idx = list.findIndex((x) => x.id === data.id); if (idx !== -1) { const upd = { ...list[idx], ...data, id: data.id, updatedAt: now } as Asset; list[idx] = upd; const g = initialAssets.findIndex((x) => x.id === data.id); if (g !== -1) initialAssets[g] = upd; if (this.isBrowser()) localStorage.setItem(ASSETS_STORAGE_KEY, JSON.stringify(list)); return upd; } }
+    const rec: Asset = { ...data, id: `ast-${Date.now().toString(36)}`, createdAt: now, updatedAt: now } as Asset;
+    list.unshift(rec); initialAssets.unshift(rec); if (this.isBrowser()) localStorage.setItem(ASSETS_STORAGE_KEY, JSON.stringify(list)); return rec;
+  }
+  public getAssetMaintenance(branchId?: string): AssetMaintenance[] {
+    let list = initialAssetMaintenance;
+    if (this.isBrowser()) { try { const s = localStorage.getItem(ASSET_MAINT_STORAGE_KEY); if (s) list = JSON.parse(s); else localStorage.setItem(ASSET_MAINT_STORAGE_KEY, JSON.stringify(initialAssetMaintenance)); } catch { list = initialAssetMaintenance; } }
+    if (!branchId || branchId === "all") return list;
+    return list.filter((a) => a.branchId === branchId);
+  }
+  public saveAssetMaintenance(data: Omit<AssetMaintenance, "id" | "createdAt"> & { id?: string }): AssetMaintenance {
+    const list = this.getAssetMaintenance();
+    const now = new Date().toISOString();
+    if (data.id) { const idx = list.findIndex((x) => x.id === data.id); if (idx !== -1) { const upd = { ...list[idx], ...data, id: data.id } as AssetMaintenance; list[idx] = upd; const g = initialAssetMaintenance.findIndex((x) => x.id === data.id); if (g !== -1) initialAssetMaintenance[g] = upd; if (this.isBrowser()) localStorage.setItem(ASSET_MAINT_STORAGE_KEY, JSON.stringify(list)); return upd; } }
+    const rec: AssetMaintenance = { ...data, id: `mnt-${Date.now().toString(36)}`, createdAt: now } as AssetMaintenance;
+    list.unshift(rec); initialAssetMaintenance.unshift(rec); if (this.isBrowser()) localStorage.setItem(ASSET_MAINT_STORAGE_KEY, JSON.stringify(list)); return rec;
+  }
+
   // ==================== EXPENSES ====================
   public getExpenseCategories(): ExpenseCategory[] { return initialExpenseCategories; }
 
@@ -2733,7 +2829,34 @@ class MockDatabaseService {
   public getMonthlyExpenseSummary(): MonthlyExpenseSummary[] { return initialMonthlyExpenseSummary; }
 
   // ==================== PAYROLL ====================
-  public getSalaryStructures(): SalaryStructure[] { return initialSalaryStructures; }
+  public getSalaryStructures(): SalaryStructure[] {
+    let list = initialSalaryStructures;
+    if (typeof window !== "undefined") {
+      try {
+        const s = localStorage.getItem("school_erp_salary_structures_v1");
+        if (s) list = JSON.parse(s);
+        else localStorage.setItem("school_erp_salary_structures_v1", JSON.stringify(initialSalaryStructures));
+      } catch {}
+    }
+    return list;
+  }
+  public saveSalaryStructure(data: SalaryStructure): SalaryStructure {
+    const list = this.getSalaryStructures();
+    const allowances = data.allowances ?? [];
+    const deductions = data.deductions ?? [];
+    const gross = data.baseSalary + allowances.reduce((a, b) => a + b.amount, 0);
+    const totalDed = deductions.reduce((a, b) => a + b.amount, 0);
+    const rec = { ...data, grossSalary: gross, netSalary: gross - totalDed, totalDeductions: totalDed } as SalaryStructure;
+    const idx = list.findIndex((s) => s.id === data.id);
+    if (idx >= 0) list[idx] = rec;
+    else list.unshift(rec);
+    const gIdx = initialSalaryStructures.findIndex((s) => s.id === data.id);
+    if (gIdx >= 0) initialSalaryStructures[gIdx] = rec;
+    else initialSalaryStructures.unshift(rec);
+    if (typeof window !== "undefined") localStorage.setItem("school_erp_salary_structures_v1", JSON.stringify(list));
+    window.dispatchEvent(new CustomEvent("payroll:updated"));
+    return rec;
+  }
 
   public getPayrollRecords(branchId?: string): PayrollRecord[] {
     let records = initialPayrollRecords;

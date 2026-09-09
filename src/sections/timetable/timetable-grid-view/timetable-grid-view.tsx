@@ -9,555 +9,279 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { EmptyState } from "@/components/ui/empty-state";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, BookOpen, MapPin, AlertTriangle, Clock, Plus, Edit3, Trash2, Save, Coffee, Utensils, Settings2, LayoutGrid, Copy } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Search, BookOpen, Clock, Plus, Edit3, Trash2, Save, Coffee, Utensils, Settings2, LayoutGrid, Copy, X, AlertTriangle } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
 
-const DAYS: DayOfWeek[] = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
-
-const DAY_LABELS: Record<DayOfWeek, string> = {
-  MONDAY: "Mon",
-  TUESDAY: "Tue",
-  WEDNESDAY: "Wed",
-  THURSDAY: "Thu",
-  FRIDAY: "Fri",
-  SATURDAY: "Sat",
+/* ──────────────────────────────────────────────────────────
+   API-ready layer — static now, 1-line swap to real API
+   Replace these 4 fns with fetch('/api/timetable/...') later
+   ────────────────────────────────────────────────────────── */
+const PERIOD_KEY = "school_erp_periods_v1";
+const api = {
+  getPeriods(): Period[] {
+    if (typeof window === "undefined") return defaultPeriods;
+    try {
+      const s = localStorage.getItem(PERIOD_KEY);
+      if (s) { const p = JSON.parse(s); if (Array.isArray(p) && p.length) return p; }
+      localStorage.setItem(PERIOD_KEY, JSON.stringify(defaultPeriods));
+    } catch {}
+    return defaultPeriods;
+  },
+  savePeriods(next: Period[]) {
+    if (typeof window !== "undefined") localStorage.setItem(PERIOD_KEY, JSON.stringify(next));
+  },
+  getSlots(branchId?: string) { return mockDb.getTimetableSlots(branchId); },
+  saveSlot(slot: TimetableSlot) { return mockDb.saveTimetableSlot(slot); },
+  deleteSlot(id: string) { return mockDb.deleteTimetableSlot(id); },
 };
 
-const SUBJECT_COLORS: Record<string, string> = {
+const DAYS: DayOfWeek[] = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
+const DAY_SHORT: Record<DayOfWeek, string> = { MONDAY: "Mon", TUESDAY: "Tue", WEDNESDAY: "Wed", THURSDAY: "Thu", FRIDAY: "Fri", SATURDAY: "Sat" };
+
+const SUBJECT_COLOR: Record<string, string> = {
   "sub-101": "border-l-blue-500 bg-blue-500/5",
   "sub-102": "border-l-emerald-500 bg-emerald-500/5",
   "sub-103": "border-l-purple-500 bg-purple-500/5",
   "sub-104": "border-l-amber-500 bg-amber-500/5",
   "sub-105": "border-l-rose-500 bg-rose-500/5",
-  "sub-901": "border-l-cyan-500 bg-cyan-500/5",
-  "sub-902": "border-l-violet-500 bg-violet-500/5",
-  "sub-903": "border-l-lime-500 bg-lime-500/5",
-  "sub-1201": "border-l-indigo-500 bg-indigo-500/5",
-  "sub-1202": "border-l-teal-500 bg-teal-500/5",
-  "sub-1203": "border-l-orange-500 bg-orange-500/5",
 };
-
-function getSubjectColor(subjectId: string): string {
-  return SUBJECT_COLORS[subjectId] || "border-l-gray-400 bg-gray-500/5";
-}
-
-function findConflicts(slots: TimetableSlot[]): Set<string> {
-  const conflictIds = new Set<string>();
-  const byTeacher = new Map<string, Map<string, TimetableSlot[]>>();
-  for (const slot of slots) {
-    if (!byTeacher.has(slot.teacherId)) byTeacher.set(slot.teacherId, new Map());
-    const dayMap = byTeacher.get(slot.teacherId)!;
-    if (!dayMap.has(slot.day)) dayMap.set(slot.day, []);
-    dayMap.get(slot.day)!.push(slot);
-  }
-  for (const dayMap of byTeacher.values()) {
-    for (const daySlots of dayMap.values()) {
-      if (daySlots.length > 1) {
-        const periodSet = new Set<number>();
-        for (const slot of daySlots) {
-          if (periodSet.has(slot.periodNumber)) conflictIds.add(slot.id);
-          else periodSet.add(slot.periodNumber);
-        }
-      }
-    }
-  }
-  return conflictIds;
-}
-
-const PERIOD_STORAGE_KEY = "school_erp_periods_v1";
-
-function loadPeriods(): Period[] {
-  if (typeof window === "undefined") return defaultPeriods;
-  try {
-    const stored = localStorage.getItem(PERIOD_STORAGE_KEY);
-    if (stored) {
-      const parsed = JSON.parse(stored) as Period[];
-      if (Array.isArray(parsed) && parsed.length) return parsed;
-    }
-    localStorage.setItem(PERIOD_STORAGE_KEY, JSON.stringify(defaultPeriods));
-  } catch {}
-  return defaultPeriods;
-}
+const getColor = (id: string) => SUBJECT_COLOR[id] || "border-l-slate-400 bg-slate-500/5";
 
 const slotSchema = z.object({
-  day: z.string().min(1, "Day required"),
-  periodNumber: z.string().min(1, "Period required"),
-  classId: z.string().min(1, "Class required"),
-  sectionId: z.string().min(1, "Section required"),
-  subjectId: z.string().min(1, "Subject required"),
-  teacherId: z.string().min(1, "Teacher required"),
-  roomNumber: z.string().min(1, "Room required"),
+  day: z.string().min(1, "Day"),
+  periodNumber: z.string().min(1, "Period"),
+  classId: z.string().min(1, "Class"),
+  sectionId: z.string().min(1, "Section"),
+  subjectId: z.string().min(1, "Subject"),
+  teacherId: z.string().min(1, "Teacher"),
+  roomNumber: z.string().min(1, "Room"),
 });
-
-type SlotFormValues = z.infer<typeof slotSchema>;
+type SlotForm = z.infer<typeof slotSchema>;
 
 export function TimetableGridView() {
   const { activeBranchId } = useERP();
   const [classes] = useState(() => mockDb.getClasses(activeBranchId));
   const [teachers] = useState(() => mockDb.getTeachers(activeBranchId));
-  const [slots, setSlots] = useState(() => mockDb.getTimetableSlots(activeBranchId));
-  const [periods, setPeriods] = useState<Period[]>(() => loadPeriods());
+  const [slots, setSlots] = useState(() => api.getSlots(activeBranchId));
+  const [periods, setPeriods] = useState<Period[]>(() => api.getPeriods());
 
-  const [classFilter, setClassFilter] = useState<string>("ALL");
-  const [dayFilter, setDayFilter] = useState<string>("ALL");
-  const [teacherSearch, setTeacherSearch] = useState("");
-  const [activeTab, setActiveTab] = useState<"class" | "teacher">("class");
+  const [classFilter, setClassFilter] = useState("ALL");
+  const [dayFilter, setDayFilter] = useState("ALL");
+  const [q, setQ] = useState("");
+  const [tab, setTab] = useState<"class" | "teacher">("class");
 
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingSlot, setEditingSlot] = useState<TimetableSlot | null>(null);
+  const [slotOpen, setSlotOpen] = useState(false);
+  const [editing, setEditing] = useState<TimetableSlot | null>(null);
 
-  // Period editor
-  const [periodEditorOpen, setPeriodEditorOpen] = useState(false);
-  const [editPeriods, setEditPeriods] = useState<Period[]>(periods);
+  const [periodOpen, setPeriodOpen] = useState(false);
+  const [draft, setDraft] = useState<Period[]>(periods);
 
-  // Full timetable builder
+  const [inlineId, setInlineId] = useState<string | null>(null);
+  const [inlineS, setInlineS] = useState("");
+  const [inlineE, setInlineE] = useState("");
+
   const [builderOpen, setBuilderOpen] = useState(false);
-  const [builderClassId, setBuilderClassId] = useState<string>(classes[0]?.id || "");
-  const [builderSectionId, setBuilderSectionId] = useState<string>(classes[0]?.sections[0]?.id || "");
-  const [builderGrid, setBuilderGrid] = useState<Record<string, Record<number, { subjectId: string; teacherId: string; room: string }>>>({});
+  const [bClassId, setBClassId] = useState(classes[0]?.id || "");
+  const [bSecId, setBSecId] = useState(classes[0]?.sections[0]?.id || "");
+  const [grid, setGrid] = useState<Record<string, Record<number, { subjectId: string; teacherId: string; room: string }>>>({});
 
-  const lecturePeriods = useMemo(() => periods.filter((p) => !p.isBreak && p.type !== "BREAK" && p.type !== "LUNCH"), [periods]);
+  const lectures = useMemo(() => periods.filter((p) => !p.isBreak && p.type !== "BREAK" && p.type !== "LUNCH"), [periods]);
 
-  const {
-    register,
-    handleSubmit,
-    setValue,
-    watch,
-    reset,
-    formState: { errors },
-  } = useForm<SlotFormValues>({
+  const { register, handleSubmit, setValue, watch, reset, formState: { errors } } = useForm<SlotForm>({
     resolver: zodResolver(slotSchema),
     defaultValues: { day: "MONDAY", periodNumber: "1", classId: "", sectionId: "", subjectId: "", teacherId: "", roomNumber: "" },
   });
+  const wClassId = watch("classId");
+  const wSubId = watch("subjectId");
+  const selClass = useMemo(() => classes.find((c) => c.id === wClassId), [classes, wClassId]);
+  const bClass = useMemo(() => classes.find((c) => c.id === bClassId), [classes, bClassId]);
 
-  const watchedClassId = watch("classId");
-  const watchedSubjectId = watch("subjectId");
+  const filtered = useMemo(() => slots.filter((s) => {
+    if (classFilter !== "ALL" && s.classId !== classFilter) return false;
+    if (dayFilter !== "ALL" && s.day !== dayFilter) return false;
+    if (q && !s.teacherName.toLowerCase().includes(q.toLowerCase())) return false;
+    return true;
+  }), [slots, classFilter, dayFilter, q]);
 
-  const selectedClass = useMemo(() => classes.find((c) => c.id === watchedClassId), [classes, watchedClassId]);
-  const sections = selectedClass?.sections ?? [];
-  const subjects = selectedClass?.subjects ?? [];
+  const classGrid = useMemo(() => {
+    const g: Record<string, Record<number, TimetableSlot[]>> = {};
+    for (const d of DAYS) { g[d] = {}; for (const p of lectures) g[d][p.number] = []; }
+    for (const s of filtered) if (g[s.day]?.[s.periodNumber] !== undefined) g[s.day][s.periodNumber].push(s);
+    return g;
+  }, [filtered, lectures]);
 
-  const builderClass = useMemo(() => classes.find((c) => c.id === builderClassId), [classes, builderClassId]);
-  const builderSubjects = builderClass?.subjects ?? [];
-  const builderSections = builderClass?.sections ?? [];
+  const refresh = () => setSlots([...api.getSlots(activeBranchId)]);
+  const savePeriods = (next: Period[]) => { setPeriods(next); setDraft(next); api.savePeriods(next); };
 
-  const filteredSlots = useMemo(() => {
-    return slots.filter((s) => {
-      const matchesClass = classFilter === "ALL" || s.classId === classFilter;
-      const matchesDay = dayFilter === "ALL" || s.day === dayFilter;
-      const matchesTeacher = !teacherSearch || s.teacherName.toLowerCase().includes(teacherSearch.toLowerCase());
-      return matchesClass && matchesDay && matchesTeacher;
-    });
-  }, [slots, classFilter, dayFilter, teacherSearch]);
-
-  const conflictIds = useMemo(() => findConflicts(filteredSlots), [filteredSlots]);
-
-  const classViewGrid = useMemo(() => {
-    const grid: Record<string, Record<number, TimetableSlot[]>> = {};
-    for (const day of DAYS) {
-      grid[day] = {};
-      for (const p of lecturePeriods) grid[day][p.number] = [];
-    }
-    for (const slot of filteredSlots) {
-      if (grid[slot.day]?.[slot.periodNumber] !== undefined) grid[slot.day][slot.periodNumber].push(slot);
-    }
-    return grid;
-  }, [filteredSlots, lecturePeriods]);
-
-  const refresh = () => setSlots([...mockDb.getTimetableSlots(activeBranchId)]);
-
-  const persistPeriods = (next: Period[]) => {
-    setPeriods(next);
-    setEditPeriods(next);
-    if (typeof window !== "undefined") localStorage.setItem(PERIOD_STORAGE_KEY, JSON.stringify(next));
+  // inline time
+  const startInline = (p: Period) => { setInlineId(p.id); setInlineS(p.startTime); setInlineE(p.endTime); };
+  const saveInline = (id: string) => {
+    if (!inlineS || !inlineE) return toast.error("Start & end required");
+    if (inlineS >= inlineE) return toast.error("Start < End");
+    savePeriods(periods.map((p) => p.id === id ? { ...p, startTime: inlineS, endTime: inlineE } : p));
+    setInlineId(null); toast.success("Time updated");
   };
 
+  // slot crud
   const openCreate = (day?: DayOfWeek, period?: number) => {
-    setEditingSlot(null);
-    reset({
-      day: day ?? "MONDAY",
-      periodNumber: period ? String(period) : "1",
-      classId: classFilter !== "ALL" ? classFilter : classes[0]?.id ?? "",
-      sectionId: "",
-      subjectId: "",
-      teacherId: "",
-      roomNumber: "",
-    });
-    setDialogOpen(true);
+    setEditing(null);
+    reset({ day: day ?? "MONDAY", periodNumber: period ? String(period) : "1", classId: classFilter !== "ALL" ? classFilter : classes[0]?.id ?? "", sectionId: "", subjectId: "", teacherId: "", roomNumber: "" });
+    setSlotOpen(true);
+  };
+  const openEdit = (s: TimetableSlot) => {
+    setEditing(s);
+    reset({ day: s.day, periodNumber: String(s.periodNumber), classId: s.classId, sectionId: s.sectionId, subjectId: s.subjectId, teacherId: s.teacherId, roomNumber: s.roomNumber });
+    setSlotOpen(true);
+  };
+  const onSubmit = (d: SlotForm) => {
+    const cls = classes.find((c) => c.id === d.classId);
+    const sec = cls?.sections.find((s) => s.id === d.sectionId);
+    const sub = cls?.subjects.find((s) => s.id === d.subjectId);
+    const tch = teachers.find((t) => t.id === d.teacherId);
+    if (!cls || !sec || !sub) return toast.error("Class/Section/Subject required");
+    if (slots.find((s) => s.day === d.day && s.periodNumber === Number(d.periodNumber) && s.classId === d.classId && s.sectionId === d.sectionId && s.id !== editing?.id))
+      return toast.error("Period already occupied");
+    api.saveSlot({
+      id: editing?.id ?? `ts-${Date.now().toString(36)}`,
+      day: d.day as DayOfWeek, periodNumber: Number(d.periodNumber),
+      subjectId: sub.id, subjectName: sub.name, subjectCode: sub.code,
+      teacherId: tch?.id ?? sub.teacherId, teacherName: tch?.fullName ?? sub.teacherName,
+      classId: cls.id, className: cls.name, sectionId: sec.id, sectionName: sec.name,
+      roomNumber: d.roomNumber, branchId: cls.branchId, branchName: cls.branchName,
+    } as TimetableSlot);
+    toast.success(editing ? "Slot updated" : "Slot created"); setSlotOpen(false); refresh();
   };
 
-  const openEdit = (slot: TimetableSlot) => {
-    setEditingSlot(slot);
-    reset({
-      day: slot.day,
-      periodNumber: String(slot.periodNumber),
-      classId: slot.classId,
-      sectionId: slot.sectionId,
-      subjectId: slot.subjectId,
-      teacherId: slot.teacherId,
-      roomNumber: slot.roomNumber,
-    });
-    setDialogOpen(true);
-  };
-
-  const handleDelete = (slotId: string) => {
-    mockDb.deleteTimetableSlot(slotId);
-    toast.success("Slot deleted");
-    refresh();
-  };
-
-  const onSubmit = (data: SlotFormValues) => {
-    const cls = classes.find((c) => c.id === data.classId);
-    const sec = cls?.sections.find((s) => s.id === data.sectionId);
-    const sub = cls?.subjects.find((s) => s.id === data.subjectId);
-    const tch = teachers.find((t) => t.id === data.teacherId);
-    if (!cls || !sec || !sub) {
-      toast.error("Please select valid class / section / subject");
-      return;
-    }
-    const branchId = cls.branchId;
-    const branchName = cls.branchName;
-    const duplicate = slots.find(
-      (s) => s.day === data.day as DayOfWeek && s.periodNumber === Number(data.periodNumber) && s.classId === data.classId && s.sectionId === data.sectionId && s.id !== editingSlot?.id
-    );
-    if (duplicate) {
-      toast.error("This period is already occupied for selected class/section");
-      return;
-    }
-    const payload: TimetableSlot = {
-      id: editingSlot?.id ?? `ts-${Date.now().toString(36)}`,
-      day: data.day as DayOfWeek,
-      periodNumber: Number(data.periodNumber),
-      subjectId: sub.id,
-      subjectName: sub.name,
-      subjectCode: sub.code,
-      teacherId: tch?.id ?? sub.teacherId,
-      teacherName: tch?.fullName ?? sub.teacherName,
-      classId: cls.id,
-      className: cls.name,
-      sectionId: sec.id,
-      sectionName: sec.name,
-      roomNumber: data.roomNumber,
-      branchId,
-      branchName,
-    };
-    mockDb.saveTimetableSlot(payload);
-    toast.success(editingSlot ? "Slot updated" : "Slot created");
-    setDialogOpen(false);
-    refresh();
-  };
-
-  // Builder helpers
+  // builder
   const openBuilder = () => {
-    const cls = classes[0];
-    if (!cls) { toast.error("No classes found"); return; }
-    setBuilderClassId(cls.id);
-    setBuilderSectionId(cls.sections[0]?.id || "");
-    // build grid from existing slots for that class/section
-    const g: Record<string, Record<number, { subjectId: string; teacherId: string; room: string }>> = {};
-    for (const d of DAYS) {
-      g[d] = {};
-      for (const p of lecturePeriods) {
-        const existing = slots.find((s) => s.classId === cls.id && s.sectionId === cls.sections[0]?.id && s.day === d && s.periodNumber === p.number);
-        if (existing) g[d][p.number] = { subjectId: existing.subjectId, teacherId: existing.teacherId, room: existing.roomNumber };
-        else g[d][p.number] = { subjectId: "", teacherId: "", room: cls.sections[0]?.roomNumber || "" };
-      }
-    }
-    setBuilderGrid(g);
-    setBuilderOpen(true);
+    const c = classes[0]; if (!c) return toast.error("No class");
+    setBClassId(c.id); setBSecId(c.sections[0]?.id || "");
+    const g: any = {};
+    for (const d of DAYS) { g[d] = {}; for (const p of lectures) {
+      const ex = slots.find((s) => s.classId === c.id && s.sectionId === c.sections[0]?.id && s.day === d && s.periodNumber === p.number);
+      g[d][p.number] = ex ? { subjectId: ex.subjectId, teacherId: ex.teacherId, room: ex.roomNumber } : { subjectId: "", teacherId: "", room: c.sections[0]?.roomNumber || "" };
+    }}
+    setGrid(g); setBuilderOpen(true);
   };
-
-  const handleBuilderClassChange = (classId: string) => {
-    const cls = classes.find((c) => c.id === classId);
-    if (!cls) return;
-    setBuilderClassId(classId);
-    setBuilderSectionId(cls.sections[0]?.id || "");
-    const g: Record<string, Record<number, any>> = {};
-    for (const d of DAYS) {
-      g[d] = {};
-      for (const p of lecturePeriods) {
-        const existing = slots.find((s) => s.classId === cls.id && s.sectionId === cls.sections[0]?.id && s.day === d && s.periodNumber === p.number);
-        g[d][p.number] = existing ? { subjectId: existing.subjectId, teacherId: existing.teacherId, room: existing.roomNumber } : { subjectId: "", teacherId: "", room: cls.sections[0]?.roomNumber || "" };
-      }
-    }
-    setBuilderGrid(g);
-  };
-
-  const handleBuilderCellChange = (day: DayOfWeek, periodNumber: number, field: "subjectId" | "teacherId" | "room", value: string) => {
-    setBuilderGrid((prev) => {
-      const next = { ...prev, [day]: { ...prev[day] } };
-      const cell = { ...(next[day][periodNumber] || { subjectId: "", teacherId: "", room: "" }) };
-      (cell as any)[field] = value;
-      // auto-fill teacher when subject changes
-      if (field === "subjectId" && builderClass) {
-        const sub = builderClass.subjects.find((s) => s.id === value);
-        if (sub) cell.teacherId = sub.teacherId;
-      }
-      next[day][periodNumber] = cell;
-      return next;
-    });
-  };
-
-  const copyDayToAll = (sourceDay: DayOfWeek) => {
-    setBuilderGrid((prev) => {
-      const source = prev[sourceDay];
-      if (!source) return prev;
-      const next: any = { ...prev };
-      for (const d of DAYS) {
-        if (d === sourceDay) continue;
-        next[d] = { ...source };
-        // deep copy
-        for (const k of Object.keys(next[d])) next[d][k] = { ...source[Number(k)] };
-      }
-      return next;
-    });
-    toast.success(`${DAY_LABELS[sourceDay]} copied to all days`);
-  };
-
   const saveBuilder = () => {
-    const cls = classes.find((c) => c.id === builderClassId);
-    const sec = cls?.sections.find((s) => s.id === builderSectionId);
-    if (!cls || !sec) { toast.error("Select class & section"); return; }
-    let saved = 0;
-    let skipped = 0;
-    for (const day of DAYS) {
-      for (const p of lecturePeriods) {
-        const cell = builderGrid[day]?.[p.number];
-        if (!cell || !cell.subjectId) { skipped++; continue; }
-        const sub = cls.subjects.find((s) => s.id === cell.subjectId);
-        const tch = teachers.find((t) => t.id === cell.teacherId) || (sub ? teachers.find((t) => t.id === sub.teacherId) : undefined);
-        if (!sub) continue;
-        const existing = slots.find((s) => s.day === day && s.periodNumber === p.number && s.classId === cls.id && s.sectionId === sec.id);
-        const payload: TimetableSlot = {
-          id: existing?.id ?? `ts-${Date.now().toString(36)}-${day}-${p.number}`,
-          day,
-          periodNumber: p.number,
-          subjectId: sub.id,
-          subjectName: sub.name,
-          subjectCode: sub.code,
-          teacherId: tch?.id ?? sub.teacherId,
-          teacherName: tch?.fullName ?? sub.teacherName,
-          classId: cls.id,
-          className: cls.name,
-          sectionId: sec.id,
-          sectionName: sec.name,
-          roomNumber: cell.room || sec.roomNumber,
-          branchId: cls.branchId,
-          branchName: cls.branchName,
-        };
-        mockDb.saveTimetableSlot(payload);
-        saved++;
-      }
+    const cls = classes.find((c) => c.id === bClassId);
+    const sec = cls?.sections.find((s) => s.id === bSecId);
+    if (!cls || !sec) return toast.error("Class/Section required");
+    let n = 0;
+    for (const d of DAYS) for (const p of lectures) {
+      const cell = grid[d]?.[p.number]; if (!cell?.subjectId) continue;
+      const sub = cls.subjects.find((s) => s.id === cell.subjectId); if (!sub) continue;
+      const tch = teachers.find((t) => t.id === cell.teacherId) || teachers.find((t) => t.id === sub.teacherId);
+      const ex = slots.find((s) => s.day === d && s.periodNumber === p.number && s.classId === cls.id && s.sectionId === sec.id);
+      api.saveSlot({
+        id: ex?.id ?? `ts-${Date.now().toString(36)}-${d}-${p.number}`,
+        day: d, periodNumber: p.number, subjectId: sub.id, subjectName: sub.name, subjectCode: sub.code,
+        teacherId: tch?.id ?? sub.teacherId, teacherName: tch?.fullName ?? sub.teacherName,
+        classId: cls.id, className: cls.name, sectionId: sec.id, sectionName: sec.name,
+        roomNumber: cell.room || sec.roomNumber, branchId: cls.branchId, branchName: cls.branchName,
+      } as TimetableSlot); n++;
     }
-    toast.success(`Full timetable saved: ${saved} slots`, { description: skipped ? `${skipped} empty periods skipped` : "All lecture periods filled" });
-    setBuilderOpen(false);
-    refresh();
+    toast.success(`${n} slots saved`); setBuilderOpen(false); refresh();
   };
 
-  // Auto-fill room when section changes (single slot dialog)
   React.useEffect(() => {
-    if (selectedClass && watch("sectionId")) {
-      const sec = selectedClass.sections.find((s) => s.id === watch("sectionId"));
-      if (sec && !editingSlot) setValue("roomNumber", sec.roomNumber);
+    if (selClass && watch("sectionId")) {
+      const s = selClass.sections.find((x) => x.id === watch("sectionId"));
+      if (s && !editing) setValue("roomNumber", s.roomNumber);
     }
-  }, [watchedClassId, watch("sectionId")]);
-
-  // Auto-fill teacher when subject changes
+  }, [wClassId, watch("sectionId")]);
   React.useEffect(() => {
-    if (watchedSubjectId && selectedClass) {
-      const sub = selectedClass.subjects.find((s) => s.id === watchedSubjectId);
-      if (sub) setValue("teacherId", sub.teacherId);
-    }
-  }, [watchedSubjectId]);
+    if (wSubId && selClass) { const s = selClass.subjects.find((x) => x.id === wSubId); if (s) setValue("teacherId", s.teacherId); }
+  }, [wSubId]);
 
   return (
     <div className="space-y-4">
-      {conflictIds.size > 0 && (
-        <div className="flex items-center gap-2 p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs font-medium">
-          <AlertTriangle className="h-4 w-4 shrink-0" />
-          <span>{conflictIds.size} Schedule Conflicts Detected: Some faculty members are double-booked for the same period.</span>
+      {/* filters */}
+      <div className="flex flex-col xl:flex-row gap-3 p-3 rounded-xl bg-card border">
+        <div className="flex flex-1 flex-wrap gap-2">
+          <Select value={classFilter} onValueChange={setClassFilter}><SelectTrigger className="w-[160px] h-9 text-xs"><SelectValue placeholder="Class" /></SelectTrigger><SelectContent><SelectItem value="ALL">All Classes</SelectItem>{classes.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select>
+          <Select value={dayFilter} onValueChange={setDayFilter}><SelectTrigger className="w-[130px] h-9 text-xs"><SelectValue placeholder="Day" /></SelectTrigger><SelectContent><SelectItem value="ALL">All Days</SelectItem>{DAYS.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent></Select>
+          <div className="relative flex-1 min-w-[200px] max-w-xs"><Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" /><Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search faculty..." className="pl-9 h-9 text-xs" /></div>
         </div>
-      )}
-
-      <div className="flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-3 p-3 rounded-xl bg-card border border-border/70">
-        <div className="flex flex-1 flex-wrap items-center gap-2">
-          <Select value={classFilter} onValueChange={setClassFilter}>
-            <SelectTrigger className="w-[160px] h-9 text-xs">
-              <SelectValue placeholder="Select Class" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">All Classes</SelectItem>
-              {classes.map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Select value={dayFilter} onValueChange={setDayFilter}>
-            <SelectTrigger className="w-[130px] h-9 text-xs">
-              <SelectValue placeholder="Day" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">All Days</SelectItem>
-              {DAYS.map((d) => (
-                <SelectItem key={d} value={d}>
-                  {d}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <div className="relative flex-1 min-w-[200px] max-w-xs">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input value={teacherSearch} onChange={(e) => setTeacherSearch(e.target.value)} placeholder="Search faculty..." className="pl-9 h-9 text-xs" />
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
-            <TabsList className="h-8">
-              <TabsTrigger value="class" className="text-xs px-3">Class View</TabsTrigger>
-              <TabsTrigger value="teacher" className="text-xs px-3">Faculty View</TabsTrigger>
-            </TabsList>
-          </Tabs>
-          <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => { setEditPeriods(periods); setPeriodEditorOpen(true); }}>
-            <Settings2 className="h-3.5 w-3.5" /> Edit Periods & Lunch
-          </Button>
-          <Button onClick={openBuilder} size="sm" variant="secondary" className="gap-1.5 h-8 text-xs">
-            <LayoutGrid className="h-3.5 w-3.5" /> Create Full Timetable
-          </Button>
-          <Button onClick={() => openCreate()} size="sm" variant="gradient" className="gap-1.5 h-8">
-            <Plus className="h-3.5 w-3.5" /> Add Slot
-          </Button>
+        <div className="flex flex-wrap gap-2 items-center">
+          <Tabs value={tab} onValueChange={(v) => setTab(v as any)}><TabsList className="h-8"><TabsTrigger value="class" className="text-xs">Class</TabsTrigger><TabsTrigger value="teacher" className="text-xs">Faculty</TabsTrigger></TabsList></Tabs>
+          <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => { setDraft(periods); setPeriodOpen(true); }}><Settings2 className="h-3.5 w-3.5" /> Edit Periods</Button>
+          <Button variant="secondary" size="sm" className="h-8 text-xs gap-1.5" onClick={openBuilder}><LayoutGrid className="h-3.5 w-3.5" /> Create Full Timetable</Button>
+          <Button variant="gradient" size="sm" className="h-8 gap-1.5" onClick={() => openCreate()}><Plus className="h-3.5 w-3.5" /> Add Slot</Button>
         </div>
       </div>
 
-      <div className="flex items-center gap-2 text-xs text-muted-foreground px-1 flex-wrap">
-        <span className="flex items-center gap-1"><span className="h-3 w-3 rounded bg-amber-400/60 border border-amber-500" /> Lunch Break 13:00-14:00</span>
-        <span className="flex items-center gap-1"><span className="h-3 w-3 rounded bg-sky-400/40 border border-sky-500" /> Short Break</span>
-        <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> Pura time table khud se bana sakte hain — Full Timetable</span>
+      <div className="flex flex-wrap gap-2 text-xs text-muted-foreground px-1">
+        <span className="flex items-center gap-1"><span className="h-3 w-3 rounded bg-amber-400/60 border border-amber-500" /> Lunch</span>
+        <span className="flex items-center gap-1"><span className="h-3 w-3 rounded bg-sky-400/40 border border-sky-500" /> Break</span>
+        <span className="hidden sm:flex items-center gap-1"><Edit3 className="h-3 w-3" /> Period time pe ✏️ se direct edit</span>
       </div>
 
-      {filteredSlots.length === 0 ? (
-        <div className="space-y-3">
-          <EmptyState title="No Timetable Slots Found" description="Pura timetable khud se create karein — lunch & breaks sahit. Full Timetable button se ek sath pura week bhar sakte hain." />
-          <div className="flex justify-center gap-2">
-            <Button onClick={openBuilder} variant="gradient" className="gap-2">
-              <LayoutGrid className="h-4 w-4" /> Create Full Timetable
-            </Button>
-            <Button onClick={() => openCreate()} variant="outline" className="gap-2">
-              <Plus className="h-4 w-4" /> Add Single Slot
-            </Button>
-          </div>
+      {filtered.length === 0 ? (
+        <div className="space-y-3"><EmptyState title="No Slots" description="Full timetable banao ya single slot add karo" />
+          <div className="flex justify-center gap-2"><Button onClick={openBuilder} variant="gradient"><LayoutGrid className="h-4 w-4" /> Create Full</Button><Button onClick={() => openCreate()} variant="outline"><Plus className="h-4 w-4" /> Add Slot</Button></div>
         </div>
       ) : (
-        <div className="rounded-xl border border-border/80 bg-card shadow-xs overflow-x-auto">
+        <div className="rounded-xl border bg-card shadow-sm overflow-x-auto">
           <table className="w-full min-w-[980px] border-collapse">
-            <thead>
-              <tr>
-                <th className="sticky left-0 z-10 bg-muted/50 border-b border-r border-border/80 px-3 py-2 text-left">
-                  <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Period</span>
-                </th>
-                {DAYS.map((day) => (
-                  <th key={day} className="bg-muted/50 border-b border-r border-border/80 last:border-r-0 px-3 py-2 text-center min-w-[140px]">
-                    <span className="text-xs font-bold text-foreground">{day}</span>
-                    <span className="block text-[10px] font-normal text-muted-foreground">{DAY_LABELS[day]}</span>
-                  </th>
-                ))}
-              </tr>
-            </thead>
+            <thead><tr>
+              <th className="sticky left-0 z-10 bg-muted/50 border-b border-r px-3 py-2 text-left text-[11px] font-semibold text-muted-foreground uppercase">Period</th>
+              {DAYS.map((d) => <th key={d} className="bg-muted/50 border-b border-r last:border-r-0 px-3 py-2 text-center min-w-[140px]"><div className="text-xs font-bold">{d}</div><div className="text-[10px] font-normal text-muted-foreground">{DAY_SHORT[d]}</div></th>)}
+            </tr></thead>
             <tbody>
-              {periods.map((period) => {
-                const isBreak = !!period.isBreak;
-                if (isBreak) {
-                  const Icon = period.type === "LUNCH" ? Utensils : Coffee;
+              {periods.map((p) => {
+                if (p.isBreak) {
+                  const Icon = p.type === "LUNCH" ? Utensils : Coffee;
+                  const editing = inlineId === p.id;
                   return (
-                    <tr key={period.id} className={period.type === "LUNCH" ? "bg-amber-400/10" : "bg-sky-500/5"}>
-                      <td className="sticky left-0 z-10 border-r border-border/80 px-3 py-2 align-middle min-w-[120px]" style={{ background: period.type === "LUNCH" ? "rgb(251 191 36 / 0.15)" : "rgb(14 165 233 / 0.08)" }}>
-                        <span className="text-xs font-bold flex items-center gap-1"><Icon className="h-3 w-3" /> {period.label}</span>
-                        <span className="text-[10px] text-muted-foreground flex items-center gap-1"><Clock className="h-3 w-3" /> {period.startTime} - {period.endTime}</span>
+                    <tr key={p.id} className={p.type === "LUNCH" ? "bg-amber-400/10" : "bg-sky-500/5"}>
+                      <td className="sticky left-0 z-10 border-r px-3 py-2 min-w-[160px]" style={{ background: p.type === "LUNCH" ? "rgb(251 191 36 / 0.12)" : "rgb(14 165 233 / 0.07)" }}>
+                        <div className="text-xs font-bold flex items-center gap-1"><Icon className="h-3 w-3" /> {p.label}</div>
+                        {editing ? (
+                          <div className="flex items-center gap-1 mt-1"><Input type="time" value={inlineS} onChange={(e) => setInlineS(e.target.value)} className="h-7 w-[88px] text-xs" /><span className="text-xs">-</span><Input type="time" value={inlineE} onChange={(e) => setInlineE(e.target.value)} className="h-7 w-[88px] text-xs" /><Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => saveInline(p.id)}><Save className="h-3 w-3 text-emerald-600" /></Button><Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setInlineId(null)}><X className="h-3 w-3" /></Button></div>
+                        ) : (
+                          <div className="text-[11px] text-muted-foreground flex items-center gap-1"><Clock className="h-3 w-3" /> {p.startTime}–{p.endTime}<button onClick={() => startInline(p)} className="ml-1 p-0.5 hover:bg-black/5 rounded"><Edit3 className="h-3 w-3" /></button></div>
+                        )}
                       </td>
-                      <td colSpan={6} className="px-3 py-3 text-center">
-                        <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold border ${period.type === "LUNCH" ? "bg-amber-500 text-white border-amber-600" : "bg-sky-500 text-white border-sky-600"}`}>
-                          <Icon className="h-3.5 w-3.5" /> {period.label} — {period.startTime} to {period.endTime} {period.type === "LUNCH" ? "• Sabhi classes ke liye lunch" : "• Break"}
-                        </div>
-                      </td>
+                      <td colSpan={6} className="text-center py-3"><span className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold text-white ${p.type === "LUNCH" ? "bg-amber-500" : "bg-sky-500"}`}><Icon className="h-3.5 w-3.5" /> {p.label} — {p.startTime} to {p.endTime}</span></td>
                     </tr>
                   );
                 }
+                const editing = inlineId === p.id;
                 return (
-                  <tr key={period.id} className="border-b border-border/60 last:border-b-0">
-                    <td className="sticky left-0 z-10 bg-card border-r border-border/80 px-3 py-3 align-top min-w-[120px]">
-                      <span className="text-xs font-bold text-foreground block">Period {period.number}</span>
-                      <span className="text-[10px] text-muted-foreground block flex items-center gap-1 mt-0.5">
-                        <Clock className="h-3 w-3" /> {period.startTime} - {period.endTime}
-                      </span>
-                      <span className="text-[10px] text-muted-foreground">{period.label}</span>
+                  <tr key={p.id} className="border-b last:border-0">
+                    <td className="sticky left-0 z-10 bg-card border-r px-3 py-3 min-w-[160px] align-top">
+                      <div className="text-xs font-bold">Period {p.number}</div>
+                      {editing ? (
+                        <div className="flex items-center gap-1 mt-1"><Input type="time" value={inlineS} onChange={(e) => setInlineS(e.target.value)} className="h-7 w-[88px] text-xs" /><span>-</span><Input type="time" value={inlineE} onChange={(e) => setInlineE(e.target.value)} className="h-7 w-[88px] text-xs" /><Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => saveInline(p.id)}><Save className="h-3 w-3 text-emerald-600" /></Button><Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setInlineId(null)}><X className="h-3 w-3" /></Button></div>
+                      ) : (
+                        <div className="text-[11px] text-muted-foreground flex items-center gap-1"><Clock className="h-3 w-3" /> {p.startTime}–{p.endTime}<button onClick={() => startInline(p)} className="ml-1 p-0.5 hover:bg-muted rounded"><Edit3 className="h-3 w-3" /></button></div>
+                      )}
+                      <div className="text-[10px] text-muted-foreground">{p.label}</div>
                     </td>
                     {DAYS.map((day) => {
-                      const daySlots = classViewGrid[day]?.[period.number] || [];
+                      const list = classGrid[day]?.[p.number] || [];
                       return (
-                        <td key={day} className="border-r border-border/60 last:border-r-0 p-1.5 align-top min-h-[70px]">
-                          {daySlots.length === 0 ? (
-                            <button
-                              onClick={() => openCreate(day, period.number)}
-                              className="w-full h-full min-h-[56px] rounded-lg border border-dashed border-border/40 flex flex-col items-center justify-center text-[10px] text-muted-foreground/60 hover:border-primary/40 hover:text-primary hover:bg-primary/5 transition-colors"
-                            >
-                              <Plus className="h-3 w-3" /> Free
-                            </button>
+                        <td key={day} className="border-r last:border-0 p-1.5 align-top">
+                          {list.length === 0 ? (
+                            <button onClick={() => openCreate(day, p.number)} className="w-full min-h-[56px] rounded-lg border border-dashed flex flex-col items-center justify-center text-[10px] text-muted-foreground/60 hover:border-primary/40 hover:text-primary hover:bg-primary/5"><Plus className="h-3 w-3" /> Free</button>
                           ) : (
                             <div className="space-y-1">
-                              {daySlots.map((slot) => {
-                                const isConflict = conflictIds.has(slot.id);
-                                return (
-                                  <div
-                                    key={slot.id}
-                                    className={`group relative p-2 rounded-lg border-l-3 text-xs space-y-1 transition-all shadow-2xs ${getSubjectColor(slot.subjectId)} ${isConflict ? "ring-2 ring-destructive/80 bg-destructive/10" : "border-border/60"}`}
-                                  >
-                                    <div className="flex items-center justify-between gap-1">
-                                      <span className="font-bold text-foreground text-xs truncate">{slot.subjectName}</span>
-                                      {isConflict && <AlertTriangle className="h-3 w-3 text-destructive shrink-0" />}
-                                    </div>
-                                    <div className="text-[11px] text-muted-foreground truncate">{slot.teacherName}</div>
-                                    <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-0.5">
-                                      <span>{slot.className} • {slot.sectionName?.split(" ")[0]} {slot.sectionName?.split(" ")[1]}</span>
-                                      <span className="font-mono">Rm {slot.roomNumber}</span>
-                                    </div>
-                                    <div className="flex gap-1 pt-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => openEdit(slot)}>
-                                        <Edit3 className="h-3 w-3" />
-                                      </Button>
-                                      <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:text-destructive" onClick={() => handleDelete(slot.id)}>
-                                        <Trash2 className="h-3 w-3" />
-                                      </Button>
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                              <Button variant="ghost" size="sm" className="w-full h-6 text-[10px] gap-1 mt-1" onClick={() => openCreate(day, period.number)}>
-                                <Plus className="h-3 w-3" /> Add
-                              </Button>
+                              {list.map((s) => (
+                                <div key={s.id} className={`group p-2 rounded-lg border-l-[3px] text-xs shadow-xs ${getColor(s.subjectId)}`}>
+                                  <div className="font-bold truncate">{s.subjectName}</div>
+                                  <div className="text-[11px] text-muted-foreground truncate">{s.teacherName}</div>
+                                  <div className="flex justify-between text-[10px] text-muted-foreground pt-0.5"><span>{s.className} • {s.sectionName.split(" ").slice(0,2).join(" ")}</span><span className="font-mono">{s.roomNumber}</span></div>
+                                  <div className="hidden group-hover:flex gap-1 pt-1"><Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => openEdit(s)}><Edit3 className="h-3 w-3" /></Button><Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => { api.deleteSlot(s.id); refresh(); toast.success("Deleted"); }}><Trash2 className="h-3 w-3" /></Button></div>
+                                </div>
+                              ))}
+                              <Button variant="ghost" size="sm" className="w-full h-6 text-[10px]" onClick={() => openCreate(day, p.number)}><Plus className="h-3 w-3" /> Add</Button>
                             </div>
                           )}
                         </td>
@@ -571,201 +295,79 @@ export function TimetableGridView() {
         </div>
       )}
 
-      <div className="text-xs text-muted-foreground px-1">
-        Lunch & breaks har din same rahenge — periods ko Edit Periods se time badal sakte hain. Pura timetable ek sath banane ke liye <strong>Create Full Timetable</strong> use karein — class/section select karke har din ke 8 periods ek sath bhar sakte hain.
-      </div>
-
-      {/* Single Slot Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      {/* Add/Edit Slot */}
+      <Dialog open={slotOpen} onOpenChange={setSlotOpen}>
         <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>{editingSlot ? "Edit Timetable Slot" : "Create Timetable Slot"}</DialogTitle>
-            <DialogDescription>Lecture period ke liye subject, faculty aur room assign karein — lunch/break me slot nahi banta.</DialogDescription>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>{editing ? "Edit Slot" : "Add Slot"}</DialogTitle><DialogDescription>Lecture period ke liye subject & room</DialogDescription></DialogHeader>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-3 mt-2">
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-medium block mb-1">Day</label>
-                <Select value={watch("day")} onValueChange={(v) => setValue("day", v)}>
-                  <SelectTrigger className={errors.day ? "border-rose-500" : ""}><SelectValue /></SelectTrigger>
-                  <SelectContent>{DAYS.map((d) => <SelectItem key={d} value={d}>{d} ({DAY_LABELS[d]})</SelectItem>)}</SelectContent>
-                </Select>
-                {errors.day && <p className="text-[11px] text-rose-500 mt-1">{errors.day.message}</p>}
-              </div>
-              <div>
-                <label className="text-xs font-medium block mb-1">Period (Lecture only)</label>
-                <Select value={watch("periodNumber")} onValueChange={(v) => setValue("periodNumber", v)}>
-                  <SelectTrigger className={errors.periodNumber ? "border-rose-500" : ""}><SelectValue /></SelectTrigger>
-                  <SelectContent>{lecturePeriods.map((p) => <SelectItem key={p.number} value={String(p.number)}>P{p.number} — {p.startTime}-{p.endTime} ({p.label})</SelectItem>)}</SelectContent>
-                </Select>
-                {errors.periodNumber && <p className="text-[11px] text-rose-500 mt-1">{errors.periodNumber.message}</p>}
-              </div>
+              <div><label className="text-xs font-medium">Day</label><Select value={watch("day")} onValueChange={(v) => setValue("day", v)}><SelectTrigger className={errors.day ? "border-rose-500" : ""}><SelectValue /></SelectTrigger><SelectContent>{DAYS.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent></Select></div>
+              <div><label className="text-xs font-medium">Period</label><Select value={watch("periodNumber")} onValueChange={(v) => setValue("periodNumber", v)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{lectures.map((p) => <SelectItem key={p.number} value={String(p.number)}>P{p.number} {p.startTime}-{p.endTime}</SelectItem>)}</SelectContent></Select></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-medium block mb-1">Class</label>
-                <Select value={watch("classId")} onValueChange={(v) => { setValue("classId", v); setValue("sectionId", ""); setValue("subjectId", ""); }}>
-                  <SelectTrigger className={errors.classId ? "border-rose-500" : ""}><SelectValue placeholder="Select Class" /></SelectTrigger>
-                  <SelectContent>{classes.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
-                </Select>
-                {errors.classId && <p className="text-[11px] text-rose-500 mt-1">{errors.classId.message}</p>}
-              </div>
-              <div>
-                <label className="text-xs font-medium block mb-1">Section</label>
-                <Select value={watch("sectionId")} onValueChange={(v) => setValue("sectionId", v)} disabled={!selectedClass}>
-                  <SelectTrigger className={errors.sectionId ? "border-rose-500" : ""}><SelectValue placeholder={selectedClass ? "Select Section" : "Pick class first"} /></SelectTrigger>
-                  <SelectContent>{sections.map((s) => <SelectItem key={s.id} value={s.id}>{s.name} — {s.roomNumber}</SelectItem>)}</SelectContent>
-                </Select>
-                {errors.sectionId && <p className="text-[11px] text-rose-500 mt-1">{errors.sectionId.message}</p>}
-              </div>
+              <div><label className="text-xs font-medium">Class</label><Select value={watch("classId")} onValueChange={(v) => { setValue("classId", v); setValue("sectionId", ""); setValue("subjectId", ""); }}><SelectTrigger><SelectValue placeholder="Class" /></SelectTrigger><SelectContent>{classes.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select></div>
+              <div><label className="text-xs font-medium">Section</label><Select value={watch("sectionId")} onValueChange={(v) => setValue("sectionId", v)}><SelectTrigger><SelectValue placeholder="Section" /></SelectTrigger><SelectContent>{selClass?.sections.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent></Select></div>
             </div>
-            <div>
-              <label className="text-xs font-medium block mb-1">Subject</label>
-              <Select value={watch("subjectId")} onValueChange={(v) => setValue("subjectId", v)} disabled={!selectedClass}>
-                <SelectTrigger className={errors.subjectId ? "border-rose-500" : ""}><SelectValue placeholder="Select Subject" /></SelectTrigger>
-                <SelectContent>{subjects.map((s) => <SelectItem key={s.id} value={s.id}>{s.name} ({s.code})</SelectItem>)}</SelectContent>
-              </Select>
-              {errors.subjectId && <p className="text-[11px] text-rose-500 mt-1">{errors.subjectId.message}</p>}
-            </div>
-            <div>
-              <label className="text-xs font-medium block mb-1">Teacher</label>
-              <Select value={watch("teacherId")} onValueChange={(v) => setValue("teacherId", v)}>
-                <SelectTrigger className={errors.teacherId ? "border-rose-500" : ""}><SelectValue placeholder="Select Faculty" /></SelectTrigger>
-                <SelectContent>{teachers.map((t) => <SelectItem key={t.id} value={t.id}>{t.fullName} — {t.department}</SelectItem>)}</SelectContent>
-              </Select>
-              {errors.teacherId && <p className="text-[11px] text-rose-500 mt-1">{errors.teacherId.message}</p>}
-            </div>
-            <div>
-              <label className="text-xs font-medium block mb-1">Room Number</label>
-              <Input {...register("roomNumber")} placeholder="e.g. Room 301 / Lab 12" className={errors.roomNumber ? "border-rose-500" : ""} />
-              {errors.roomNumber && <p className="text-[11px] text-rose-500 mt-1">{errors.roomNumber.message}</p>}
-            </div>
-            <DialogFooter className="gap-2 pt-2">
-              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-              <Button type="submit" variant="gradient" className="gap-1"><Save className="h-3.5 w-3.5" /> {editingSlot ? "Update Slot" : "Create Slot"}</Button>
-            </DialogFooter>
+            <div><label className="text-xs font-medium">Subject</label><Select value={watch("subjectId")} onValueChange={(v) => setValue("subjectId", v)}><SelectTrigger><SelectValue placeholder="Subject" /></SelectTrigger><SelectContent>{selClass?.subjects.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent></Select></div>
+            <div><label className="text-xs font-medium">Teacher</label><Select value={watch("teacherId")} onValueChange={(v) => setValue("teacherId", v)}><SelectTrigger><SelectValue placeholder="Teacher" /></SelectTrigger><SelectContent>{teachers.map((t) => <SelectItem key={t.id} value={t.id}>{t.fullName}</SelectItem>)}</SelectContent></Select></div>
+            <div><label className="text-xs font-medium">Room</label><Input {...register("roomNumber")} placeholder="Room 301" /></div>
+            <DialogFooter><Button type="button" variant="outline" onClick={() => setSlotOpen(false)}>Cancel</Button><Button type="submit" variant="gradient"><Save className="h-3.5 w-3.5" /> {editing ? "Update" : "Create"}</Button></DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
-      {/* Period Editor */}
-      <Dialog open={periodEditorOpen} onOpenChange={setPeriodEditorOpen}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><Settings2 className="h-4 w-4" /> Edit Periods & Lunch Breaks</DialogTitle>
-            <DialogDescription>Har period ka time + lunch/break khud se set karein. Changes localStorage me save honge — pura school ka bell timing yahin se control.</DialogDescription>
+      {/* Period Editor — chhota compact innerscroll */}
+      <Dialog open={periodOpen} onOpenChange={setPeriodOpen}>
+        <DialogContent className="max-w-md !max-h-[70vh] !flex !flex-col !p-0 !gap-0 !overflow-hidden sm:!max-w-[440px]">
+          <DialogHeader className="px-4 pt-4 pb-2.5 border-b shrink-0 bg-background">
+            <DialogTitle className="flex items-center gap-2 pr-8 text-sm"><span className="h-7 w-7 rounded-lg bg-primary/10 text-primary grid place-items-center shrink-0"><Settings2 className="h-3.5 w-3.5" /></span> Edit Periods & Lunch Breaks</DialogTitle>
+            <DialogDescription className="text-[11px] leading-tight">Har period ka time + lunch/break</DialogDescription>
           </DialogHeader>
-          <div className="space-y-2 mt-3">
-            {editPeriods.map((p, idx) => (
-              <div key={p.id} className={`flex items-center gap-2 p-2 rounded-lg border ${p.isBreak ? (p.type === "LUNCH" ? "bg-amber-50 border-amber-200" : "bg-sky-50 border-sky-200") : "bg-card"}`}>
-                <Badge variant={p.isBreak ? (p.type === "LUNCH" ? "warning" : "info") : "outline"} className="text-[10px] shrink-0">{p.isBreak ? p.type : `P${p.number}`}</Badge>
-                <Input value={p.label} onChange={(e) => setEditPeriods((prev) => prev.map((x, i) => i === idx ? { ...x, label: e.target.value } : x))} className="h-8 text-xs flex-1" placeholder="Label" />
-                <Input type="time" value={p.startTime} onChange={(e) => setEditPeriods((prev) => prev.map((x, i) => i === idx ? { ...x, startTime: e.target.value } : x))} className="h-8 text-xs w-[110px]" />
-                <span className="text-xs">-</span>
-                <Input type="time" value={p.endTime} onChange={(e) => setEditPeriods((prev) => prev.map((x, i) => i === idx ? { ...x, endTime: e.target.value } : x))} className="h-8 text-xs w-[110px]" />
-                <Select value={p.type || "LECTURE"} onValueChange={(v) => setEditPeriods((prev) => prev.map((x, i) => i === idx ? { ...x, type: v as any, isBreak: v !== "LECTURE" } : x))}>
-                  <SelectTrigger className="h-8 w-[110px] text-xs"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="LECTURE">Lecture</SelectItem>
-                    <SelectItem value="BREAK">Break</SelectItem>
-                    <SelectItem value="LUNCH">Lunch</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => setEditPeriods((prev) => prev.filter((_, i) => i !== idx))}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
-              </div>
-            ))}
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" className="h-8 text-xs gap-1" onClick={() => setEditPeriods((prev) => [...prev, { id: `per-${Date.now()}`, number: prev.filter((p) => !p.isBreak).length + 1, label: `Period ${prev.filter((p) => !p.isBreak).length + 1}`, startTime: "15:30", endTime: "16:15", type: "LECTURE" }])}><Plus className="h-3.5 w-3.5" /> Add Lecture</Button>
-              <Button variant="outline" size="sm" className="h-8 text-xs gap-1" onClick={() => setEditPeriods((prev) => [...prev, { id: `per-break-${Date.now()}`, number: 0, label: "Short Break", startTime: "10:00", endTime: "10:15", type: "BREAK", isBreak: true }])}><Coffee className="h-3.5 w-3.5" /> Add Break</Button>
-              <Button variant="outline" size="sm" className="h-8 text-xs gap-1" onClick={() => setEditPeriods((prev) => [...prev, { id: `per-lunch-${Date.now()}`, number: 0, label: "Lunch Break", startTime: "13:00", endTime: "14:00", type: "LUNCH", isBreak: true }])}><Utensils className="h-3.5 w-3.5" /> Add Lunch</Button>
-              <Button variant="ghost" size="sm" className="h-8 text-xs ml-auto" onClick={() => setEditPeriods(defaultPeriods)}>Reset to Default</Button>
-            </div>
+
+          <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-2.5 bg-muted/20">
+            <div className="flex gap-2.5 text-[10px] text-muted-foreground"><span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Lect</span><span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-sky-500" /> Break</span><span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-amber-500" /> Lunch</span><span className="ml-auto">{draft.length} slots</span></div>
+            {draft.map((p, idx) => {
+              const isLunch = p.type === "LUNCH", isBreak = !!p.isBreak;
+              return (
+                <div key={p.id} className={`rounded-xl border p-2.5 bg-card shadow-xs ${isLunch ? "border-amber-200 dark:border-amber-900" : isBreak ? "border-sky-200 dark:border-sky-900" : "border-border/60"}`}>
+                  <div className="flex items-center gap-1.5">
+                    <Badge variant={isLunch ? "warning" : isBreak ? "info" : "secondary"} className="shrink-0 text-[10px] px-2 py-0 rounded-full leading-none h-5">{isLunch ? "LUNCH" : isBreak ? "BREAK" : `P${p.number || idx + 1}`}</Badge>
+                    <Input value={p.label} onChange={(e) => setDraft((a) => a.map((x, i) => i === idx ? { ...x, label: e.target.value } : x))} className="h-7 flex-1 rounded-full bg-muted/40 border-0 text-xs font-medium px-3 focus-visible:ring-1" placeholder="Label" />
+                    <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 rounded-full hover:bg-destructive/10 hover:text-destructive" onClick={() => setDraft((a) => a.filter((_, i) => i !== idx))}><Trash2 className="h-3.5 w-3.5" /></Button>
+                  </div>
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    <div className="space-y-1"><label className="text-[10px] font-semibold tracking-wider text-muted-foreground flex items-center gap-1"><Clock className="h-2.5 w-2.5" /> START</label><Input type="time" value={p.startTime} onChange={(e) => setDraft((a) => a.map((x, i) => i === idx ? { ...x, startTime: e.target.value } : x))} className="h-7 rounded-full bg-muted/30 border-border/40 text-xs px-2.5 w-full" /></div>
+                    <div className="space-y-1"><label className="text-[10px] font-semibold tracking-wider text-muted-foreground flex items-center gap-1"><Clock className="h-2.5 w-2.5" /> END</label><Input type="time" value={p.endTime} onChange={(e) => setDraft((a) => a.map((x, i) => i === idx ? { ...x, endTime: e.target.value } : x))} className="h-7 rounded-full bg-muted/30 border-border/40 text-xs px-2.5 w-full" /></div>
+                  </div>
+                  <div className="mt-2 space-y-1"><label className="text-[10px] font-semibold tracking-wider text-muted-foreground">TYPE</label><Select value={p.type || "LECTURE"} onValueChange={(v) => setDraft((a) => a.map((x, i) => i === idx ? { ...x, type: v as any, isBreak: v !== "LECTURE" } : x))}><SelectTrigger className="h-7 rounded-full bg-muted/30 border-border/40 px-3 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="LECTURE">Lecture</SelectItem><SelectItem value="BREAK">Break</SelectItem><SelectItem value="LUNCH">Lunch</SelectItem></SelectContent></Select></div>
+                  <div className="mt-1.5 flex items-center gap-1 text-[10px] text-muted-foreground"><span className={`h-1 w-1 rounded-full ${isLunch ? "bg-amber-500" : isBreak ? "bg-sky-500" : "bg-emerald-500"}`} />{isLunch ? "Lunch" : isBreak ? "Break" : `P${p.number || idx + 1}`}<span className="ml-auto font-mono text-[10px]">{p.startTime}–{p.endTime}</span></div>
+                </div>
+              );
+            })}
           </div>
-          <DialogFooter className="gap-2 pt-4">
-            <Button variant="outline" onClick={() => setPeriodEditorOpen(false)}>Cancel</Button>
-            <Button variant="gradient" onClick={() => { persistPeriods(editPeriods); setPeriodEditorOpen(false); toast.success("Periods & lunch timing updated"); }} className="gap-1"><Save className="h-3.5 w-3.5" /> Save Periods</Button>
-          </DialogFooter>
+
+          <div className="px-4 py-2.5 border-t bg-card shrink-0 flex flex-wrap gap-1.5">
+            <Button variant="outline" size="sm" className="rounded-full h-7 text-[11px] px-2.5 gap-1" onClick={() => setDraft((a) => [...a, { id: `per-${Date.now()}`, number: a.filter((x) => !x.isBreak).length + 1, label: `Period ${a.filter((x) => !x.isBreak).length + 1}`, startTime: "15:30", endTime: "16:15", type: "LECTURE" }])}><Plus className="h-3 w-3" /> Lect</Button>
+            <Button variant="outline" size="sm" className="rounded-full h-7 text-[11px] px-2.5 gap-1" onClick={() => setDraft((a) => [...a, { id: `per-break-${Date.now()}`, number: 0, label: "Short Break", startTime: "10:00", endTime: "10:15", type: "BREAK", isBreak: true }])}><Coffee className="h-3 w-3" /> Break</Button>
+            <Button variant="outline" size="sm" className="rounded-full h-7 text-[11px] px-2.5 gap-1" onClick={() => setDraft((a) => [...a, { id: `per-lunch-${Date.now()}`, number: 0, label: "Lunch Break", startTime: "13:00", endTime: "14:00", type: "LUNCH", isBreak: true }])}><Utensils className="h-3 w-3" /> Lunch</Button>
+            <Button variant="ghost" size="sm" className="ml-auto h-7 text-[11px] px-2" onClick={() => setDraft(defaultPeriods)}>Reset</Button>
+          </div>
+          <DialogFooter className="px-4 py-2.5 border-t bg-muted/20 shrink-0 gap-2"><Button variant="outline" size="sm" className="rounded-full h-8 text-xs" onClick={() => setPeriodOpen(false)}>Cancel</Button><Button size="sm" className="rounded-full h-8 text-xs gap-1" variant="gradient" onClick={() => { savePeriods(draft); setPeriodOpen(false); toast.success("Periods updated"); }}><Save className="h-3 w-3" /> Save</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Full Timetable Builder */}
+      {/* Builder */}
       <Dialog open={builderOpen} onOpenChange={setBuilderOpen}>
-        <DialogContent className="max-w-[95vw] w-[1150px] max-h-[90vh] overflow-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><LayoutGrid className="h-4 w-4" /> Create Full Timetable — Pura Week Ek Sath</DialogTitle>
-            <DialogDescription>Class + Section select karke har din ke 8 lecture periods ek sath bhar sakte hain. Lunch/Break auto lagega — sirf lecture periods fill karein. Khud se pura timetable create karein.</DialogDescription>
-          </DialogHeader>
-          <div className="flex flex-wrap gap-3 p-2 rounded-lg bg-muted/30 border">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-medium">Class *</span>
-              <Select value={builderClassId} onValueChange={handleBuilderClassChange}>
-                <SelectTrigger className="w-[160px] h-8 text-xs"><SelectValue /></SelectTrigger>
-                <SelectContent>{classes.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-medium">Section *</span>
-              <Select value={builderSectionId} onValueChange={(v) => setBuilderSectionId(v)}>
-                <SelectTrigger className="w-[160px] h-8 text-xs"><SelectValue /></SelectTrigger>
-                <SelectContent>{builderSections.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <span className="text-[11px] text-muted-foreground self-center">Bina ek-ek cell khole, pura week ka matrix bhar ke Save karein. Subject change par teacher auto-fill.</span>
-          </div>
+        <DialogContent className="max-w-[95vw] w-[1120px] max-h-[90vh] overflow-auto">
+          <DialogHeader><DialogTitle className="flex items-center gap-2"><LayoutGrid className="h-4 w-4" /> Full Timetable</DialogTitle><DialogDescription>Class/Section ka pura week ek sath</DialogDescription></DialogHeader>
+          <div className="flex gap-3 p-2 bg-muted/20 rounded-lg border"><Select value={bClassId} onValueChange={(v) => { setBClassId(v); setBSecId(classes.find((c) => c.id === v)?.sections[0]?.id || ""); }}><SelectTrigger className="w-[160px] h-8 text-xs"><SelectValue /></SelectTrigger><SelectContent>{classes.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select><Select value={bSecId} onValueChange={setBSecId}><SelectTrigger className="w-[160px] h-8 text-xs"><SelectValue /></SelectTrigger><SelectContent>{bClass?.sections.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent></Select></div>
           <div className="overflow-x-auto border rounded-xl">
             <table className="w-full min-w-[900px] border-collapse">
-              <thead>
-                <tr className="bg-muted/50">
-                  <th className="border p-2 text-xs text-left w-[100px]">Day / Period</th>
-                  {lecturePeriods.map((p) => (
-                    <th key={p.number} className="border p-1.5 text-center">
-                      <div className="text-xs font-bold">P{p.number}</div>
-                      <div className="text-[10px] text-muted-foreground">{p.startTime}-{p.endTime}</div>
-                      <div className="text-[10px]"> {p.label}</div>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {DAYS.map((day) => (
-                  <tr key={day} className="border-t">
-                    <td className="border p-2 bg-muted/20">
-                      <div className="text-xs font-bold">{day} <span className="text-[10px] font-normal">({DAY_LABELS[day]})</span></div>
-                      <Button variant="ghost" size="sm" className="h-6 text-[10px] gap-1 mt-1" onClick={() => copyDayToAll(day)}><Copy className="h-3 w-3" /> Copy to all</Button>
-                    </td>
-                    {lecturePeriods.map((p) => {
-                      const cell = builderGrid[day]?.[p.number] || { subjectId: "", teacherId: "", room: "" };
-                      return (
-                        <td key={p.number} className="border p-1 align-top">
-                          <div className="space-y-1">
-                            <Select value={cell.subjectId} onValueChange={(v) => handleBuilderCellChange(day, p.number, "subjectId", v)}>
-                              <SelectTrigger className="h-7 text-[11px]"><SelectValue placeholder="Subject" /></SelectTrigger>
-                              <SelectContent>{builderSubjects.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
-                            </Select>
-                            <Select value={cell.teacherId} onValueChange={(v) => handleBuilderCellChange(day, p.number, "teacherId", v)}>
-                              <SelectTrigger className="h-7 text-[11px]"><SelectValue placeholder="Teacher" /></SelectTrigger>
-                              <SelectContent>{teachers.map((t) => <SelectItem key={t.id} value={t.id}>{t.fullName}</SelectItem>)}</SelectContent>
-                            </Select>
-                            <Input value={cell.room} onChange={(e) => handleBuilderCellChange(day, p.number, "room", e.target.value)} placeholder="Room" className="h-7 text-[11px]" />
-                          </div>
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-                {/* Lunch/Break info row */}
-                <tr className="bg-amber-50 dark:bg-amber-950/20">
-                  <td colSpan={lecturePeriods.length + 1} className="border p-2 text-center text-xs">
-                    <span className="inline-flex items-center gap-2"><Utensils className="h-3 w-3" /> Lunch 13:00-14:00 + Short Breaks auto — inke liye slot nahi banana padta</span>
-                  </td>
-                </tr>
-              </tbody>
+              <thead><tr className="bg-muted/50"><th className="border p-2 text-xs text-left w-[110px]">Day</th>{lectures.map((p) => <th key={p.number} className="border p-1.5 text-center"><div className="text-xs font-bold">P{p.number}</div><div className="text-[10px] text-muted-foreground">{p.startTime}</div></th>)}</tr></thead>
+              <tbody>{DAYS.map((d) => <tr key={d}><td className="border p-2 bg-muted/20"><div className="text-xs font-bold">{d}</div><Button variant="ghost" size="sm" className="h-6 text-[10px] gap-1 mt-1" onClick={() => { const src = grid[d]; if (!src) return; const n: any = { ...grid }; for (const x of DAYS) if (x !== d) n[x] = Object.fromEntries(Object.entries(src).map(([k, v]) => [k, { ...(v as any) }])); setGrid(n); toast.success(`${d} copied`); }}><Copy className="h-3 w-3" /> Copy</Button></td>{lectures.map((p) => { const c = grid[d]?.[p.number] || { subjectId: "", teacherId: "", room: "" }; return <td key={p.number} className="border p-1"><div className="space-y-1"><Select value={c.subjectId} onValueChange={(v) => setGrid((a) => { const n = { ...a, [d]: { ...a[d] } }; const cell = { ...n[d][p.number] } as any; cell.subjectId = v; const sub = bClass?.subjects.find((s) => s.id === v); if (sub) cell.teacherId = sub.teacherId; n[d][p.number] = cell; return n; })}><SelectTrigger className="h-7 text-[11px]"><SelectValue placeholder="Subject" /></SelectTrigger><SelectContent>{bClass?.subjects.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent></Select><Select value={c.teacherId} onValueChange={(v) => setGrid((a) => { const n = { ...a, [d]: { ...a[d] } }; n[d][p.number] = { ...n[d][p.number], teacherId: v }; return n; })}><SelectTrigger className="h-7 text-[11px]"><SelectValue placeholder="Teacher" /></SelectTrigger><SelectContent>{teachers.map((t) => <SelectItem key={t.id} value={t.id}>{t.fullName}</SelectItem>)}</SelectContent></Select><Input value={c.room} onChange={(e) => setGrid((a) => { const n = { ...a, [d]: { ...a[d] } }; n[d][p.number] = { ...n[d][p.number], room: e.target.value }; return n; })} placeholder="Room" className="h-7 text-[11px]" /></div></td>; })}</tr>)}</tbody>
             </table>
           </div>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setBuilderOpen(false)}>Cancel</Button>
-            <Button variant="gradient" onClick={saveBuilder} className="gap-1"><Save className="h-3.5 w-3.5" /> Save Full Timetable ({lecturePeriods.length * DAYS.length} periods)</Button>
-          </DialogFooter>
+          <DialogFooter><Button variant="outline" onClick={() => setBuilderOpen(false)}>Cancel</Button><Button variant="gradient" onClick={saveBuilder}><Save className="h-3.5 w-3.5" /> Save Full</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

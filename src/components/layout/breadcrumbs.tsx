@@ -24,7 +24,6 @@ const routeLabels: Record<string, string> = {
   announcements: "Announcements",
   messages: "Messages",
   events: "Events Calendar",
-  inventory: "Inventory & Stock — Uniform & Stationery",
   expenses: "Expenses & Ledger",
   payroll: "Payroll",
   documents: "Documents",

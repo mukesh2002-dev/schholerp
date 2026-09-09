@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { useERP } from "@/components/providers/erp-provider";
 import { mockDb } from "@/lib/services/mock-db";
@@ -24,7 +24,11 @@ import {
   TableHead,
   TableCell,
 } from "@/components/ui/table";
-import { Briefcase, ExternalLink } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
+import { Briefcase, ExternalLink, Plus, Edit3, Trash2, Save } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
 const statusConfig: Record<PayrollStatus, { label: string; variant: "outline" | "secondary" | "success" | "info" | "warning" | "purple" | "rose" }> = {
@@ -42,8 +46,25 @@ const months = [
 export function PayrollDirectoryView() {
   const { activeBranchId } = useERP();
   const [records] = useState(() => mockDb.getPayrollRecords(activeBranchId));
-  const [structures] = useState(() => mockDb.getSalaryStructures());
+  const [structures, setStructures] = useState(() => mockDb.getSalaryStructures());
   const [selectedMonth, setSelectedMonth] = useState("August");
+  const [editOpen, setEditOpen] = useState(false);
+  const [editing, setEditing] = useState<any>(null);
+  const [form, setForm] = useState({ name: "", base: "65000", desc: "", allowances: [{ name: "HRA", amount: "15000" }], deductions: [{ name: "PF", amount: "7800" }] });
+  useEffect(() => {
+    const h = () => setStructures([...mockDb.getSalaryStructures()]);
+    window.addEventListener("payroll:updated", h); return () => window.removeEventListener("payroll:updated", h);
+  }, []);
+  const openEdit = (s: any) => { setEditing(s); setForm({ name: s.name, base: String(s.baseSalary), desc: s.description, allowances: s.allowances.map((a: any) => ({ ...a, amount: String(a.amount) })), deductions: s.deductions.map((d: any) => ({ ...d, amount: String(d.amount) })) }); setEditOpen(true); };
+  const openCreate = () => { setEditing(null); setForm({ name: "", base: "40000", desc: "", allowances: [{ name: "HRA", amount: "10000" }], deductions: [{ name: "PF", amount: "4000" }] }); setEditOpen(true); };
+  const saveStructure = () => {
+    if (!form.name || !form.base) return toast.error("Name & base required");
+    const base = Number(form.base);
+    const allowances = form.allowances.filter((a) => a.name && Number(a.amount) >= 0).map((a) => ({ name: a.name, amount: Number(a.amount) }));
+    const deductions = form.deductions.filter((d) => d.name && Number(d.amount) >= 0).map((d) => ({ name: d.name, amount: Number(d.amount) }));
+    const rec = { id: editing?.id ?? `ss-${Date.now().toString(36)}`, name: form.name, description: form.desc, baseSalary: base, allowances, deductions, grossSalary: 0, netSalary: 0, applicableTo: editing?.applicableTo ?? "TEACHER", branchId: "all" } as any;
+    mockDb.saveSalaryStructure(rec); toast.success(editing ? "Updated" : "Created"); setEditOpen(false); setStructures([...mockDb.getSalaryStructures()]);
+  };
 
   const filteredRecords = useMemo(() => {
     return records.filter((r) => r.month === selectedMonth);
@@ -157,6 +178,10 @@ export function PayrollDirectoryView() {
       </TabsContent>
 
       <TabsContent value="structures" className="space-y-4">
+        <div className="flex justify-between items-center">
+          <p className="text-xs text-muted-foreground">Har role ka salary editable — Total auto Gross/Net</p>
+          <Button size="sm" onClick={openCreate} className="gap-1"><Plus className="h-3.5 w-3.5" /> Add Structure</Button>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {structures.map((structure) => {
             const totalAllowances = structure.allowances.reduce((sum, a) => sum + a.amount, 0);
@@ -217,12 +242,24 @@ export function PayrollDirectoryView() {
                       <span className="font-bold text-foreground">Net Salary</span>
                       <span className="font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(structure.netSalary)}</span>
                     </div>
+                    <Button variant="outline" size="sm" className="w-full h-7 text-xs gap-1" onClick={() => openEdit(structure)}><Edit3 className="h-3 w-3" /> Edit</Button>
                   </div>
                 </CardContent>
               </Card>
             );
           })}
         </div>
+        <Dialog open={editOpen} onOpenChange={setEditOpen}><DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto"><DialogHeader><DialogTitle>{editing ? "Edit" : "Create"} Salary Structure</DialogTitle><DialogDescription>Base + Allowances − Deductions = Net (auto)</DialogDescription></DialogHeader>
+          <div className="space-y-3">
+            <div><label className="text-xs font-medium">Name *</label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="PGT" /></div>
+            <div><label className="text-xs font-medium">Description</label><Textarea value={form.desc} onChange={(e) => setForm({ ...form, desc: e.target.value })} rows={2} /></div>
+            <div><label className="text-xs font-medium">Base Salary *</label><Input type="number" value={form.base} onChange={(e) => setForm({ ...form, base: e.target.value })} /></div>
+            <div><label className="text-xs font-medium">Allowances</label>{form.allowances.map((a, idx) => <div key={idx} className="flex gap-2 mt-1"><Input value={a.name} onChange={(e) => setForm({ ...form, allowances: form.allowances.map((x, i) => i === idx ? { ...x, name: e.target.value } : x) })} placeholder="HRA" /><Input type="number" value={a.amount} onChange={(e) => setForm({ ...form, allowances: form.allowances.map((x, i) => i === idx ? { ...x, amount: e.target.value } : x) })} className="w-24" /><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setForm({ ...form, allowances: form.allowances.filter((_, i) => i !== idx) })}><Trash2 className="h-4 w-4 text-destructive" /></Button></div>)}<Button variant="outline" size="sm" className="h-7 text-xs mt-1" onClick={() => setForm({ ...form, allowances: [...form.allowances, { name: "", amount: "1000" }] })}><Plus className="h-3 w-3" /> Add</Button></div>
+            <div><label className="text-xs font-medium">Deductions</label>{form.deductions.map((d, idx) => <div key={idx} className="flex gap-2 mt-1"><Input value={d.name} onChange={(e) => setForm({ ...form, deductions: form.deductions.map((x, i) => i === idx ? { ...x, name: e.target.value } : x) })} placeholder="PF" /><Input type="number" value={d.amount} onChange={(e) => setForm({ ...form, deductions: form.deductions.map((x, i) => i === idx ? { ...x, amount: e.target.value } : x) })} className="w-24" /><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setForm({ ...form, deductions: form.deductions.filter((_, i) => i !== idx) })}><Trash2 className="h-4 w-4 text-destructive" /></Button></div>)}<Button variant="outline" size="sm" className="h-7 text-xs mt-1" onClick={() => setForm({ ...form, deductions: [...form.deductions, { name: "", amount: "500" }] })}><Plus className="h-3 w-3" /> Add</Button></div>
+            <div className="p-2 rounded bg-primary/5 border text-xs flex justify-between"><span>Gross: ₹{Number(form.base) + form.allowances.reduce((a, b) => a + Number(b.amount || 0), 0)}</span><span>Net: ₹{Number(form.base) + form.allowances.reduce((a, b) => a + Number(b.amount || 0), 0) - form.deductions.reduce((a, b) => a + Number(b.amount || 0), 0)}</span></div>
+          </div>
+          <DialogFooter><Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button><Button onClick={saveStructure} className="gap-1"><Save className="h-3.5 w-3.5" /> {editing ? "Update" : "Create"}</Button></DialogFooter>
+        </DialogContent></Dialog>
       </TabsContent>
 
       <TabsContent value="history" className="space-y-4">

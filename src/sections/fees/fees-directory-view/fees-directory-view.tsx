@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useERP } from "@/components/providers/erp-provider";
@@ -32,6 +32,9 @@ import {
   Printer,
   Download,
   X,
+  Plus,
+  Edit3,
+  Trash2,
 } from "lucide-react";
 import type { PaymentRecord } from "@/types";
 
@@ -221,6 +224,7 @@ export function FeesDirectoryView() {
             <TabsTrigger value="defaulters" className="gap-1.5 text-xs"><AlertTriangle className="h-3.5 w-3.5" /> Defaulters ({defaulters.length})</TabsTrigger>
             <TabsTrigger value="ledger" className="gap-1.5 text-xs"><Receipt className="h-3.5 w-3.5" /> Ledger ({payments.length})</TabsTrigger>
             <TabsTrigger value="heads" className="gap-1.5 text-xs"><CreditCard className="h-3.5 w-3.5" /> Fee Heads</TabsTrigger>
+            <TabsTrigger value="structures" className="gap-1.5 text-xs"><CreditCard className="h-3.5 w-3.5" /> Fee Structures</TabsTrigger>
           </TabsList>
           <Button size="sm" variant="gradient" className="h-8 text-xs gap-1" onClick={() => { setPayStudentId(students[0]?.id ?? ""); setPayOpen(true); }}>
             <CreditCard className="h-3.5 w-3.5" /> Collect Payment
@@ -470,6 +474,9 @@ export function FeesDirectoryView() {
             ))}
           </div>
         </TabsContent>
+        <TabsContent value="structures" className="space-y-4">
+          <FeeStructuresTab branchId={activeBranchId} />
+        </TabsContent>
       </Tabs>
 
       {/* Collect Payment Dialog */}
@@ -601,6 +608,69 @@ export function FeesDirectoryView() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+function FeeStructuresTab({ branchId }: { branchId: string }) {
+  const [structures, setStructures] = useState(() => mockDb.getFeeStructures(branchId));
+  const [q, setQ] = useState("");
+  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<any>(null);
+  const feeHeads = mockDb.getFeeHeads();
+  const [name, setName] = useState(""); const [year, setYear] = useState("2026-2027"); const [classes, setClasses] = useState("");
+  const [items, setItems] = useState<{ feeHeadId: string; amount: string }[]>([]);
+  useEffect(() => {
+    const h = () => setStructures([...mockDb.getFeeStructures(branchId)]);
+    window.addEventListener("fees:updated", h); return () => window.removeEventListener("fees:updated", h);
+  }, [branchId]);
+  const openEdit = (s: any) => {
+    setEditing(s); setName(s.name); setYear(s.academicYear); setClasses(s.applicableClasses.join(", "));
+    setItems(s.items.map((it: any) => ({ feeHeadId: it.feeHeadId, amount: String(it.amount) })));
+    setOpen(true);
+  };
+  const openCreate = () => { setEditing(null); setName(""); setYear("2026-2027"); setClasses(""); setItems([{ feeHeadId: feeHeads[0].id, amount: "45000" }]); setOpen(true); };
+  const save = () => {
+    if (!name || !classes) return toast.error("Name & classes required");
+    const list = items.filter((x) => x.feeHeadId && Number(x.amount) > 0);
+    if (!list.length) return toast.error("At least one fee head required");
+    const applicableClasses = classes.split(",").map((s) => s.trim()).filter(Boolean);
+    const branch = mockDb.getBranches().find((b) => b.id === branchId) ?? mockDb.getBranches()[0];
+    const rec = {
+      id: editing?.id ?? `fs-${Date.now().toString(36)}`,
+      name, branchId: branch.id, branchName: branch.name, applicableClasses, academicYear: year,
+      items: list.map((it) => { const h = feeHeads.find((x) => x.id === it.feeHeadId)!; return { feeHeadId: h.id, feeHeadName: h.name, amount: Number(it.amount), frequency: h.isRecurring ? "ANNUAL" as const : "ONE_TIME" as const }; }),
+      totalAmount: list.reduce((a, b) => a + Number(b.amount), 0), status: "ACTIVE" as const, createdAt: editing?.createdAt ?? new Date().toISOString(),
+    };
+    mockDb.saveFeeStructure(rec as any); toast.success(editing ? "Updated" : "Created"); setOpen(false); setStructures([...mockDb.getFeeStructures(branchId)]);
+  };
+  const filtered = structures.filter((s) => !q || s.name.toLowerCase().includes(q.toLowerCase()) || s.applicableClasses.join(" ").toLowerCase().includes(q.toLowerCase()));
+  return (
+    <div className="space-y-3">
+      <div className="flex gap-2 justify-between">
+        <div className="relative w-64"><Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" /><Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search structure, class" className="pl-9 h-9" /></div>
+        <Button size="sm" onClick={openCreate} className="gap-1"><Plus className="h-4 w-4" /> Add Structure</Button>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {filtered.map((s) => (
+          <Card key={s.id} className="border-border/60">
+            <CardContent className="p-4 space-y-2">
+              <div className="flex justify-between"><div><div className="font-semibold text-sm">{s.name}</div><div className="text-xs text-muted-foreground">{s.branchName} • {s.academicYear}</div></div><Badge variant="outline" className="text-[11px]">{formatCurrency(s.totalAmount)}</Badge></div>
+              <div className="flex flex-wrap gap-1">{s.applicableClasses.map((c) => <Badge key={c} variant="secondary" className="text-[10px]">{c}</Badge>)}</div>
+              <div className="text-xs space-y-1 border-t pt-2">{s.items.map((it) => <div key={it.feeHeadId} className="flex justify-between"><span className="text-muted-foreground">{it.feeHeadName}</span><span className="font-mono font-medium">{formatCurrency(it.amount)}</span></div>)}</div>
+              <Button variant="outline" size="sm" className="w-full h-7 text-xs gap-1" onClick={() => openEdit(s)}><Edit3 className="h-3 w-3" /> Edit</Button>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+      <Dialog open={open} onOpenChange={setOpen}><DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto"><DialogHeader><DialogTitle>{editing ? "Edit" : "Create"} Fee Structure</DialogTitle><DialogDescription>Class-wise fee — editable, total auto sum</DialogDescription></DialogHeader>
+        <div className="space-y-3">
+          <div><label className="text-xs font-medium">Name *</label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Class 9–10 CBSE Plan" /></div>
+          <div className="grid grid-cols-2 gap-3"><div><label className="text-xs font-medium">Academic Year</label><Input value={year} onChange={(e) => setYear(e.target.value)} /></div><div><label className="text-xs font-medium">Classes (comma)</label><Input value={classes} onChange={(e) => setClasses(e.target.value)} placeholder="Grade 9, Grade 10" /></div></div>
+          <div className="space-y-2"><label className="text-xs font-medium">Fee Heads *</label>{items.map((it, idx) => <div key={idx} className="flex gap-2"><Select value={it.feeHeadId} onValueChange={(v) => setItems((p) => p.map((x, i) => i === idx ? { ...x, feeHeadId: v } : x))}><SelectTrigger className="flex-1"><SelectValue /></SelectTrigger><SelectContent>{feeHeads.map((h) => <SelectItem key={h.id} value={h.id}>{h.name}</SelectItem>)}</SelectContent></Select><Input type="number" value={it.amount} onChange={(e) => setItems((p) => p.map((x, i) => i === idx ? { ...x, amount: e.target.value } : x))} className="w-28" /><Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => setItems((p) => p.filter((_, i) => i !== idx))}><Trash2 className="h-4 w-4 text-destructive" /></Button></div>)}<Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setItems((p) => [...p, { feeHeadId: feeHeads[0].id, amount: "1000" }])}><Plus className="h-3 w-3" /> Add Head</Button><div className="text-xs font-mono text-right pt-1 border-t">Total: {formatCurrency(items.reduce((a, b) => a + Number(b.amount || 0), 0))}</div></div>
+        </div>
+        <DialogFooter><Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button><Button onClick={save}>{editing ? "Update" : "Create"}</Button></DialogFooter>
+      </DialogContent></Dialog>
     </div>
   );
 }

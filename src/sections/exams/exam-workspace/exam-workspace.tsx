@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useERP } from "@/components/providers/erp-provider";
 import { mockDb } from "@/lib/services/mock-db";
-import { Exam, ExamSchedule, MarkEntry, Result, GradeScale } from "@/types";
+import { Exam, ExamSchedule, MarkEntry, Result, GradeScale, ExamType } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +18,7 @@ import { toast } from "sonner";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Search, Calendar, Clock, MapPin, Trophy, Award, BookOpen, Plus, Edit3, Trash2, Eye, Download, FileSpreadsheet, GraduationCap, Send, BarChart3, Settings2, FileBadge, ClipboardList, PenLine, FileText, AlertTriangle, Lock, History, CheckCircle2, XCircle } from "lucide-react";
+import { Search, Calendar, Clock, MapPin, Trophy, Award, BookOpen, Plus, Edit3, Trash2, Eye, Download, FileSpreadsheet, GraduationCap, Send, BarChart3, Settings2, FileBadge, ClipboardList, PenLine, FileText, AlertTriangle, Lock, History, CheckCircle2, XCircle, LayoutGrid, Save } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 
 // ─── Helpers ───
@@ -33,12 +33,11 @@ function statusVariant(s: string): any {
   return "outline";
 }
 
-// ─── Exam Setup Schema ───
+// ─── Exam Setup Schema — Section removed, ExamType must pre-exist ───
 const examSchema = z.object({
   name: z.string().min(2, "Name required"),
-  examTypeId: z.string().min(1, "Exam type required"),
+  examTypeId: z.string().min(1, "Exam type pehle create karo — tab Exam Types me banao"),
   classId: z.string().min(1, "Class required"),
-  sectionId: z.string().min(1, "Section required"),
   academicYear: z.string().min(1, "Required"),
   startDate: z.string().min(1, "Required"),
   endDate: z.string().min(1, "Required"),
@@ -138,38 +137,39 @@ export function ExamWorkspace() {
 function ExamsTab({ branchId }: { branchId: string }) {
   const [exams, setExams] = useState(() => mockDb.getExams(branchId));
   const [classes] = useState(() => mockDb.getClasses(branchId));
-  const [examTypes] = useState(() => mockDb.getExamTypes());
+  const [examTypes, setExamTypes] = useState<ExamType[]>(() => mockDb.getExamTypes());
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Exam | null>(null);
   const [search, setSearch] = useState("");
 
   const refresh = useCallback(() => setExams([...mockDb.getExams(branchId)]), [branchId]);
+  const refreshTypes = useCallback(() => setExamTypes([...mockDb.getExamTypes()]), []);
   useEffect(() => {
     const h = () => { setEditing(null); setOpen(true); };
     window.addEventListener("exams:new", h);
-    return () => window.removeEventListener("exams:new", h);
-  }, []);
+    const t = () => refreshTypes();
+    window.addEventListener("exam-types:updated", t);
+    return () => { window.removeEventListener("exams:new", h); window.removeEventListener("exam-types:updated", t); };
+  }, [refreshTypes]);
 
   const { register, handleSubmit, setValue, watch, reset, formState: { errors, isSubmitting } } = useForm<ExamFormValues>({
     resolver: zodResolver(examSchema),
-    defaultValues: { name: "", examTypeId: "", classId: "", sectionId: "", academicYear: "2026-2027", startDate: "", endDate: "", instructions: "" },
+    defaultValues: { name: "", examTypeId: "", classId: "", academicYear: "2026-2027", startDate: "", endDate: "", instructions: "" },
   });
-  const selectedClassId = watch("classId");
-  const sections = useMemo(() => classes.find((c) => c.id === selectedClassId)?.sections ?? [], [classes, selectedClassId]);
 
   useEffect(() => {
     if (editing) {
-      reset({ name: editing.name, examTypeId: editing.examTypeId, classId: editing.classId, sectionId: editing.sectionId, academicYear: editing.academicYear, startDate: editing.startDate, endDate: editing.endDate, instructions: editing.instructions ?? "" });
+      reset({ name: editing.name, examTypeId: editing.examTypeId, classId: editing.classId, academicYear: editing.academicYear, startDate: editing.startDate, endDate: editing.endDate, instructions: editing.instructions ?? "" });
     } else {
-      reset({ name: "", examTypeId: "", classId: "", sectionId: "", academicYear: "2026-2027", startDate: "", endDate: "", instructions: "" });
+      reset({ name: "", examTypeId: "", classId: "", academicYear: "2026-2027", startDate: "", endDate: "", instructions: "" });
     }
   }, [editing, open, reset]);
 
   const onSubmit = async (v: ExamFormValues) => {
     try {
+      if (examTypes.length === 0) { toast.error("Pehle Exam Type banao", { description: "Exam Types tab me ja ke type create karo, tab Create Exam me ayega" }); return; }
       const branch = mockDb.getBranches().find((b) => b.id === (branchId === "all" ? "br-apex-01" : branchId)) ?? mockDb.getBranches()[0];
       const cls = classes.find((c) => c.id === v.classId);
-      const sec = cls?.sections.find((s) => s.id === v.sectionId);
       const et = examTypes.find((e) => e.id === v.examTypeId);
       // concurrent edit check
       if (editing) {
@@ -189,8 +189,8 @@ function ExamsTab({ branchId }: { branchId: string }) {
         academicYear: v.academicYear,
         classId: v.classId,
         className: cls?.name ?? v.classId,
-        sectionId: v.sectionId,
-        sectionName: sec?.name ?? v.sectionId,
+        sectionId: editing?.sectionId ?? cls?.sections[0]?.id ?? "",
+        sectionName: editing?.sectionName ?? cls?.sections[0]?.name ?? "All Sections",
         branchId: branch.id,
         branchName: branch.name,
         startDate: v.startDate,
@@ -226,7 +226,7 @@ function ExamsTab({ branchId }: { branchId: string }) {
               {filtered.map((ex) => (
                 <TableRow key={ex.id} className="hover:bg-muted/30">
                   <TableCell><div className="font-semibold text-sm">{ex.name}</div><div className="text-xs text-muted-foreground">{ex.examTypeName} • {ex.examMode}</div></TableCell>
-                  <TableCell className="text-xs">{ex.className} • {ex.sectionName}</TableCell>
+                  <TableCell className="text-xs">{ex.className}</TableCell>
                   <TableCell className="text-xs">{ex.academicYear}</TableCell>
                   <TableCell className="text-xs font-mono">{formatDate(ex.startDate)} → {formatDate(ex.endDate)}</TableCell>
                   <TableCell><Badge variant={statusVariant(ex.status)} className="text-[11px]">{ex.status}</Badge></TableCell>
@@ -246,34 +246,31 @@ function ExamsTab({ branchId }: { branchId: string }) {
 
       <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setEditing(null); }}>
         <DialogContent className="sm:max-w-lg">
-          <DialogHeader><DialogTitle>{editing ? "Edit Exam" : "Create Exam"}</DialogTitle><DialogDescription>Exam setup: name, dates, class snapshot preserved for historical integrity.</DialogDescription></DialogHeader>
+          <DialogHeader><DialogTitle>{editing ? "Edit Exam" : "Create Exam"}</DialogTitle><DialogDescription>Exam setup: name, dates, class snapshot. Exam Type pehle se bana hua hona chahiye.</DialogDescription></DialogHeader>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div><label className="text-sm font-medium">Name *</label><Input {...register("name")} placeholder="Half Yearly Exam" />{errors.name && <p className="text-xs text-destructive mt-1">{errors.name.message}</p>}</div>
               <div><label className="text-sm font-medium">Academic Year</label><Input {...register("academicYear")} placeholder="2026-2027" />{errors.academicYear && <p className="text-xs text-destructive mt-1">{errors.academicYear.message}</p>}</div>
-              <div><label className="text-sm font-medium">Exam Type</label>
+              <div><label className="text-sm font-medium flex items-center gap-1">Exam Type *{examTypes.length === 0 && <span className="text-[11px] text-amber-600">(pehle banao)</span>}</label>
                 <Select value={watch("examTypeId")} onValueChange={(v) => setValue("examTypeId", v)}>
-                  <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
-                  <SelectContent>{examTypes.map((t) => <SelectItem key={t.id} value={t.id}>{t.name} ({t.maxMarks} marks)</SelectItem>)}</SelectContent>
+                  <SelectTrigger><SelectValue placeholder={examTypes.length ? "Select type" : "No type — pehle Exam Types me banao"} /></SelectTrigger>
+                  <SelectContent>
+                    {examTypes.length ? examTypes.map((t) => <SelectItem key={t.id} value={t.id}>{t.name} ({t.maxMarks} marks)</SelectItem>) : <div className="p-3 text-xs text-muted-foreground text-center">Koi Exam Type nahi — Exam Types tab me Create karo</div>}
+                  </SelectContent>
                 </Select>{errors.examTypeId && <p className="text-xs text-destructive mt-1">{errors.examTypeId.message}</p>}
+                {examTypes.length === 0 && <button type="button" onClick={() => { setOpen(false); window.history.pushState({}, "", "/exams?tab=exam-types"); window.dispatchEvent(new PopStateEvent("popstate")); }} className="text-xs text-primary underline mt-1">+ Exam Types me banao</button>}
               </div>
-              <div><label className="text-sm font-medium">Class</label>
-                <Select value={watch("classId")} onValueChange={(v) => { setValue("classId", v); setValue("sectionId", ""); }}>
+              <div><label className="text-sm font-medium">Class *</label>
+                <Select value={watch("classId")} onValueChange={(v) => setValue("classId", v)}>
                   <SelectTrigger><SelectValue placeholder="Select class" /></SelectTrigger>
                   <SelectContent>{classes.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
                 </Select>{errors.classId && <p className="text-xs text-destructive mt-1">{errors.classId.message}</p>}
-              </div>
-              <div><label className="text-sm font-medium">Section</label>
-                <Select value={watch("sectionId")} onValueChange={(v) => setValue("sectionId", v)}>
-                  <SelectTrigger><SelectValue placeholder="Select section" /></SelectTrigger>
-                  <SelectContent>{sections.map((s) => <SelectItem key={s.id} value={s.id}>{s.name} — {s.roomNumber}</SelectItem>)}</SelectContent>
-                </Select>{errors.sectionId && <p className="text-xs text-destructive mt-1">{errors.sectionId.message}</p>}
               </div>
               <div><label className="text-sm font-medium">Start Date</label><Input type="date" {...register("startDate")} />{errors.startDate && <p className="text-xs text-destructive mt-1">{errors.startDate.message}</p>}</div>
               <div><label className="text-sm font-medium">End Date</label><Input type="date" {...register("endDate")} />{errors.endDate && <p className="text-xs text-destructive mt-1">{errors.endDate.message}</p>}</div>
             </div>
             <div><label className="text-sm font-medium">Instructions</label><Textarea {...register("instructions")} placeholder="Bring admit card, reporting 8:30 AM..." rows={2} /></div>
-            <DialogFooter><Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button><Button type="submit" disabled={isSubmitting}>{editing ? "Update" : "Create"}</Button></DialogFooter>
+            <DialogFooter><Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button><Button type="submit" disabled={isSubmitting || (!editing && examTypes.length === 0)}>{editing ? "Update" : "Create"}</Button></DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
@@ -291,6 +288,10 @@ function ScheduleTab({ branchId }: { branchId: string }) {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<ExamSchedule | null>(null);
   const [reschedule, setReschedule] = useState<ExamSchedule | null>(null);
+  // bulk datesheet — timetable jaisa
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkExamId, setBulkExamId] = useState("");
+  const [bulkRows, setBulkRows] = useState<Record<string, { date: string; start: string; end: string; room: string }>>({});
 
   const refresh = useCallback(() => setSchedules([...mockDb.getExamSchedules(branchId)]), [branchId]);
   const { register, handleSubmit, setValue, watch, reset } = useForm<ScheduleFormValues>({
@@ -351,6 +352,42 @@ function ScheduleTab({ branchId }: { branchId: string }) {
     return mSearch && mStatus;
   });
 
+  const bulkExam = exams.find((e) => e.id === bulkExamId);
+  const bulkSubjects = useMemo(() => {
+    const c = classes.find((x) => x.id === bulkExam?.classId);
+    return c?.subjects ?? [];
+  }, [classes, bulkExam]);
+  const openBulk = () => {
+    if (!exams.length) return toast.error("Pehle Exam banao");
+    const ex = exams[0];
+    setBulkExamId(ex.id);
+    const cls = classes.find((x) => x.id === ex.classId);
+    const subs = cls?.subjects ?? [];
+    const init: Record<string, any> = {};
+    subs.forEach((s, i) => {
+      const d = new Date(ex.startDate); d.setDate(d.getDate() + i);
+      init[s.id] = { date: d.toISOString().split("T")[0], start: "09:00", end: "12:00", room: cls?.sections[0]?.roomNumber || "Room 301" };
+    });
+    setBulkRows(init); setBulkOpen(true);
+  };
+  const saveBulk = () => {
+    if (!bulkExam) return;
+    let n = 0;
+    for (const sub of bulkSubjects) {
+      const r = bulkRows[sub.id]; if (!r?.date) continue;
+      try {
+        mockDb.saveExamSchedule({
+          examId: bulkExam.id, examName: bulkExam.name, examTypeId: bulkExam.examTypeId, examTypeName: bulkExam.examTypeName,
+          classId: bulkExam.classId, className: bulkExam.className, sectionId: bulkExam.sectionId, sectionName: bulkExam.sectionName,
+          subjectId: sub.id, subjectName: sub.name, branchId: bulkExam.branchId, branchName: bulkExam.branchName,
+          academicYear: bulkExam.academicYear, examDate: r.date, startTime: r.start, endTime: r.end, room: r.room || "Room 301",
+          status: "SCHEDULED", publicationStatus: "DRAFT", isPublished: false, totalMarks: 100, passingMarks: 33,
+        } as any); n++;
+      } catch (e: any) { toast.error(`${sub.name}: ${e.message}`); }
+    }
+    toast.success(`Datesheet created — ${n} subjects (timetable jaisa)`); setBulkOpen(false); refresh();
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row gap-3 justify-between">
@@ -365,6 +402,7 @@ function ScheduleTab({ branchId }: { branchId: string }) {
           </Select>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={openBulk} className="gap-1.5"><LayoutGrid className="h-4 w-4" /> Create Full Datesheet</Button>
           {exams.length > 0 && <Button variant="outline" onClick={() => { try { mockDb.publishTimetable(exams[0].id); toast.success("Timetable published"); refresh(); } catch (e: any) { toast.error(e.message); } }} className="gap-2"><Send className="h-4 w-4" />Publish</Button>}
           <Button onClick={() => { setEditing(null); setOpen(true); }} className="gap-2"><Plus className="h-4 w-4" />Add Slot</Button>
         </div>
@@ -430,6 +468,54 @@ function ScheduleTab({ branchId }: { branchId: string }) {
       </Dialog>
 
       {reschedule && <RescheduleDialog schedule={reschedule} onClose={() => { setReschedule(null); refresh(); }} />}
+
+      {/* Bulk Datesheet — timetable style (static, API-ready) */}
+      <Dialog open={bulkOpen} onOpenChange={setBulkOpen}>
+        <DialogContent className="max-w-2xl max-h-[78vh] flex flex-col p-0 gap-0 overflow-hidden sm:max-w-[640px]">
+          <DialogHeader className="px-5 pt-4 pb-3 border-b shrink-0 bg-background">
+            <DialogTitle className="flex items-center gap-2 text-sm"><LayoutGrid className="h-4 w-4 text-primary" /> Create Full Datesheet — Timetable jaisa</DialogTitle>
+            <DialogDescription className="text-xs">Exam select karo, har subject ka date/time/room ek sath bharo — static data, API pe asani se shift hoga</DialogDescription>
+          </DialogHeader>
+          <div className="px-5 py-3 border-b bg-muted/20 shrink-0">
+            <label className="text-xs font-medium">Exam *</label>
+            <Select value={bulkExamId} onValueChange={(v) => {
+              setBulkExamId(v);
+              const ex = exams.find((e) => e.id === v);
+              const cls = classes.find((c) => c.id === ex?.classId);
+              const subs = cls?.subjects ?? [];
+              const init: any = {};
+              subs.forEach((s, i) => {
+                const d = new Date(ex!.startDate); d.setDate(d.getDate() + i);
+                init[s.id] = { date: d.toISOString().split("T")[0], start: "09:00", end: "12:00", room: cls?.sections[0]?.roomNumber || "Room 301" };
+              });
+              setBulkRows(init);
+            }}>
+              <SelectTrigger className="h-9 mt-1"><SelectValue placeholder="Select exam" /></SelectTrigger>
+              <SelectContent>{exams.map((e) => <SelectItem key={e.id} value={e.id}>{e.name} — {e.className} ({e.academicYear})</SelectItem>)}</SelectContent>
+            </Select>
+            {bulkExam && <p className="text-[11px] text-muted-foreground mt-1">{bulkExam.className} • {bulkSubjects.length} subjects • {formatDate(bulkExam.startDate)}–{formatDate(bulkExam.endDate)}</p>}
+          </div>
+          <div className="flex-1 min-h-0 overflow-y-auto px-5 py-3 space-y-2.5 bg-muted/10">
+            {!bulkExam ? <p className="text-sm text-muted-foreground text-center py-8">Exam select karo</p> :
+              bulkSubjects.length === 0 ? <p className="text-sm text-muted-foreground text-center py-8">Is class me koi subject nahi</p> :
+                bulkSubjects.map((sub) => (
+                  <div key={sub.id} className="rounded-xl border bg-card p-3 flex flex-col sm:flex-row gap-2.5 items-start sm:items-end">
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-semibold truncate">{sub.name} <span className="text-xs font-normal text-muted-foreground">({sub.code})</span></div>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2">
+                        <div><label className="text-[10px] font-semibold text-muted-foreground">DATE</label><Input type="date" value={bulkRows[sub.id]?.date || ""} onChange={(e) => setBulkRows((p) => ({ ...p, [sub.id]: { ...p[sub.id], date: e.target.value } }))} className="h-8 text-xs" /></div>
+                        <div><label className="text-[10px] font-semibold text-muted-foreground">START</label><Input type="time" value={bulkRows[sub.id]?.start || "09:00"} onChange={(e) => setBulkRows((p) => ({ ...p, [sub.id]: { ...p[sub.id], start: e.target.value } }))} className="h-8 text-xs" /></div>
+                        <div><label className="text-[10px] font-semibold text-muted-foreground">END</label><Input type="time" value={bulkRows[sub.id]?.end || "12:00"} onChange={(e) => setBulkRows((p) => ({ ...p, [sub.id]: { ...p[sub.id], end: e.target.value } }))} className="h-8 text-xs" /></div>
+                        <div><label className="text-[10px] font-semibold text-muted-foreground">ROOM</label><Input value={bulkRows[sub.id]?.room || ""} onChange={(e) => setBulkRows((p) => ({ ...p, [sub.id]: { ...p[sub.id], room: e.target.value } }))} placeholder="Room" className="h-8 text-xs" /></div>
+                      </div>
+                    </div>
+                    <Badge variant="outline" className="text-[10px] shrink-0 h-6">100 marks</Badge>
+                  </div>
+                ))}
+          </div>
+          <DialogFooter className="px-5 py-3 border-t bg-card shrink-0"><Button variant="outline" onClick={() => setBulkOpen(false)}>Cancel</Button><Button variant="gradient" onClick={saveBulk} disabled={!bulkExam || bulkSubjects.length === 0}><Save className="h-3.5 w-3.5" /> Create Datesheet</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -617,24 +703,101 @@ function MarksTab({ branchId }: { branchId: string }) {
   );
 }
 
-// ════════════════════ Exam Types Tab ════════════════════
+// ════════════════════ Exam Types Tab — pehle yaha create karo, tab Create Exam me ayega ════════════════════
+const examTypeSchema = z.object({
+  name: z.string().min(2, "Name required"),
+  category: z.string().min(1, "Category"),
+  description: z.string().min(3, "Description"),
+  maxMarks: z.string().min(1, "Max marks"),
+  passingMarks: z.string().min(1, "Pass marks"),
+  weightage: z.string().min(1, "Weightage"),
+  defaultMode: z.string().min(1, "Mode"),
+});
+type ExamTypeForm = z.infer<typeof examTypeSchema>;
+
 function ExamTypesTab() {
-  const types = mockDb.getExamTypes();
+  const [types, setTypes] = useState(() => mockDb.getExamTypes());
+  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<ExamType | null>(null);
+  const refresh = useCallback(() => setTypes([...mockDb.getExamTypes()]), []);
+  useEffect(() => {
+    const h = () => refresh();
+    window.addEventListener("exam-types:updated", h);
+    return () => window.removeEventListener("exam-types:updated", h);
+  }, [refresh]);
+
+  const { register, handleSubmit, setValue, watch, reset, formState: { errors, isSubmitting } } = useForm<ExamTypeForm>({
+    resolver: zodResolver(examTypeSchema),
+    defaultValues: { name: "", category: "CUSTOM", description: "", maxMarks: "100", passingMarks: "33", weightage: "10", defaultMode: "BOTH" },
+  });
+  useEffect(() => {
+    if (editing) reset({ name: editing.name, category: editing.category, description: editing.description, maxMarks: String(editing.maxMarks), passingMarks: String(editing.passingMarks), weightage: String(editing.weightage), defaultMode: editing.defaultMode ?? "BOTH" });
+    else reset({ name: "", category: "CUSTOM", description: "", maxMarks: "100", passingMarks: "33", weightage: "10", defaultMode: "BOTH" });
+  }, [editing, open, reset]);
+
+  const onSubmit = (v: ExamTypeForm) => {
+    const max = Number(v.maxMarks), pass = Number(v.passingMarks), wt = Number(v.weightage);
+    if (pass > max) return toast.error("Passing marks max se zyada nahi");
+    mockDb.saveExamType({ id: editing?.id, name: v.name as any, category: v.category as any, description: v.description, maxMarks: max, passingMarks: pass, weightage: wt, branchId: "all", defaultMode: v.defaultMode as any });
+    toast.success(editing ? "Exam Type updated" : "Exam Type created — ab Create Exam me dikhega"); setOpen(false); setEditing(null); refresh();
+  };
+
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-      {types.map((t) => (
-        <Card key={t.id} className="p-4 border-border/80">
-          <div className="flex justify-between items-start">
-            <div><div className="font-bold text-sm">{t.name}</div><div className="text-xs text-muted-foreground">{t.description}</div></div>
-            <Badge variant="outline" className="text-xs">{t.category}</Badge>
-          </div>
-          <div className="grid grid-cols-3 gap-2 mt-3 text-xs">
-            <div className="p-2 rounded bg-muted/40 text-center"><div className="font-bold">{t.maxMarks}</div><div className="text-muted-foreground">Max</div></div>
-            <div className="p-2 rounded bg-muted/40 text-center"><div className="font-bold">{t.passingMarks}</div><div className="text-muted-foreground">Pass</div></div>
-            <div className="p-2 rounded bg-muted/40 text-center"><div className="font-bold">{t.weightage}%</div><div className="text-muted-foreground">Weight</div></div>
-          </div>
-        </Card>
-      ))}
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <p className="text-xs text-muted-foreground">Pehle yaha Exam Type banao — fir <b>Create Exam</b> ke dropdown me option aayega</p>
+        <Button size="sm" onClick={() => { setEditing(null); setOpen(true); }} className="gap-1.5"><Plus className="h-3.5 w-3.5" /> Create Exam Type</Button>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {types.map((t) => (
+          <Card key={t.id} className="p-4 border-border/80 hover:shadow-sm transition-shadow">
+            <div className="flex justify-between items-start gap-2">
+              <div className="min-w-0"><div className="font-bold text-sm truncate">{t.name}</div><div className="text-xs text-muted-foreground line-clamp-2">{t.description}</div></div>
+              <Badge variant="outline" className="text-[11px] shrink-0">{t.category}</Badge>
+            </div>
+            <div className="grid grid-cols-3 gap-2 mt-3 text-xs">
+              <div className="p-2 rounded bg-muted/40 text-center"><div className="font-bold">{t.maxMarks}</div><div className="text-muted-foreground text-[11px]">Max</div></div>
+              <div className="p-2 rounded bg-muted/40 text-center"><div className="font-bold">{t.passingMarks}</div><div className="text-muted-foreground text-[11px]">Pass</div></div>
+              <div className="p-2 rounded bg-muted/40 text-center"><div className="font-bold">{t.weightage}%</div><div className="text-muted-foreground text-[11px]">Weight</div></div>
+            </div>
+            <div className="flex gap-1.5 mt-3">
+              <Button variant="outline" size="sm" className="h-7 text-xs flex-1" onClick={() => { setEditing(t); setOpen(true); }}><Edit3 className="h-3 w-3" /> Edit</Button>
+              <Button variant="ghost" size="sm" className="h-7 w-7 text-destructive" onClick={() => { if (confirm(`Delete ${t.name}?`)) { mockDb.deleteExamType(t.id); toast.success("Deleted"); refresh(); } }}><Trash2 className="h-3.5 w-3.5" /></Button>
+            </div>
+          </Card>
+        ))}
+      </div>
+      {types.length === 0 && <EmptyState title="No Exam Types" description="Create pehla Exam Type — fir Create Exam me use kar payoge" />}
+
+      <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setEditing(null); }}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader><DialogTitle>{editing ? "Edit Exam Type" : "Create Exam Type"}</DialogTitle><DialogDescription>Yaha banane ke baad Create Exam ke dropdown me option aayega</DialogDescription></DialogHeader>
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
+            <div><label className="text-sm font-medium">Name *</label><Input {...register("name")} placeholder="e.g. Half Yearly, Unit Test, Pre-Board" />{errors.name && <p className="text-xs text-destructive mt-1">{errors.name.message}</p>}</div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><label className="text-sm font-medium">Category *</label>
+                <Select value={watch("category")} onValueChange={(v) => setValue("category", v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent><SelectItem value="WEEKLY_TEST">Weekly Test</SelectItem><SelectItem value="MONTHLY_TEST">Monthly Test</SelectItem><SelectItem value="UNIT_TEST">Unit Test</SelectItem><SelectItem value="MIDTERM">Midterm</SelectItem><SelectItem value="FINAL">Final</SelectItem><SelectItem value="ANNUAL">Annual</SelectItem><SelectItem value="CUSTOM">Custom</SelectItem></SelectContent>
+                </Select>
+              </div>
+              <div><label className="text-sm font-medium">Mode *</label>
+                <Select value={watch("defaultMode")} onValueChange={(v) => setValue("defaultMode", v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent><SelectItem value="BOTH">Both</SelectItem><SelectItem value="SUBJECTIVE">Subjective</SelectItem><SelectItem value="OBJECTIVE">Objective</SelectItem></SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div><label className="text-sm font-medium">Description</label><Textarea {...register("description")} placeholder="e.g. Half-yearly 100 marks comprehensive" rows={2} />{errors.description && <p className="text-xs text-destructive mt-1">{errors.description.message}</p>}</div>
+            <div className="grid grid-cols-3 gap-3">
+              <div><label className="text-sm font-medium">Max Marks</label><Input type="number" {...register("maxMarks")} />{errors.maxMarks && <p className="text-xs text-destructive mt-1">{errors.maxMarks.message}</p>}</div>
+              <div><label className="text-sm font-medium">Pass Marks</label><Input type="number" {...register("passingMarks")} />{errors.passingMarks && <p className="text-xs text-destructive mt-1">{errors.passingMarks.message}</p>}</div>
+              <div><label className="text-sm font-medium">Weightage %</label><Input type="number" {...register("weightage")} />{errors.weightage && <p className="text-xs text-destructive mt-1">{errors.weightage.message}</p>}</div>
+            </div>
+            <DialogFooter><Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button><Button type="submit" disabled={isSubmitting}>{editing ? "Update" : "Create"}</Button></DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
