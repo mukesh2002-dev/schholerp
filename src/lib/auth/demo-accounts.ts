@@ -1,13 +1,10 @@
 "use client";
 
 import { Role, UserSession } from "@/types";
+import type { StaffRole } from "./roles";
 
-/**
- * Staff + academic roles allowed on login.
- * Teacher/Student/Parent now have dedicated portal access
- * with filtered Exams & Results views.
- */
-export type StaffRole = "ADMIN" | "PRINCIPAL" | "ACCOUNTANT" | "HR_MANAGER";
+/** @deprecated Use StaffRole from @/lib/auth/roles (single source of truth). */
+export type { StaffRole };
 
 export const STAFF_ROLES: StaffRole[] = [
   "ADMIN",
@@ -28,7 +25,9 @@ export interface DemoAccount {
   landingPage: string;
 }
 
-const DEMO_PASSWORD = "admin123";
+// Backend-seeded staff credentials (see mukesh-school-node.js/scripts/seed-staff-users.js + prisma/seed.js)
+// Password is the real DB hash for Mukesh@1234 — prefilled so one-click login works.
+const DEMO_PASSWORD = "Mukesh@1234";
 
 export const DEMO_ACCOUNTS: DemoAccount[] = [
   {
@@ -36,13 +35,13 @@ export const DEMO_ACCOUNTS: DemoAccount[] = [
     label: "Admin",
     title: "Group Director & Chief Administrator",
     description: "Full multi-campus oversight, finance controls & system settings.",
-    email: "admin@gmail.com",
+    email: "admin@school.local",
     password: DEMO_PASSWORD,
     landingPage: "/",
     session: {
       id: "usr-admin-01",
       name: "Dr. Alexander Wright",
-      email: "admin@gmail.com",
+      email: "admin@school.local",
       avatar:
         "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150&auto=format&fit=crop&q=80",
       role: "ADMIN",
@@ -56,13 +55,13 @@ export const DEMO_ACCOUNTS: DemoAccount[] = [
     label: "Principal",
     title: "Campus Principal — Apex Global Campus",
     description: "Campus academics, faculty, students, timetable & discipline.",
-    email: "principal@gmail.com",
+    email: "principal@school.local",
     password: DEMO_PASSWORD,
     landingPage: "/",
     session: {
       id: "usr-principal-01",
       name: "Dr. Clara Higgins",
-      email: "principal@gmail.com",
+      email: "principal@school.local",
       avatar:
         "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80",
       role: "PRINCIPAL",
@@ -76,13 +75,13 @@ export const DEMO_ACCOUNTS: DemoAccount[] = [
     label: "Chief Accountant",
     title: "Head of Group Finance",
     description: "Fee collection, invoicing, payroll runs & expense ledger.",
-    email: "accountant@gmail.com",
+    email: "accountant@school.local",
     password: DEMO_PASSWORD,
     landingPage: "/fees",
     session: {
       id: "usr-accountant-01",
       name: "Hannah Montgomery",
-      email: "accountant@gmail.com",
+      email: "accountant@school.local",
       avatar:
         "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&auto=format&fit=crop&q=80",
       role: "ACCOUNTANT",
@@ -96,13 +95,13 @@ export const DEMO_ACCOUNTS: DemoAccount[] = [
     label: "HR Manager",
     title: "Director of People & Culture",
     description: "Recruitment, staff directory, leaves & biometric attendance.",
-    email: "hr@gmail.com",
+    email: "hr@school.local",
     password: DEMO_PASSWORD,
     landingPage: "/hr",
     session: {
       id: "usr-hr-01",
       name: "Daniel Okafor",
-      email: "hr@gmail.com",
+      email: "hr@school.local",
       avatar:
         "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
       role: "HR_MANAGER",
@@ -133,7 +132,7 @@ export interface AuthResult {
 
 /**
  * Dummy credential check. Every staff role shares the same
- * password (`admin123`); the email address decides the role.
+ * password (`Mukesh@1234`); the email address decides the role.
  */
 export function authenticateDemoUser(email: string, password: string): AuthResult {
   const account = getDemoAccountByEmail(email);
@@ -144,7 +143,7 @@ export function authenticateDemoUser(email: string, password: string): AuthResul
     };
   }
   if (password !== account.password) {
-    return { success: false, error: "Incorrect password. Hint: admin123" };
+    return { success: false, error: "Incorrect password. Hint: Mukesh@1234" };
   }
   return { success: true, session: account.session, account };
 }

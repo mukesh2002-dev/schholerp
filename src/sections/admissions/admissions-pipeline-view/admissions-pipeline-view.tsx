@@ -1,10 +1,12 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { useERP } from "@/components/providers/erp-provider";
-import { mockDb } from "@/lib/services/mock-db";
 import { AdmissionApplication } from "@/types";
+import { fetchAdmissions } from "@/lib/api/admissions";
+import { useCampusData } from "@/lib/hooks/use-campus-data";
+import { SectionOfflineBanner } from "@/components/layout/section-guard";
 import { AdmissionStatusBadge } from "@/components/admissions/admission-status-badge";
 import { AdmissionFormDialog } from "@/components/admissions/admission-form-dialog";
 import { Button } from "@/components/ui/button";
@@ -37,28 +39,39 @@ import { formatDate } from "@/lib/utils";
 
 export function AdmissionsPipelineView() {
   const { activeBranchId } = useERP();
-  const [admissions, setAdmissions] = useState(() => mockDb.getAdmissions(activeBranchId));
+  const {
+    data: admissions,
+    isLoading: admissionsLoading,
+    isOffline: admissionsOffline,
+    error: admissionsError,
+    refresh: refreshAdmissions,
+  } = useCampusData<AdmissionApplication[]>({
+    fetcher: (cid) => fetchAdmissions({ campusId: cid }),
+    campusId: activeBranchId,
+    fallback: [],
+    queryKeyPrefix: "admissions",
+  });
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [gradeFilter, setGradeFilter] = useState<string>("ALL");
   const [levelFilter, setLevelFilter] = useState<string>("ALL");
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const refreshList = () => {
-    setAdmissions(mockDb.getAdmissions(activeBranchId));
-  };
+  const refreshList = useCallback(() => {
+    void refreshAdmissions();
+  }, [refreshAdmissions]);
 
   const filteredAdmissions = useMemo(() => {
     return admissions.filter((a) => {
       const q = searchQuery.toLowerCase();
       const matchesSearch =
-        a.applicantFullName.toLowerCase().includes(q) ||
-        a.applicationNumber.toLowerCase().includes(q) ||
-        a.parentName.toLowerCase().includes(q) ||
-        a.parentEmail.toLowerCase().includes(q) ||
-        a.programApplied?.toLowerCase().includes(q) ||
-        a.departmentPreference?.toLowerCase().includes(q) ||
-        a.entranceExam?.toLowerCase().includes(q);
+        (a.applicantFullName ?? "").toLowerCase().includes(q) ||
+        (a.applicationNumber ?? "").toLowerCase().includes(q) ||
+        (a.parentName ?? "").toLowerCase().includes(q) ||
+        (a.parentEmail ?? "").toLowerCase().includes(q) ||
+        (a.programApplied ?? "").toLowerCase().includes(q) ||
+        (a.departmentPreference ?? "").toLowerCase().includes(q) ||
+        (a.entranceExam ?? "").toLowerCase().includes(q);
 
       const matchesStatus = statusFilter === "ALL" || a.status === statusFilter;
       const matchesGrade = gradeFilter === "ALL" || a.gradeApplied === gradeFilter;
@@ -74,6 +87,7 @@ export function AdmissionsPipelineView() {
 
   return (
     <div className="space-y-4">
+      <SectionOfflineBanner isOffline={admissionsOffline} error={admissionsError} isLoading={admissionsLoading} />
       {/* Controls Bar */}
       <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 p-3 rounded-xl bg-card border border-border/70">
         <div className="flex flex-1 items-center gap-2 flex-wrap">

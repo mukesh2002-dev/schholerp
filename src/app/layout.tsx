@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { ThemeProvider } from "@/components/providers/theme-provider";
+import { QueryProvider } from "@/components/providers/query-provider";
 import { SettingsProvider } from "@/components/providers/settings-provider";
 import { ERPProvider } from "@/components/providers/erp-provider";
 import { AppLayoutShell } from "@/components/layout/app-layout-shell";
@@ -25,12 +26,14 @@ export default function RootLayout({
         className="font-sans antialiased min-h-screen bg-background text-foreground"
       >
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          <SettingsProvider>
-            <ERPProvider>
-              <AppLayoutShell>{children}</AppLayoutShell>
-              <Toaster richColors position="top-right" closeButton />
-            </ERPProvider>
-          </SettingsProvider>
+          <QueryProvider>
+            <SettingsProvider>
+              <ERPProvider>
+                <AppLayoutShell>{children}</AppLayoutShell>
+                <Toaster richColors position="top-right" closeButton />
+              </ERPProvider>
+            </SettingsProvider>
+          </QueryProvider>
         </ThemeProvider>
       </body>
     </html>

@@ -17,8 +17,6 @@ import {
   Mail,
   ExternalLink,
   MoreVertical,
-  Edit2,
-  Trash2,
   CheckCircle2,
   ArrowUpRight,
 } from "lucide-react";
@@ -26,18 +24,15 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { formatCurrency, formatNumber } from "@/lib/utils";
 
 interface BranchCardProps {
   branch: Branch;
-  onEdit: (branch: Branch) => void;
-  onDelete: (branch: Branch) => void;
 }
 
-export function BranchCard({ branch, onEdit, onDelete }: BranchCardProps) {
+export const BranchCard = React.memo(function BranchCard({ branch }: BranchCardProps) {
   const { activeBranchId, setActiveBranchId } = useERP();
   const isCurrentActive = activeBranchId === branch.id;
 
@@ -102,18 +97,6 @@ export function BranchCard({ branch, onEdit, onDelete }: BranchCardProps) {
               >
                 <CheckCircle2 className="h-4 w-4 text-emerald-500" />
                 <span>Switch to Campus</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onEdit(branch)} className="flex items-center gap-2 cursor-pointer">
-                <Edit2 className="h-4 w-4 text-amber-500" />
-                <span>Edit Branch</span>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => onDelete(branch)}
-                className="flex items-center gap-2 text-destructive focus:text-destructive cursor-pointer"
-              >
-                <Trash2 className="h-4 w-4" />
-                <span>Deactivate Branch</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -208,4 +191,4 @@ export function BranchCard({ branch, onEdit, onDelete }: BranchCardProps) {
       </CardContent>
     </Card>
   );
-}
+});

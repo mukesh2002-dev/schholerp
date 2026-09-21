@@ -9,10 +9,12 @@ import {
   ClassDirectoryView,
   ClassDirectoryViewSkeleton,
 } from "@/sections/classes";
+import { SectionGuard } from "@/components/layout/section-guard";
 
 export default function ClassesPage() {
   return (
-    <div className="space-y-8 animate-in fade-in duration-300">
+    <SectionGuard featureKey="academics">
+      <div className="space-y-8 animate-in fade-in duration-300">
       {/* 1. Class Header & Add Class Dialog */}
       <Suspense fallback={<ClassHeaderSkeleton />}>
         <ClassHeader />
@@ -27,6 +29,7 @@ export default function ClassesPage() {
       <Suspense fallback={<ClassDirectoryViewSkeleton />}>
         <ClassDirectoryView />
       </Suspense>
-    </div>
+      </div>
+    </SectionGuard>
   );
 }

@@ -2,7 +2,8 @@
 
 import React, { useState } from "react";
 import { useERP } from "@/components/providers/erp-provider";
-import { mockDb } from "@/lib/services/mock-db";
+import { useCampusData } from "@/lib/hooks/use-campus-data";
+import { fetchAdmissions } from "@/lib/api/admissions";
 import { Breadcrumbs } from "@/components/layout/breadcrumbs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,7 +12,12 @@ import { AdmissionFormDialog } from "@/components/admissions/admission-form-dial
 
 export function AdmissionsHeader() {
   const { activeBranchId } = useERP();
-  const admissions = mockDb.getAdmissions(activeBranchId);
+  const { data: admissions, refresh: refreshAdmissions } = useCampusData({
+    fetcher: (cid) => fetchAdmissions({ campusId: cid }),
+    campusId: activeBranchId,
+    fallback: [],
+    queryKeyPrefix: "admissions",
+  });
   const [dialogOpen, setDialogOpen] = useState(false);
 
   return (
@@ -44,6 +50,7 @@ export function AdmissionsHeader() {
       <AdmissionFormDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
+        onSuccess={() => void refreshAdmissions()}
       />
     </>
   );

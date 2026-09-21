@@ -9,10 +9,12 @@ import {
   AttendanceDirectoryView,
   AttendanceDirectoryViewSkeleton,
 } from "@/sections/attendance";
+import { SectionGuard } from "@/components/layout/section-guard";
 
 export default function AttendancePage() {
   return (
-    <div className="space-y-8 animate-in fade-in duration-300">
+    <SectionGuard featureKey="attendance">
+      <div className="space-y-8 animate-in fade-in duration-300">
       {/* 1. Header & Live Sync Actions */}
       <Suspense fallback={<AttendanceHeaderSkeleton />}>
         <AttendanceHeader />
@@ -27,6 +29,7 @@ export default function AttendancePage() {
       <Suspense fallback={<AttendanceDirectoryViewSkeleton />}>
         <AttendanceDirectoryView />
       </Suspense>
-    </div>
+      </div>
+    </SectionGuard>
   );
 }

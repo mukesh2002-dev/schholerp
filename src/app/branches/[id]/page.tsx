@@ -8,7 +8,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { StatCard } from "@/components/ui/stat-card";
-import { BranchFormDialog } from "@/components/branches/branch-form-dialog";
 import {
   Building2,
   GraduationCap,
@@ -21,7 +20,6 @@ import {
   Calendar,
   DollarSign,
   CheckCircle2,
-  Edit2,
   ArrowLeft,
   Sparkles,
   ShieldCheck,
@@ -35,7 +33,6 @@ export default function BranchDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { branches, setActiveBranchId, activeBranchId } = useERP();
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
 
   const branchId = params.id as string;
   const branch = branches.find((b) => b.id === branchId);
@@ -112,16 +109,6 @@ export default function BranchDetailPage() {
               >
                 <CheckCircle2 className="h-4 w-4" />
                 <span>{isCurrentActive ? "Active Global Context" : "Set Workspace Context"}</span>
-              </Button>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setEditDialogOpen(true)}
-                className="gap-1.5"
-              >
-                <Edit2 className="h-4 w-4 text-amber-500" />
-                <span>Edit Branch</span>
               </Button>
 
               <Button variant="ghost" size="sm" asChild>
@@ -284,13 +271,6 @@ export default function BranchDetailPage() {
           </CardContent>
         </Card>
       </div>
-
-      {/* Edit Branch Dialog */}
-      <BranchFormDialog
-        open={editDialogOpen}
-        onOpenChange={setEditDialogOpen}
-        branchToEdit={branch}
-      />
     </div>
   );
 }

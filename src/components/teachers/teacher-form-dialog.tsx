@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useRef } from "react";
 import { useERP } from "@/components/providers/erp-provider";
-import { mockDb } from "@/lib/services/mock-db";
+import { createTeacherApi } from "@/lib/api/teachers";
 import { Teacher, TeacherStatus } from "@/types";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -176,13 +176,8 @@ export function TeacherFormDialog({
         });
         setAvatarPreview(teacherToEdit.avatar || null);
         setAvatarDataUrl("");
-        // load existing documents for this teacher from central store
-        const existingDocs = mockDb.getDocuments().filter((d) => d.ownerId === teacherToEdit.id && d.ownerType === "TEACHER");
-        if (existingDocs.length) {
-          setDocs(existingDocs.map((d) => ({ id: d.id, name: d.name, type: d.fileType, size: d.fileSize, verified: d.verificationStatus === "VERIFIED", uploadedAt: d.uploadDate, fileUrl: undefined })));
-        } else {
-          setDocs([]);
-        }
+        // Faculty documents are not yet stored server-side; start empty.
+        setDocs([]);
       } else {
         reset({
           firstName: "",
@@ -257,103 +252,40 @@ export function TeacherFormDialog({
   const removeDoc = (id: string) => setDocs((prev) => prev.filter((d) => d.id !== id));
   const toggleVerified = (id: string) => setDocs((prev) => prev.map((d) => d.id === id ? { ...d, verified: !d.verified } : d));
 
-  const onSubmit = (data: TeacherFormValues) => {
+  const onSubmit = async (data: TeacherFormValues) => {
     const targetBranch = branches.find((b) => b.id === data.branchId) || branches[0];
     const subjects = (data.subjectsString || "").split(",").map((s) => s.trim()).filter(Boolean);
     const avatar = avatarDataUrl || teacherToEdit?.avatar || `https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150`;
 
-    const teacherPayload: Omit<Teacher, "id" | "createdAt" | "updatedAt"> & { id?: string } = {
-      ...(teacherToEdit?.id ? { id: teacherToEdit.id } : {}),
-      employeeId: teacherToEdit?.employeeId || `TCH-${Math.floor(Math.random() * 800) + 100}`,
-      firstName: data.firstName,
-      lastName: data.lastName,
-      fullName: `${data.firstName} ${data.lastName}`,
-      avatar,
-      email: data.email,
-      phone: data.phone ? `+91 ${normaliseIndianMobile(data.phone)}` : "+91 98220 00000",
-      gender: data.gender as "Male" | "Female" | "Other",
-      dateOfBirth: data.dateOfBirth,
-      panNumber: data.panNumber?.trim().toUpperCase() || undefined,
-      aadhaarNumber: data.aadhaarNumber?.replace(/[\s-]/g, "") || undefined,
-      category: data.category || undefined,
-      qualification: data.qualification || "",
-      joiningDate: data.joiningDate,
-      branchId: targetBranch.id,
-      branchName: targetBranch.name,
-      department: data.department,
-      designation: data.designation || "",
-      status: data.status as TeacherStatus,
-      subjectsTaught: subjects.length > 0 ? subjects : ["General Studies"],
-      assignedClasses: teacherToEdit?.assignedClasses || [
-        { classId: "cls-g10", className: "Grade 10", sectionId: "sec-g10-a", sectionName: "Section A", subjectName: subjects[0] || "Math", weeklyPeriods: 6 },
-      ],
-      attendanceRate: teacherToEdit?.attendanceRate || 98.0,
-      leaveSummary: teacherToEdit?.leaveSummary || {
-        totalAllowed: 24,
-        used: 2,
-        balance: 22,
-        casualLeaves: 1,
-        medicalLeaves: 1,
-      },
-      salarySummary: {
-        baseSalary: Number(data.baseSalary),
-        allowances: Number(data.allowances),
-        grossSalary: Number(data.baseSalary) + Number(data.allowances),
-        paymentStatus: "PAID",
-        lastDisbursedDate: "2026-08-31",
-      },
-      bio: data.bio || "",
-      experienceYears: Number(data.experienceYears),
+    if (teacherToEdit) {
+      toast.error("Editing existing faculty profiles is not available through the API yet", {
+        description: "You can create new faculty and manage accounts from HR / Users.",
+      });
+      return;
+    }
+
+    const payload: Record<string, unknown> = {
+      name: `${data.firstName} ${data.lastName}`.trim(),
+      email: data.email.trim().toLowerCase(),
+      // Initial password — the new user must change it on first sign-in.
+      password: "Mukesh@1234",
+      role: "teacher",
+      campusUuid: data.branchId && data.branchId !== "all" ? data.branchId : undefined,
     };
 
-    setTimeout(() => {
-      const saved = mockDb.saveTeacher(teacherPayload);
-      // persist documents to central Document store — Documents module me bhi dikhega
-      docs.forEach((d) => {
-        // if already exists (id starts with doc- from stored), update, else create
-        const isExisting = mockDb.getDocumentById(d.id);
-        if (isExisting) {
-          mockDb.saveDocument({
-            id: d.id,
-            name: `${saved.fullName} — ${d.name}`,
-            category: d.name.toLowerCase().includes("degree") || d.name.toLowerCase().includes("certificate") ? "EMPLOYMENT" : d.name.toLowerCase().includes("aadhaar") || d.name.toLowerCase().includes("pan") ? "IDENTITY" : "OTHER",
-            description: `Faculty ${saved.employeeId} document`,
-            ownerId: saved.id,
-            ownerName: saved.fullName,
-            ownerType: "TEACHER",
-            branchId: saved.branchId,
-            branchName: saved.branchName,
-            fileType: d.type,
-            fileSize: d.size,
-            uploadDate: d.uploadedAt,
-            verificationStatus: d.verified ? "VERIFIED" : "PENDING",
-            tags: ["faculty"],
-          } as any);
-        } else {
-          mockDb.saveDocument({
-            name: `${saved.fullName} — ${d.name}`,
-            category: d.name.toLowerCase().includes("degree") || d.name.toLowerCase().includes("certificate") ? "EMPLOYMENT" : d.name.toLowerCase().includes("aadhaar") || d.name.toLowerCase().includes("pan") ? "IDENTITY" : "OTHER",
-            description: `Faculty ${saved.employeeId} document`,
-            ownerId: saved.id,
-            ownerName: saved.fullName,
-            ownerType: "TEACHER",
-            branchId: saved.branchId,
-            branchName: saved.branchName,
-            fileType: d.type,
-            fileSize: d.size,
-            uploadDate: d.uploadedAt,
-            verificationStatus: d.verified ? "VERIFIED" : "PENDING",
-            tags: ["faculty"],
-          } as any);
-        }
-      });
+    try {
+      const saved = await createTeacherApi(payload, data.branchId !== "all" ? data.branchId : undefined);
       if (avatarDataUrl) {
-        toast.success("Photo uploaded and saved");
+        toast.success("Photo attached to profile");
       }
-      toast.success(teacherToEdit ? "Faculty updated" : "Faculty registered", { description: `${saved.fullName} • ${saved.employeeId}` });
+      toast.success("Faculty registered", { description: `${saved.fullName} • ${saved.employeeId}` });
       onOpenChange(false);
       if (onSuccess) onSuccess();
-    }, 400);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to register faculty", {
+        description: "Check the email is unique and the campus is valid.",
+      });
+    }
   };
 
   return (

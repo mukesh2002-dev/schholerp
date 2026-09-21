@@ -1,10 +1,12 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { mockDb } from "@/lib/services/mock-db";
-import { Announcement } from "@/types";
+import { fetchNotices, Notice } from "@/lib/api/notices";
+import { useERP } from "@/components/providers/erp-provider";
+import { useCampusData } from "@/lib/hooks/use-campus-data";
+import { Announcement, AnnouncementPriority, AnnouncementStatus, AnnouncementTarget } from "@/types";
 import { Breadcrumbs } from "@/components/layout/breadcrumbs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +20,7 @@ import {
   Users,
   Clock,
   AlertTriangle,
+  Loader2,
 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 
@@ -47,7 +50,42 @@ const targetLabels: Record<string, string> = {
 export default function AnnouncementDetailPage() {
   const params = useParams();
   const announcementId = params.id as string;
-  const announcement = mockDb.getAnnouncementById(announcementId);
+  const { activeBranchId } = useERP();
+  const { data: notices, isLoading } = useCampusData<Notice[]>({
+    fetcher: (cid) => fetchNotices({ campusId: cid }),
+    campusId: activeBranchId,
+    fallback: [],
+    queryKeyPrefix: "notices",
+  });
+  const found = notices.find((n) => n.id === announcementId);
+  const announcement: Announcement | undefined = found
+    ? {
+        id: found.id,
+        title: found.title,
+        content: found.content,
+        summary: found.content,
+        author: found.author,
+        authorRole: "Administration",
+        branchId: found.branchId,
+        branchName: found.branchName,
+        priority: found.priority as AnnouncementPriority,
+        status: "PUBLISHED" as AnnouncementStatus,
+        target: "ALL" as AnnouncementTarget,
+        publishDate: found.date,
+        viewCount: 0,
+        createdAt: found.date,
+        updatedAt: found.date,
+      }
+    : undefined;
+
+  if (isLoading) {
+    return (
+      <div className="py-24 text-center space-y-4">
+        <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+        <p className="text-sm text-muted-foreground">Loading announcement...</p>
+      </div>
+    );
+  }
 
   if (!announcement) {
     return (

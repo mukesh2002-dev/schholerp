@@ -1,9 +1,12 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { useERP } from "@/components/providers/erp-provider";
-import { mockDb } from "@/lib/services/mock-db";
+import { fetchStaffDirectory } from "@/lib/api/hr";
+import { fetchLeaves, mapBackendLeave, updateLeaveStatusApi } from "@/lib/api/attendance";
+import { useCampusData } from "@/lib/hooks/use-campus-data";
+import { SectionOfflineBanner } from "@/components/layout/section-guard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -16,42 +19,65 @@ import { Users, Calendar, Search, CheckCircle2, XCircle, ExternalLink } from "lu
 
 export function HrDirectoryView() {
   const { activeBranchId } = useERP();
-  const [staff] = useState(() => [
-    ...mockDb.getStaffMembers(activeBranchId),
-    ...mockDb.getTeachers(activeBranchId).map((t) => ({
-      id: t.id,
-      employeeId: t.employeeId,
-      name: t.fullName,
-      email: t.email,
-      phone: t.phone,
-      avatar: t.avatar,
-      gender: t.gender,
-      dateOfBirth: t.dateOfBirth,
-      joiningDate: t.joiningDate,
-      branchId: t.branchId,
-      branchName: t.branchName,
-      department: t.department,
-      designation: t.designation,
-      staffType: "TEACHING" as const,
-      status:
-        t.status === "ACTIVE"
-          ? ("ACTIVE" as const)
-          : t.status === "ON_LEAVE"
-          ? ("ON_LEAVE" as const)
-          : ("ACTIVE" as const),
-      qualification: t.qualification,
-      experienceYears: t.experienceYears,
-      salaryStructureId: undefined,
-      salaryStructureName: undefined,
-      createdAt: t.createdAt,
-      updatedAt: t.updatedAt,
-    })),
-  ]);
-  const [leaves, setLeaves] = useState(() => mockDb.getLeaveRecords(activeBranchId));
-  const [payrolls] = useState(() => mockDb.getPayrollRecords(activeBranchId));
+  const fallbackStaff: any[] = [];
+  const fallbackLeaves: any[] = [];
+  const fallbackPayrolls: any[] = [];
+  const {
+    data: apiStaffRaw,
+    isLoading: staffLoading,
+    isOffline: staffOffline,
+    error: staffError,
+    refresh: refreshStaff,
+  } = useCampusData({
+    fetcher: async (cid) => {
+      const res = await fetchStaffDirectory({ campusId: cid, limit: 100 });
+      const list = Array.isArray((res as any)?.data) ? (res as any).data : Array.isArray(res) ? (res as any) : [];
+      if (list.length === 0) return fallbackStaff;
+      return list.map((u: any) => ({
+        id: u.uuid ?? u.id,
+        employeeId: u.employeeId ?? u.uuid?.slice(0, 8) ?? u.id,
+        name: u.name ?? u.email,
+        email: u.email,
+        phone: u.phone ?? "",
+        avatar: u.avatar ?? "",
+        gender: (u.gender as any) ?? "Male",
+        dateOfBirth: u.dateOfBirth ?? "",
+        joiningDate: u.joiningDate ?? u.createdAt ?? "",
+        branchId: u.campus?.uuid ?? u.branchId ?? activeBranchId,
+        branchName: u.campus?.name ?? u.branchName ?? "",
+        department: u.department ?? u.role ?? "General",
+        designation: u.designation ?? u.role ?? "Staff",
+        staffType: (u.staffType as any) ?? "SUPPORT",
+        status: (u.isActive === false ? "ON_LEAVE" : "ACTIVE") as any,
+        qualification: u.qualification ?? "",
+        experienceYears: u.experienceYears ?? 0,
+        salaryStructureId: undefined,
+        salaryStructureName: undefined,
+        createdAt: u.createdAt ?? "",
+        updatedAt: u.updatedAt ?? "",
+      }));
+    },
+    campusId: activeBranchId,
+    fallback: fallbackStaff,
+  });
+  const apiStaff = Array.isArray(apiStaffRaw) ? apiStaffRaw : fallbackStaff;
+  const staff = (apiStaff.length > 0 || staffOffline || !staffLoading ? apiStaff : fallbackStaff) as typeof fallbackStaff;
+  const { data: apiLeaves, refresh: refreshLeaves } = useCampusData({
+    fetcher: (cid) => fetchLeaves({ campusId: cid }).then((list) => (Array.isArray(list) ? list : []).map(mapBackendLeave)),
+    campusId: activeBranchId,
+    fallback: [] as any[],
+    queryKeyPrefix: "leaves",
+  });
+  const leaves = apiLeaves;
+  const payrolls = fallbackPayrolls;
+  void payrolls;
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("ALL");
   const [leaveStatusFilter, setLeaveStatusFilter] = useState("ALL");
+  const refresh = useCallback(() => {
+    void refreshStaff();
+    void refreshLeaves();
+  }, [refreshStaff, refreshLeaves]);
 
   const filteredStaff = useMemo(
     () =>
@@ -76,14 +102,22 @@ export function HrDirectoryView() {
     [leaves, search, leaveStatusFilter]
   );
 
-  const handleLeaveAction = (id: string, status: "APPROVED" | "REJECTED") => {
-    mockDb.updateLeaveStatus(id, status, "HR Manager");
-    setLeaves([...mockDb.getLeaveRecords(activeBranchId)]);
-    toast.success(`Leave request ${status.toLowerCase()}`);
-  };
+  const handleLeaveAction = useCallback(
+    async (id: string, status: "APPROVED" | "REJECTED") => {
+      try {
+        await updateLeaveStatusApi(id, status.toLowerCase() as "approved" | "rejected");
+        refresh();
+        toast.success(`Leave request ${status.toLowerCase()}`);
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Failed to update leave");
+      }
+    },
+    [refresh]
+  );
 
   return (
     <div className="space-y-4">
+      <SectionOfflineBanner isOffline={staffOffline} error={staffError} isLoading={staffLoading} />
       <Tabs defaultValue="employees" className="space-y-4">
         <TabsList>
           <TabsTrigger value="employees" className="gap-1.5 text-xs">

@@ -2,7 +2,9 @@
 
 import React, { useState } from "react";
 import { useERP } from "@/components/providers/erp-provider";
-import { mockDb } from "@/lib/services/mock-db";
+import { fetchTeachers } from "@/lib/api/teachers";
+import { useCampusData } from "@/lib/hooks/use-campus-data";
+import { Teacher } from "@/types";
 import { Breadcrumbs } from "@/components/layout/breadcrumbs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,7 +13,12 @@ import { TeacherFormDialog } from "@/components/teachers/teacher-form-dialog";
 
 export function TeacherHeader() {
   const { activeBranchId } = useERP();
-  const teachers = mockDb.getTeachers(activeBranchId);
+  const { data: teachers } = useCampusData<Teacher[]>({
+    fetcher: (cid) => fetchTeachers({ campusId: cid }).then((r) => r.data),
+    campusId: activeBranchId,
+    fallback: [],
+    queryKeyPrefix: "teachers",
+  });
   const [dialogOpen, setDialogOpen] = useState(false);
 
   return (

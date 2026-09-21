@@ -38,7 +38,7 @@ import {
   Settings2,
 } from "lucide-react";
 import { Role } from "@/types";
-import { StaffRole } from "./demo-accounts";
+import { StaffRole } from "./roles";
 
 export interface RoleNavSubItem {
   title: string;
@@ -46,6 +46,9 @@ export interface RoleNavSubItem {
   icon?: React.ElementType;
   badge?: string;
   allowedRoles?: StaffRole[];
+  /** Backend module key — when set, the item is hidden unless the backend
+   *  grants this module to the user's role (dynamic sidebar from /auth/me). */
+  moduleKey?: string;
 }
 
 export interface RoleNavItem {
@@ -55,6 +58,11 @@ export interface RoleNavItem {
   badge?: string;
   /** Roles allowed to see this item. Omitted = visible to every staff role. */
   allowedRoles?: StaffRole[];
+  /** Backend feature flag key - if set, item is hidden when flag is disabled (ADMIN dynamic toggle). */
+  featureKey?: string;
+  /** Backend module key — when set, the item is hidden unless the backend
+   *  grants this module to the user's role (dynamic sidebar from /auth/me). */
+  moduleKey?: string;
   children?: RoleNavSubItem[];
 }
 
@@ -73,13 +81,14 @@ export const ROLE_NAV_GROUPS: RoleNavGroup[] = [
   {
     group: "Core Management",
     items: [
-      { title: "Dashboard", href: "/", icon: LayoutDashboard },
+      { title: "Dashboard", href: "/", icon: LayoutDashboard, moduleKey: "dashboard" },
       {
         title: "Campus Branches",
         href: "/branches",
         icon: Building2,
         badge: "6 Active",
-        allowedRoles: LEADERSHIP,
+        allowedRoles: ["ADMIN"],
+        moduleKey: "campuses",
       },
     ],
   },
@@ -92,6 +101,7 @@ export const ROLE_NAV_GROUPS: RoleNavGroup[] = [
         icon: UserPlus,
         badge: "Pipeline",
         allowedRoles: LEADERSHIP,
+        moduleKey: "students",
       },
       {
         title: "Students",
@@ -99,15 +109,19 @@ export const ROLE_NAV_GROUPS: RoleNavGroup[] = [
         icon: GraduationCap,
         badge: "Roster",
         allowedRoles: [...LEADERSHIP, "ACCOUNTANT"],
+        featureKey: "students",
+        moduleKey: "students",
       },
       {
         title: "Classes & Sections",
         href: "/classes",
         icon: BookOpen,
         allowedRoles: LEADERSHIP,
+        featureKey: "academics",
+        moduleKey: "academics",
         children: [
-          { title: "All Classes", href: "/classes", icon: BookOpen },
-          { title: "Subjects & Topics", href: "/subjects", icon: Layers },
+          { title: "All Classes", href: "/classes", icon: BookOpen, moduleKey: "academics" },
+          { title: "Subjects & Topics", href: "/subjects", icon: Layers, moduleKey: "academics" },
         ],
       },
       {
@@ -115,6 +129,7 @@ export const ROLE_NAV_GROUPS: RoleNavGroup[] = [
         href: "/teachers",
         icon: Users,
         allowedRoles: PEOPLE,
+        moduleKey: "staff",
       },
       {
         title: "Timetable",
@@ -122,6 +137,8 @@ export const ROLE_NAV_GROUPS: RoleNavGroup[] = [
         icon: CalendarDays,
         badge: "5",
         allowedRoles: LEADERSHIP,
+        featureKey: "academics",
+        moduleKey: "academics",
       },
       {
         title: "Homework",
@@ -161,7 +178,7 @@ export const ROLE_NAV_GROUPS: RoleNavGroup[] = [
   {
     group: "HR & Support Staff",
     items: [
-      { title: "HR / Staff Directory", href: "/hr", icon: Briefcase, badge: "HR", allowedRoles: PEOPLE },
+      { title: "HR / Staff Directory", href: "/hr", icon: Briefcase, badge: "HR", allowedRoles: PEOPLE, moduleKey: "staff" },
     ],
   },
   {
@@ -173,6 +190,8 @@ export const ROLE_NAV_GROUPS: RoleNavGroup[] = [
         icon: CreditCard,
         badge: "9",
         allowedRoles: [...FINANCE, "PRINCIPAL"],
+        featureKey: "fees",
+        moduleKey: "fees",
       },
       {
         title: "Attendance & Biometric",
@@ -180,6 +199,8 @@ export const ROLE_NAV_GROUPS: RoleNavGroup[] = [
         icon: Fingerprint,
         badge: "Live",
         allowedRoles: [...PEOPLE, "ACCOUNTANT"],
+        featureKey: "attendance",
+        moduleKey: "attendance",
       },
       {
         title: "Transport & Fleet",
@@ -194,6 +215,7 @@ export const ROLE_NAV_GROUPS: RoleNavGroup[] = [
         icon: Receipt,
         badge: "7",
         allowedRoles: [...FINANCE, "PRINCIPAL"],
+        moduleKey: "fees",
       },
       {
         title: "Payroll",
@@ -201,6 +223,7 @@ export const ROLE_NAV_GROUPS: RoleNavGroup[] = [
         icon: Briefcase,
         badge: "7",
         allowedRoles: [...FINANCE, "HR_MANAGER"],
+        moduleKey: "staff",
       },
       {
         title: "Documents",
@@ -213,7 +236,7 @@ export const ROLE_NAV_GROUPS: RoleNavGroup[] = [
   {
     group: "Communication & Events",
     items: [
-      { title: "Announcements", href: "/announcements", icon: Megaphone, badge: "6" },
+      { title: "Announcements", href: "/announcements", icon: Megaphone, badge: "6", featureKey: "broadcast", moduleKey: "notices" },
       { title: "Messages", href: "/messages", icon: MessageSquare, badge: "3" },
       {
         title: "Events Calendar",
@@ -227,48 +250,83 @@ export const ROLE_NAV_GROUPS: RoleNavGroup[] = [
   {
     group: "Intelligence & Audit",
     items: [
-      { title: "Reports & BI", href: "/reports", icon: BarChart3, badge: "7" },
+      { title: "Reports & BI", href: "/reports", icon: BarChart3, badge: "7", featureKey: "admin_analytics", moduleKey: "analytics" },
       {
         title: "Audit Logs",
         href: "/audit",
         icon: ShieldAlert,
         badge: "10",
         allowedRoles: ["ADMIN"],
+        moduleKey: "audit",
       },
     ],
   },
   {
     group: "System & DevOps",
-    items: [{ title: "Settings", href: "/settings", icon: Settings, allowedRoles: ["ADMIN"] }],
+    items: [
+      { title: "Settings", href: "/settings", icon: Settings, allowedRoles: ["ADMIN"], moduleKey: "settings" },
+      { title: "Admin Control", href: "/settings/admin", icon: ShieldAlert, badge: "Dynamic", allowedRoles: ["ADMIN"], featureKey: "admin_analytics", moduleKey: "settings" },
+    ],
   },
 ];
 
-/** Filter nav groups down to what `role` may see. Unknown roles fall back to full access. */
-export function getNavForRole(role: Role | StaffRole | undefined): RoleNavGroup[] {
+/** Filter nav groups down to what `role` may see.
+ *  - Role gate: `allowedRoles` (role-based, used always).
+ *  - Dynamic module gate: when `allowedModules` (backend /auth/me sidebar) is
+ *    provided, items with a `moduleKey` are only shown if the backend granted
+ *    that module to the user's role. Without a sidebar (offline/demo) the
+ *    role gate alone decides.
+ *  - Unknown roles are NOT promoted to ADMIN — they get no navigation. */
+export function getNavForRole(
+  role: Role | StaffRole | undefined,
+  opts?: { isFeatureEnabled?: (key: string) => boolean; allowedModules?: string[] }
+): RoleNavGroup[] {
   if (!role) return ROLE_NAV_GROUPS;
   const knownRoles: StaffRole[] = ["ADMIN", "PRINCIPAL", "ACCOUNTANT", "HR_MANAGER"];
-  const staffRole = knownRoles.includes(role as StaffRole) ? (role as StaffRole) : "ADMIN";
+  const staffRole = knownRoles.includes(role as StaffRole) ? (role as StaffRole) : null;
+  if (!staffRole) return [];
+  const isFeatureEnabled = opts?.isFeatureEnabled ?? (() => true);
+  const allowedModules = opts?.allowedModules;
+  const hasModuleGate = Array.isArray(allowedModules) && allowedModules.length > 0;
+  const moduleAllowed = (moduleKey?: string) =>
+    !moduleKey || !hasModuleGate || allowedModules.includes(moduleKey);
 
   return ROLE_NAV_GROUPS.map((group) => ({
     ...group,
-    items: group.items.map((item) => {
-      if (!item.children) return item;
-      const filteredChildren = item.children.filter((c) => !c.allowedRoles || c.allowedRoles.includes(staffRole));
-      return { ...item, children: filteredChildren };
-    }).filter((item) => !item.allowedRoles || item.allowedRoles.includes(staffRole)),
+    items: group.items
+      .map((item) => {
+        if (!item.children) return item;
+        const filteredChildren = item.children.filter(
+          (c) => (!c.allowedRoles || c.allowedRoles.includes(staffRole)) && moduleAllowed(c.moduleKey)
+        );
+        return { ...item, children: filteredChildren };
+      })
+      .filter((item) => {
+        if (item.allowedRoles && !item.allowedRoles.includes(staffRole)) return false;
+        if (!moduleAllowed(item.moduleKey)) return false;
+        if (item.featureKey && !isFeatureEnabled(item.featureKey)) return false;
+        return true;
+      }),
   })).filter((group) => group.items.length > 0);
 }
 
 /** First route a role is allowed to visit — used after login redirects. */
-export function getLandingPageForRole(role: Role | StaffRole | undefined): string {
-  const nav = getNavForRole(role);
+export function getLandingPageForRole(
+  role: Role | StaffRole | undefined,
+  opts?: { isFeatureEnabled?: (key: string) => boolean; allowedModules?: string[] }
+): string {
+  const nav = getNavForRole(role, opts);
   return nav[0]?.items[0]?.href ?? "/";
 }
 
 /** Guard helper — is `role` allowed to visit `pathname`? */
-export function canRoleAccessPath(role: Role | StaffRole | undefined, pathname: string): boolean {
+export function canRoleAccessPath(
+  role: Role | StaffRole | undefined,
+  pathname: string,
+  opts?: { isFeatureEnabled?: (key: string) => boolean; allowedModules?: string[] }
+): boolean {
   if (!pathname || pathname === "/login") return true;
-  const nav = getNavForRole(role);
+  const nav = getNavForRole(role, opts);
   const cleanPath = pathname.split("?")[0];
   return nav.some((group) =>
     group.items.some((item) => {

@@ -3,7 +3,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { mockDb } from "@/lib/services/mock-db";
+import { fetchClassByUuid } from "@/lib/api/classes";
 import { ClassRoom, Section } from "@/types";
 import { ClassDetailHeader } from "@/components/classes/class-detail-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,8 +34,9 @@ export default function ClassDetailPage() {
 
   useEffect(() => {
     if (id) {
-      const data = mockDb.getClassById(id as string);
-      setClassInfo(data ?? null);
+      void fetchClassByUuid(id as string)
+        .then((data) => setClassInfo(data ?? null))
+        .catch(() => setClassInfo(null));
     }
   }, [id]);
 

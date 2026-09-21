@@ -2,7 +2,8 @@
 
 import React from "react";
 import { useERP } from "@/components/providers/erp-provider";
-import { mockDb } from "@/lib/services/mock-db";
+import { fetchStaffDirectory } from "@/lib/api/hr";
+import { useCampusData } from "@/lib/hooks/use-campus-data";
 import { Breadcrumbs } from "@/components/layout/breadcrumbs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,10 +12,12 @@ import { toast } from "sonner";
 
 export function HrHeader() {
   const { activeBranchId } = useERP();
-  const staff = [
-    ...mockDb.getStaffMembers(activeBranchId),
-    ...mockDb.getTeachers(activeBranchId),
-  ];
+  const { data: staff } = useCampusData({
+    fetcher: (cid) => fetchStaffDirectory({ campusId: cid, limit: 100 }).then((r) => r.data),
+    campusId: activeBranchId,
+    fallback: [],
+    queryKeyPrefix: "hr-staff",
+  });
 
   return (
     <div className="space-y-4">

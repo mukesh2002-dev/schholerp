@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { useERP } from "@/components/providers/erp-provider";
+import { canManageCampuses } from "@/lib/auth/roles";
 import { Breadcrumbs } from "@/components/layout/breadcrumbs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,7 +10,8 @@ import { Plus } from "lucide-react";
 import { BranchFormDialog } from "@/components/branches/branch-form-dialog";
 
 export function BranchHeader() {
-  const { branches } = useERP();
+  const { branches, session } = useERP();
+  const canManage = canManageCampuses(session.rawRole);
   const [formDialogOpen, setFormDialogOpen] = useState(false);
 
   return (
@@ -32,14 +34,16 @@ export function BranchHeader() {
             </p>
           </div>
 
-          <Button
-            onClick={() => setFormDialogOpen(true)}
-            variant="gradient"
-            className="gap-2 shrink-0"
-          >
-            <Plus className="h-4 w-4" />
-            <span>Register New Campus</span>
-          </Button>
+          {canManage && (
+            <Button
+              onClick={() => setFormDialogOpen(true)}
+              variant="gradient"
+              className="gap-2 shrink-0"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Register New Campus</span>
+            </Button>
+          )}
         </div>
       </div>
 

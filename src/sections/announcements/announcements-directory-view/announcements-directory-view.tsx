@@ -3,7 +3,9 @@
 import React, { useState, useMemo } from "react";
 import Link from "next/link";
 import { useERP } from "@/components/providers/erp-provider";
-import { mockDb } from "@/lib/services/mock-db";
+import { fetchNotices } from "@/lib/api/notices";
+import { useCampusData } from "@/lib/hooks/use-campus-data";
+import { SectionOfflineBanner } from "@/components/layout/section-guard";
 import { Announcement, AnnouncementPriority, AnnouncementStatus, AnnouncementTarget } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,7 +56,29 @@ const targetLabels: Record<AnnouncementTarget, string> = {
 
 export function AnnouncementsDirectoryView() {
   const { activeBranchId } = useERP();
-  const [announcements] = useState(() => mockDb.getAnnouncements(activeBranchId) || []);
+  const { data: notices, isOffline, error, isLoading } = useCampusData({
+    fetcher: (cid) => fetchNotices({ campusId: cid }),
+    campusId: activeBranchId,
+    fallback: [],
+    queryKeyPrefix: "notices",
+  });
+  const announcements: Announcement[] = notices.map((n) => ({
+    id: n.id,
+    title: n.title,
+    content: n.content,
+    summary: n.content,
+    author: n.author,
+    authorRole: "Administration",
+    branchId: n.branchId,
+    branchName: n.branchName,
+    priority: n.priority as AnnouncementPriority,
+    status: "PUBLISHED" as AnnouncementStatus,
+    target: "ALL" as AnnouncementTarget,
+    publishDate: n.date,
+    viewCount: 0,
+    createdAt: n.date,
+    updatedAt: n.date,
+  }));
   const [searchQuery, setSearchQuery] = useState("");
   const [priorityFilter, setPriorityFilter] = useState<string>("ALL");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
@@ -76,6 +100,7 @@ export function AnnouncementsDirectoryView() {
 
   return (
     <div className="space-y-4">
+      <SectionOfflineBanner isOffline={isOffline} error={error} isLoading={isLoading} />
       <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 p-3 rounded-xl bg-card border border-border/70">
         <div className="flex flex-1 items-center gap-2 flex-wrap">
           <div className="relative flex-1 min-w-[200px] max-w-sm">

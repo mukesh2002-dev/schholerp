@@ -2,7 +2,24 @@
 
 import React, { useState, useMemo } from "react";
 import { useERP } from "@/components/providers/erp-provider";
-import { mockDb } from "@/lib/services/mock-db";
+import {
+  fetchBooks,
+  fetchIssues,
+  fetchFines,
+  payFineApi,
+  fetchCopies,
+  addCopiesApi,
+  createBookApi,
+  updateBookApi,
+  deleteBookApi,
+  issueBookApi,
+  returnBookApi,
+} from "@/lib/api/library";
+import type { BookCopy, LibraryFineDetail } from "@/types";
+import { fetchStudents } from "@/lib/api/students";
+import { fetchClasses } from "@/lib/api/classes";
+import { useCampusData } from "@/lib/hooks/use-campus-data";
+import { SectionOfflineBanner } from "@/components/layout/section-guard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +35,7 @@ import { BookOpen, Search, Library, CheckCircle2, AlertTriangle, Plus, Edit3, Tr
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { LibraryBook, BookCategory } from "@/types";
+import { LibraryBook, BookCategory, BookIssue } from "@/types";
 import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
 
 const bookSchema = z.object({
@@ -42,11 +59,47 @@ type BookFormValues = z.infer<typeof bookSchema>;
 
 export function LibraryDirectoryView() {
   const { activeBranchId } = useERP();
-  const [books, setBooks] = useState(() => mockDb.getLibraryBooks(activeBranchId));
-  const [issues, setIssues] = useState(() => mockDb.getBookIssues(activeBranchId));
-  const [fines] = useState(() => mockDb.getLibraryFines(activeBranchId));
-  const [students] = useState(() => mockDb.getStudents(activeBranchId));
-  const [classes] = useState(() => mockDb.getClasses(activeBranchId));
+  const { data: books, isOffline, error, isLoading, refresh: refreshBooks } = useCampusData({
+    fetcher: (cid) => fetchBooks({ campusId: cid }).then((r) => r.data),
+    campusId: activeBranchId,
+    fallback: [] as LibraryBook[],
+    queryKeyPrefix: "library-books",
+  });
+  const { data: issues, refresh: refreshIssues } = useCampusData<BookIssue[]>({
+    fetcher: (cid) => fetchIssues({ campusId: cid }).then((r) => r.data),
+    campusId: activeBranchId,
+    fallback: [],
+    queryKeyPrefix: "library-issues",
+  });
+  const { data: students } = useCampusData({
+    fetcher: (cid) => fetchStudents({ campusId: cid }).then((r) => r.data),
+    campusId: activeBranchId,
+    fallback: [],
+    queryKeyPrefix: "students",
+  });
+  const { data: classes } = useCampusData({
+    fetcher: (cid) => fetchClasses({ campusId: cid }),
+    campusId: activeBranchId,
+    fallback: [],
+    queryKeyPrefix: "classes",
+  });
+  // Live fines (library v2) — includes overdue + lost/damaged reasons.
+  const { data: liveFines, refresh: refreshFines } = useCampusData({
+    fetcher: (cid) => fetchFines({ campusId: cid }),
+    campusId: activeBranchId,
+    fallback: [] as LibraryFineDetail[],
+    queryKeyPrefix: "library-fines",
+  });
+  const fines = liveFines.map((f) => ({
+    id: f.uuid,
+    bookTitle: f.book?.title ?? "—",
+    studentName: `${f.student?.firstName ?? ""} ${f.student?.lastName ?? ""}`.trim() || "—",
+    reason: f.reason,
+    dueDate: f.dueDate ?? "",
+    status: f.status === "PAID" ? "PAID" : f.status === "WAIVED" ? "WAIVED" : "PENDING",
+    amount: f.totalFine - f.paidAmount,
+    totalFine: f.totalFine,
+  }));
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState("ALL");
@@ -56,6 +109,11 @@ export function LibraryDirectoryView() {
   const [editingBook, setEditingBook] = useState<LibraryBook | null>(null);
   const [issueDialogOpen, setIssueDialogOpen] = useState(false);
   const [issueBook, setIssueBook] = useState<LibraryBook | null>(null);
+  // ── Copies (library v2) ──
+  const [copiesOpen, setCopiesOpen] = useState(false);
+  const [copiesBook, setCopiesBook] = useState<LibraryBook | null>(null);
+  const [copiesList, setCopiesList] = useState<BookCopy[]>([]);
+  const [addCopiesCount, setAddCopiesCount] = useState("1");
 
   // Enhanced issue search: Roll No + Class + Section
   const [issueSearch, setIssueSearch] = useState("");
@@ -122,8 +180,8 @@ export function LibraryDirectoryView() {
   }, [classes, issueClass]);
 
   const refresh = () => {
-    setBooks([...mockDb.getLibraryBooks(activeBranchId)]);
-    setIssues([...mockDb.getBookIssues(activeBranchId)]);
+    void refreshBooks();
+    void refreshIssues();
   };
 
   const openAddBook = () => {
@@ -142,41 +200,46 @@ export function LibraryDirectoryView() {
     setBookDialogOpen(true);
   };
 
-  const onSubmitBook = (data: BookFormValues) => {
+  const onSubmitBook = async (data: BookFormValues) => {
     const total = Number(data.totalCopies) || 0;
-    const price = Number(data.price) || 0;
-    const existing = editingBook;
-    const payload = {
-      id: existing?.id,
+    const payload: Record<string, unknown> = {
       title: data.title,
       author: data.author,
       isbn: data.isbn,
       publisher: data.publisher,
-      category: data.category as BookCategory,
-      branchId: activeBranchId === "all" ? "br-apex-01" : activeBranchId,
-      branchName: existing?.branchName || "Apex Global Campus",
+      category: data.category,
       shelfLocation: data.shelfLocation,
       totalCopies: total,
-      availableCopies: existing ? Math.max(0, total - existing.issuedCopies) : total,
-      issuedCopies: existing?.issuedCopies ?? 0,
-      price, publishedYear: Number(data.publishedYear) || 2024, language: data.language || "English",
-      status: (total > 0 ? "AVAILABLE" : "ISSUED") as any,
+      price: Number(data.price) || 0,
+      publishedYear: Number(data.publishedYear) || 2024,
+      language: data.language || "English",
       description: data.description || "",
       accessionNumber: data.accessionNumber,
       edition: data.edition,
       rackNumber: data.rackNumber,
-      addedDate: existing?.addedDate || new Date().toISOString().split("T")[0],
-    } as any;
-    mockDb.saveLibraryBook(payload);
-    toast.success(editingBook ? "Book updated" : "Book added to catalog");
-    setBookDialogOpen(false);
-    refresh();
+    };
+    try {
+      if (editingBook) {
+        await updateBookApi(editingBook.id, payload);
+      } else {
+        await createBookApi(payload, activeBranchId !== "all" ? activeBranchId : undefined);
+      }
+      toast.success(editingBook ? "Book updated" : "Book added to catalog");
+      setBookDialogOpen(false);
+      refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to save book");
+    }
   };
 
-  const handleDeleteBook = (id: string) => {
-    mockDb.deleteLibraryBook(id);
-    toast.success("Book removed from catalog");
-    refresh();
+  const handleDeleteBook = async (id: string) => {
+    try {
+      await deleteBookApi(id);
+      toast.success("Book removed from catalog");
+      refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to delete book");
+    }
   };
 
   const openIssueDialog = (b: LibraryBook) => {
@@ -189,40 +252,73 @@ export function LibraryDirectoryView() {
     setIssueDialogOpen(true);
   };
 
-  const handleIssueConfirm = () => {
+  const handleViewCopies = async (b: LibraryBook) => {
+    setCopiesBook(b);
+    setAddCopiesCount("1");
+    setCopiesList(await fetchCopies(b.id, { campusId: activeBranchId }).catch(() => []));
+    setCopiesOpen(true);
+  };
+
+  const handleAddCopies = async () => {
+    if (!copiesBook) return;
+    const count = Number(addCopiesCount) || 0;
+    if (count < 1) { toast.error("Enter a copy count"); return; }
+    try {
+      await addCopiesApi(copiesBook.id, { count, acquisitionSource: "Purchase" }, activeBranchId !== "all" ? activeBranchId : undefined);
+      toast.success(`${count} copy/copies added`);
+      setCopiesList(await fetchCopies(copiesBook.id, { campusId: activeBranchId }).catch(() => []));
+      refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to add copies");
+    }
+  };
+
+  const handleIssueConfirm = async () => {
     if (!issueBook) return;
     const stu = students.find((s) => s.id === selectedStudentId) || filteredStudentsForIssue[0];
     if (!stu) { toast.error("Please select a student — search by Roll No / Name"); return; }
-    mockDb.issueBook({
-      bookId: issueBook.id,
-      bookTitle: issueBook.title,
-      bookIsbn: issueBook.isbn,
-      studentId: stu.id,
-      studentName: stu.fullName,
-      studentRoll: stu.rollNumber,
-      className: stu.className,
-      branchId: issueBook.branchId,
-      branchName: issueBook.branchName,
-      issuedDate: new Date().toISOString().split("T")[0],
-      dueDate: new Date(Date.now() + 14 * 86400000).toISOString().split("T")[0],
-      status: "ISSUED",
-      fineAmount: 0,
-      finePaid: 0,
-      issuedBy: "Librarian",
-    });
-    toast.success(`Issued "${issueBook.title}" to ${stu.fullName} (${stu.rollNumber} - ${stu.className})`);
-    setIssueDialogOpen(false);
-    refresh();
+    try {
+      const issued = await issueBookApi(
+        {
+          bookId: issueBook.id,
+          studentId: stu.id,
+          issuedDate: new Date().toISOString().split("T")[0],
+          dueDate: new Date(Date.now() + 14 * 86400000).toISOString().split("T")[0],
+        },
+        activeBranchId !== "all" ? activeBranchId : undefined
+      );
+      toast.success(`Issued "${issueBook.title}" to ${stu.fullName} (${stu.rollNumber} - ${stu.className})`);
+      setIssueDialogOpen(false);
+      refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to issue book");
+    }
   };
 
-  const handleReturn = (issueId: string) => {
-    mockDb.returnBook(issueId);
-    toast.success("Book returned successfully");
-    refresh();
+  const handleReturn = async (issueId: string) => {
+    try {
+      await returnBookApi(issueId);
+      toast.success("Book returned successfully");
+      refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to return book");
+    }
+  };
+
+  const handleCollectFine = async (fineUuid: string, amount: number) => {
+    if (!fineUuid || amount <= 0) return;
+    try {
+      const rec = await payFineApi(fineUuid, { amount, paymentMethod: "CASH" }, activeBranchId !== "all" ? activeBranchId : undefined);
+      toast.success(`Fine collected — ₹${rec.amount}`, { description: `Receipt ${rec.receiptNumber}` });
+      void refreshFines();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to collect fine");
+    }
   };
 
   return (
     <div className="space-y-4">
+      <SectionOfflineBanner isOffline={isOffline} error={error} isLoading={isLoading} />
       <Tabs defaultValue="catalog" className="space-y-4">
         <div className="flex flex-col md:flex-row justify-between gap-3">
           <TabsList>
@@ -296,6 +392,7 @@ export function LibraryDirectoryView() {
                     {b.description && <p className="text-[11px] text-muted-foreground line-clamp-2">{b.description}</p>}
                     <div className="flex gap-2">
                       <Button size="sm" variant="outline" className="flex-1 h-8 text-xs gap-1" onClick={() => openIssueDialog(b)} disabled={b.availableCopies === 0}><Library className="h-3.5 w-3.5" /> Issue Book</Button>
+                      <Button size="sm" variant="ghost" className="h-8 px-2 text-xs" onClick={() => void handleViewCopies(b)} title="Manage copies">Copies</Button>
                       <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => openEditBook(b)}><Edit3 className="h-3.5 w-3.5" /></Button>
                       <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive" onClick={() => handleDeleteBook(b.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
                     </div>
@@ -366,12 +463,12 @@ export function LibraryDirectoryView() {
                 <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
                     <h4 className="font-semibold text-sm">{f.bookTitle}</h4>
-                    <p className="text-xs text-muted-foreground">{f.studentName} • {f.reason} • Due {formatDate(f.dueDate)}</p>
+                    <p className="text-xs text-muted-foreground">{f.studentName} • {f.reason}{f.dueDate ? ` • Due ${formatDate(f.dueDate)}` : ""}</p>
                   </div>
                   <div className="flex items-center gap-3">
                     <Badge variant={f.status === "PENDING" ? "destructive" : f.status === "PAID" ? "success" : "secondary"} className="text-[10px]">{f.status}</Badge>
                     <span className="font-bold text-sm">{formatCurrency(f.amount)}</span>
-                    <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => toast.success(`Fine ${f.id} marked paid`)} disabled={f.status === "PAID"}>Collect</Button>
+                    <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => void handleCollectFine(f.id, f.amount)} disabled={f.status !== "PENDING"}>Collect</Button>
                   </div>
                 </CardContent>
               </Card>
@@ -539,6 +636,51 @@ export function LibraryDirectoryView() {
           <DialogFooter className="gap-2 pt-2">
             <Button variant="outline" onClick={() => setIssueDialogOpen(false)}>Cancel</Button>
             <Button onClick={handleIssueConfirm} variant="gradient" disabled={!selectedStudentId}>Confirm Issue</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Copies dialog (library v2) */}
+      <Dialog open={copiesOpen} onOpenChange={setCopiesOpen}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Copies — {copiesBook?.title}</DialogTitle>
+            <DialogDescription>Individual copy tracking with condition & barcode (library v2).</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 mt-2">
+            <div className="rounded-lg border border-border/80 max-h-[260px] overflow-y-auto">
+              {copiesList.length === 0 ? (
+                <div className="p-6 text-center text-xs text-muted-foreground">No copies yet. Add copies below.</div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Copy</TableHead>
+                      <TableHead>Accession</TableHead>
+                      <TableHead>Condition</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {copiesList.map((c) => (
+                      <TableRow key={c.uuid}>
+                        <TableCell className="font-mono text-xs font-bold">Copy {c.copyNumber}</TableCell>
+                        <TableCell className="font-mono text-[11px] text-muted-foreground">{c.accessionNumber || "—"}</TableCell>
+                        <TableCell><Badge variant={c.condition === "GOOD" ? "success" : c.condition === "DAMAGED" || c.condition === "LOST" || c.condition === "MISSING" ? "destructive" : "warning"} className="text-[10px]">{c.condition}</Badge></TableCell>
+                        <TableCell><Badge variant={c.status === "AVAILABLE" ? "success" : c.status === "ISSUED" ? "info" : "secondary"} className="text-[10px]">{c.status}</Badge></TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <Input type="number" value={addCopiesCount} onChange={(e) => setAddCopiesCount(e.target.value)} className="w-24 h-8 text-xs" />
+              <Button size="sm" variant="outline" className="h-8 text-xs gap-1" onClick={() => void handleAddCopies()}><Plus className="h-3.5 w-3.5" /> Add Copies</Button>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCopiesOpen(false)}>Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

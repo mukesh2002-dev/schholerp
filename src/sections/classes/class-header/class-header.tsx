@@ -2,7 +2,10 @@
 
 import React, { useState } from "react";
 import { useERP } from "@/components/providers/erp-provider";
-import { mockDb } from "@/lib/services/mock-db";
+import { ClassRoom } from "@/types";
+import { fetchClasses } from "@/lib/api/classes";
+import { useCampusData } from "@/lib/hooks/use-campus-data";
+import { canMutateAcademics } from "@/lib/auth/roles";
 import { Breadcrumbs } from "@/components/layout/breadcrumbs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,8 +13,14 @@ import { Plus } from "lucide-react";
 import { ClassFormDialog } from "@/components/classes/class-form-dialog";
 
 export function ClassHeader() {
-  const { activeBranchId } = useERP();
-  const classes = mockDb.getClasses(activeBranchId);
+  const { activeBranchId, session } = useERP();
+  const canEdit = canMutateAcademics(session.role);
+  const { data: classes } = useCampusData<ClassRoom[]>({
+    fetcher: (cid) => fetchClasses({ campusId: cid }),
+    campusId: activeBranchId,
+    fallback: [],
+    queryKeyPrefix: "classes",
+  });
   const [dialogOpen, setDialogOpen] = useState(false);
 
   return (
@@ -34,10 +43,12 @@ export function ClassHeader() {
             </p>
           </div>
 
-          <Button onClick={() => setDialogOpen(true)} variant="gradient" className="gap-2 shrink-0">
-            <Plus className="h-4 w-4" />
-            <span>Add Academic Class</span>
-          </Button>
+          {canEdit && (
+            <Button onClick={() => setDialogOpen(true)} variant="gradient" className="gap-2 shrink-0">
+              <Plus className="h-4 w-4" />
+              <span>Add Academic Class</span>
+            </Button>
+          )}
         </div>
       </div>
 

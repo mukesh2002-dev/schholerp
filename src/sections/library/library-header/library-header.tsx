@@ -2,7 +2,8 @@
 
 import React from "react";
 import { useERP } from "@/components/providers/erp-provider";
-import { mockDb } from "@/lib/services/mock-db";
+import { fetchBooks } from "@/lib/api/library";
+import { useCampusData } from "@/lib/hooks/use-campus-data";
 import { Breadcrumbs } from "@/components/layout/breadcrumbs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,7 +12,12 @@ import { toast } from "sonner";
 
 export function LibraryHeader() {
   const { activeBranchId } = useERP();
-  const books = mockDb.getLibraryBooks(activeBranchId);
+  const { data: books } = useCampusData({
+    fetcher: (cid) => fetchBooks({ campusId: cid }).then((r) => r.data),
+    campusId: activeBranchId,
+    fallback: [],
+    queryKeyPrefix: "library-books",
+  });
 
   return (
     <div className="space-y-4">

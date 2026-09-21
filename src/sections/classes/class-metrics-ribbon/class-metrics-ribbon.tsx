@@ -1,19 +1,26 @@
 "use client";
 
-import React from "react";
+import React, { useMemo } from "react";
 import { useERP } from "@/components/providers/erp-provider";
-import { mockDb } from "@/lib/services/mock-db";
+import { ClassRoom } from "@/types";
+import { fetchClasses } from "@/lib/api/classes";
+import { useCampusData } from "@/lib/hooks/use-campus-data";
 import { Card } from "@/components/ui/card";
 import { BookOpen, Layers, Users, Building2 } from "lucide-react";
 import { formatNumber } from "@/lib/utils";
 
 export function ClassMetricsRibbon() {
   const { activeBranchId } = useERP();
-  const classes = mockDb.getClasses(activeBranchId);
+  const { data: classes } = useCampusData<ClassRoom[]>({
+    fetcher: (cid) => fetchClasses({ campusId: cid }),
+    campusId: activeBranchId,
+    fallback: [],
+    queryKeyPrefix: "classes",
+  });
 
   const totalClassesCount = classes.length;
-  const totalSectionsCount = classes.reduce((acc, c) => acc + c.sections.length, 0);
-  const totalStudentsEnrolled = classes.reduce((acc, c) => acc + c.totalStudents, 0);
+  const totalSectionsCount = classes.length;
+  const totalStudentsEnrolled = useMemo(() => classes.reduce((acc, c) => acc + c.totalStudents, 0), [classes]);
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -25,7 +32,7 @@ export function ClassMetricsRibbon() {
           <BookOpen className="h-4 w-4 text-blue-500" />
         </div>
         <span className="text-2xl font-bold text-foreground mt-1 block">{totalClassesCount}</span>
-        <span className="text-[11px] text-muted-foreground">K through 12</span>
+        <span className="text-[11px] text-muted-foreground">Live from database</span>
       </Card>
 
       <Card className="p-4 border-border/70 shadow-2xs">
@@ -60,7 +67,7 @@ export function ClassMetricsRibbon() {
           <Building2 className="h-4 w-4 text-amber-500" />
         </div>
         <span className="text-2xl font-bold text-foreground mt-1 block">{totalSectionsCount}</span>
-        <span className="text-[11px] text-muted-foreground">100% faculty mapped</span>
+        <span className="text-[11px] text-muted-foreground">Faculty via subjects</span>
       </Card>
     </div>
   );

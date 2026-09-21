@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
-import { mockDb } from "@/lib/services/mock-db";
+import React, { useState, useMemo, useEffect } from "react";
+import { fetchAuditLogs } from "@/lib/api/audit";
 import { Breadcrumbs } from "@/components/layout/breadcrumbs";
 import { useERP } from "@/components/providers/erp-provider";
 import { formatDate } from "@/lib/utils";
@@ -37,6 +37,7 @@ import {
   Layers,
   X,
 } from "lucide-react";
+import { SectionGuard } from "@/components/layout/section-guard";
 
 const ACTION_OPTIONS = [
   "ALL",
@@ -100,7 +101,30 @@ export default function AuditPage() {
   const [userFilter, setUserFilter] = useState("ALL");
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const allLogs = useMemo(() => mockDb.getAuditLogs(), []);
+  const [allLogs, setAllLogs] = useState<AuditLog[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    void fetchAuditLogs({ page: 1, limit: 100 })
+      .then((res) => {
+        if (cancelled) return;
+        setAllLogs(res.data);
+        setError(null);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setError(err instanceof Error ? err.message : "Failed to load audit logs");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const totalEvents = allLogs.length;
   const uniqueUsersList = useMemo(() => Array.from(new Set(allLogs.map((l) => l.user))), [allLogs]);
@@ -109,8 +133,14 @@ export default function AuditPage() {
   const modulesTrackedCount = useMemo(() => new Set(allLogs.map((l) => l.module)).size, [allLogs]);
 
   const baseLogs = useMemo(() => {
-    return mockDb.getAuditLogs(actionFilter, moduleFilter, userFilter);
-  }, [actionFilter, moduleFilter, userFilter]);
+    const filtered = allLogs.filter((l) => {
+      const matchAction = actionFilter === "ALL" || l.action === actionFilter;
+      const matchModule = moduleFilter === "ALL" || l.module === moduleFilter;
+      const matchUser = userFilter === "ALL" || l.user === userFilter;
+      return matchAction && matchModule && matchUser;
+    });
+    return filtered;
+  }, [allLogs, actionFilter, moduleFilter, userFilter]);
 
   const filteredLogs = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
@@ -137,8 +167,9 @@ export default function AuditPage() {
   }
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-300">
-      <Breadcrumbs />
+    <SectionGuard featureKey="admin_analytics">
+      <div className="space-y-8 animate-in fade-in duration-300">
+        <Breadcrumbs />
 
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div>
@@ -151,7 +182,7 @@ export default function AuditPage() {
               {totalEvents} total
             </Badge>
             <Badge className="bg-amber-500/10 text-amber-700 border-amber-500/20 text-[11px] font-medium">
-              Mock Audit Trail — Demo Data
+              {loading ? "Loading live audit trail…" : error ? "Live — showing last loaded events" : "Live Audit Trail"}
             </Badge>
           </div>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">Activity log — every action tracked</p>
@@ -251,7 +282,7 @@ export default function AuditPage() {
               <SelectValue placeholder="All Modules" />
             </SelectTrigger>
             <SelectContent>
-              {MODULE_OPTIONS.map((m) => (
+              {["ALL", ...Array.from(new Set(allLogs.map((l) => l.module)))].map((m) => (
                 <SelectItem key={m} value={m}>
                   {m === "ALL" ? "All Modules" : m}
                 </SelectItem>
@@ -420,6 +451,7 @@ export default function AuditPage() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </SectionGuard>
   );
 }

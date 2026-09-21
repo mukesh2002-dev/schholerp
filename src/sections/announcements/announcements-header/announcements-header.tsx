@@ -1,13 +1,19 @@
 "use client";
 
 import { useERP } from "@/components/providers/erp-provider";
-import { mockDb } from "@/lib/services/mock-db";
+import { fetchNotices } from "@/lib/api/notices";
+import { useCampusData } from "@/lib/hooks/use-campus-data";
 import { Breadcrumbs } from "@/components/layout/breadcrumbs";
 import { Badge } from "@/components/ui/badge";
 
 export function AnnouncementsHeader() {
   const { activeBranchId } = useERP();
-  const announcements = mockDb.getAnnouncements(activeBranchId);
+  const { data: notices } = useCampusData({
+    fetcher: (cid) => fetchNotices({ campusId: cid }),
+    campusId: activeBranchId,
+    fallback: [],
+    queryKeyPrefix: "notices",
+  });
 
   return (
     <div className="space-y-4">
@@ -19,7 +25,7 @@ export function AnnouncementsHeader() {
               Announcements &amp; Notices
             </h1>
             <Badge variant="outline" className="text-xs">
-              {announcements.length} Total
+              {notices.length} Total
             </Badge>
           </div>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">

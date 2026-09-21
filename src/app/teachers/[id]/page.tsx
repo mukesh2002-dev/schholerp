@@ -1,43 +1,50 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useERP } from "@/components/providers/erp-provider";
-import { mockDb } from "@/lib/services/mock-db";
+import { fetchTeacherById } from "@/lib/api/teachers";
 import { Teacher } from "@/types";
 import { Breadcrumbs } from "@/components/layout/breadcrumbs";
 import { TeacherFormDialog } from "@/components/teachers/teacher-form-dialog";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Users,
-  BookOpen,
-  Calendar,
-  Phone,
-  Mail,
-  Building2,
-  CheckCircle2,
-  Clock,
-  DollarSign,
-  ArrowLeft,
-  Edit2,
-  Award,
-  Layers,
-  CalendarDays,
-  FileText,
-  ShieldCheck,
-  Upload,
-} from "lucide-react";
+import { Loader2, Users, BookOpen, Calendar, Phone, Mail, Building2, CheckCircle2, Clock, DollarSign, ArrowLeft, Edit2, Award, Layers, CalendarDays, FileText, ShieldCheck, Upload } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
 export default function TeacherDetailPage() {
   const params = useParams();
   const teacherId = params.id as string;
 
-  const [teacher, setTeacher] = useState(() => mockDb.getTeacherById(teacherId));
+  const [teacher, setTeacher] = useState<Teacher | null>(null);
+  const [loading, setLoading] = useState(true);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    void fetchTeacherById(teacherId).then((t) => {
+      if (cancelled) return;
+      setTeacher(t);
+      setLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [teacherId]);
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen w-full items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          <p className="text-xs text-muted-foreground">Loading faculty profile…</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!teacher) {
     return (
@@ -307,7 +314,7 @@ export default function TeacherDetailPage() {
         </CardHeader>
         <CardContent className="space-y-3">
           {(() => {
-            const docs = mockDb.getDocuments().filter((d) => d.ownerId === teacher.id && d.ownerType === "TEACHER");
+            const docs: any[] = [];
             if (docs.length === 0) {
               return (
                 <div className="p-4 rounded-xl border border-dashed text-center text-xs text-muted-foreground">
@@ -340,7 +347,9 @@ export default function TeacherDetailPage() {
         open={editDialogOpen}
         onOpenChange={setEditDialogOpen}
         teacherToEdit={teacher}
-        onSuccess={() => setTeacher(mockDb.getTeacherById(teacherId))}
+        onSuccess={() => {
+          void fetchTeacherById(teacherId).then((t) => t && setTeacher(t));
+        }}
       />
     </div>
   );

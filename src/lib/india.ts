@@ -52,7 +52,6 @@ export const INDIAN_STATES: IndianState[] = [
   { code: "AN", name: "Andaman & Nicobar Islands" },
   { code: "CH", name: "Chandigarh" },
   { code: "DN", name: "Dadra & Nagar Haveli and Daman & Diu" },
-  { code: "LK", name: "Lakshadweep" },
 ];
 
 export const INDIAN_STATE_NAMES = INDIAN_STATES.map((s) => s.name);

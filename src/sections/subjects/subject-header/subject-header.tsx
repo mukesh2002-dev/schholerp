@@ -2,17 +2,31 @@
 
 import React, { useState } from "react";
 import { useERP } from "@/components/providers/erp-provider";
-import { mockDb } from "@/lib/services/mock-db";
+import { Subject, ClassRoom } from "@/types";
+import { fetchSubjects, fetchClasses } from "@/lib/api/classes";
+import { useCampusData } from "@/lib/hooks/use-campus-data";
+import { canMutateAcademics } from "@/lib/auth/roles";
 import { Breadcrumbs } from "@/components/layout/breadcrumbs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Plus, Layers, BookMarked } from "lucide-react";
+import { Plus, Layers } from "lucide-react";
 import { SubjectFormDialog } from "@/components/subjects/subject-form-dialog";
 
 export function SubjectHeader() {
-  const { activeBranchId } = useERP();
-  const subjects = mockDb.getAllSubjects(activeBranchId);
-  const classes = mockDb.getClasses(activeBranchId);
+  const { activeBranchId, session } = useERP();
+  const canEdit = canMutateAcademics(session.role);
+  const { data: subjects } = useCampusData({
+    fetcher: (cid) => fetchSubjects({ campusId: cid }),
+    campusId: activeBranchId,
+    fallback: [] as (Subject & { classId: string; className: string; branchId: string; branchName: string })[],
+    queryKeyPrefix: "subjects",
+  });
+  const { data: classes } = useCampusData({
+    fetcher: (cid) => fetchClasses({ campusId: cid }),
+    campusId: activeBranchId,
+    fallback: [] as ClassRoom[],
+    queryKeyPrefix: "classes",
+  });
   const [dialogOpen, setDialogOpen] = useState(false);
 
   return (
@@ -36,10 +50,12 @@ export function SubjectHeader() {
               Class-wise subject catalogue with chapter-wise topics — editable, add / delete. Linked to Classes & Sections.
             </p>
           </div>
-          <Button onClick={() => setDialogOpen(true)} variant="gradient" className="gap-2 shrink-0">
-            <Plus className="h-4 w-4" />
-            <span>Add Subject</span>
-          </Button>
+          {canEdit && (
+            <Button onClick={() => setDialogOpen(true)} variant="gradient" className="gap-2 shrink-0">
+              <Plus className="h-4 w-4" />
+              <span>Add Subject</span>
+            </Button>
+          )}
         </div>
       </div>
       <SubjectFormDialog open={dialogOpen} onOpenChange={setDialogOpen} onSuccess={() => window.dispatchEvent(new Event("subjects:refresh"))} />

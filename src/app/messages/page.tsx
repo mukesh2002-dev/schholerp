@@ -1,3 +1,5 @@
+"use client";
+
 import { Suspense } from "react";
 import {
   MessagesHeader,
@@ -7,10 +9,12 @@ import {
   MessagesDirectoryView,
   MessagesDirectoryViewSkeleton,
 } from "@/sections/messages";
+import { SectionGuard } from "@/components/layout/section-guard";
 
 export default function MessagesPage() {
   return (
-    <div className="flex-1 space-y-8 p-4 md:p-8 pt-6">
+    <SectionGuard>
+      <div className="flex-1 space-y-8 p-4 md:p-8 pt-6">
       <Suspense fallback={<MessagesHeaderSkeleton />}>
         <MessagesHeader />
       </Suspense>
@@ -22,6 +26,7 @@ export default function MessagesPage() {
       <Suspense fallback={<MessagesDirectoryViewSkeleton />}>
         <MessagesDirectoryView />
       </Suspense>
-    </div>
+      </div>
+    </SectionGuard>
   );
 }

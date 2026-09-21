@@ -17,6 +17,15 @@ export interface UserSession {
   branchId: string; // 'all' or specific branch id
   roleLabel: string;
   title: string;
+  /** Raw backend role token (super_admin/admin/principal/...) — lets the UI
+   *  distinguish super_admin from admin when both map to the same portal role. */
+  rawRole?: string;
+  /** Backend campus name (e.g. "Main Campus") — shown in the header before
+   *  the campus list finishes loading. */
+  campusName?: string;
+  /** Backend-driven list of accessible modules (from /auth/me `sidebar`).
+   *  Drives the dynamic sidebar when present; role-based nav is the fallback. */
+  sidebar?: string[];
 }
 
 export type BranchStatus = "ACTIVE" | "EXPANDING" | "MAINTENANCE" | "INACTIVE";
@@ -1819,6 +1828,189 @@ export interface LibraryFine {
   status: "PENDING" | "PAID" | "WAIVED";
   dueDate: string;
   createdAt: string;
+}
+
+// ==================== LIBRARY v2 ====================
+export type LibraryType = "GENERAL" | "DIGITAL" | "REFERENCE" | "DEPARTMENT";
+
+export interface Library {
+  uuid: string;
+  id?: string;
+  name: string;
+  code?: string | null;
+  type: LibraryType;
+  location?: string | null;
+  campusId?: string | null;
+  librarianId?: string | null;
+  librarian?: { uuid: string; name: string } | null;
+  maxBooksPerStudent: number;
+  maxDaysPerIssue: number;
+  isActive: boolean;
+  _count?: { books?: number; copies?: number };
+  createdAt?: string;
+}
+
+export interface LibrarySection {
+  uuid: string;
+  libraryId: string;
+  name: string;
+  code?: string | null;
+  shelfRange?: string | null;
+  floor?: string | null;
+  capacity?: number | null;
+  isActive: boolean;
+}
+
+export type BookCondition = "GOOD" | "FAIR" | "WORN" | "DAMAGED" | "LOST" | "MISSING" | "WRITTEN_OFF";
+export type BookCopyStatus = "AVAILABLE" | "ISSUED" | "RESERVED" | "LOST" | "DAMAGED" | "UNDER_REPAIR" | "WRITTEN_OFF";
+
+export interface BookCopy {
+  uuid: string;
+  bookId: string;
+  bookTitle?: string;
+  libraryId: string;
+  copyNumber: number;
+  accessionNumber?: string | null;
+  barcode?: string | null;
+  condition: BookCondition;
+  conditionNotes?: string | null;
+  status: BookCopyStatus;
+  acquisitionCost?: number | null;
+  lastIssuedDate?: string | null;
+  isActive: boolean;
+}
+
+export type FineRuleType = "OVERDUE" | "LOST_BOOK" | "DAMAGED_BOOK" | "MISSING_BOOK";
+
+export interface LibraryFineRule {
+  uuid: string;
+  libraryId?: string | null;
+  library?: { uuid: string; name: string } | null;
+  ruleType: FineRuleType;
+  finePerDay: number;
+  maxFineAmount?: number | null;
+  gracePeriodDays: number;
+  flatFineAmount: number;
+  replacementPercent: number;
+  isActive: boolean;
+}
+
+export interface FinePaymentRecord {
+  uuid: string;
+  amount: number;
+  paymentMethod: string;
+  receiptNumber?: string | null;
+  notes?: string | null;
+  createdAt: string;
+}
+
+export interface LibraryFineDetail {
+  uuid: string;
+  issueId?: string | null;
+  bookId?: string | null;
+  book?: { uuid: string; title: string } | null;
+  studentId?: string | null;
+  student?: { uuid: string; firstName?: string; lastName?: string } | null;
+  copyId?: string | null;
+  libraryId?: string | null;
+  reason: string;
+  daysOverdue: number;
+  finePerDay: number;
+  totalFine: number;
+  paidAmount: number;
+  replacementCost: number;
+  status: "PENDING" | "PARTIAL" | "PAID" | "WAIVED";
+  dueDate?: string | null;
+  returnDate?: string | null;
+  payments: FinePaymentRecord[];
+}
+
+export interface BookReservation {
+  uuid: string;
+  bookId?: string | null;
+  book?: { uuid: string; title: string } | null;
+  libraryId?: string | null;
+  studentId?: string | null;
+  student?: { uuid: string; firstName?: string; lastName?: string } | null;
+  queuePosition: number;
+  status: "WAITING" | "NOTIFIED" | "FULFILLED" | "CANCELLED" | "EXPIRED";
+  reservedAt: string;
+  notifiedAt?: string | null;
+  expiresAt?: string | null;
+  fulfilledAt?: string | null;
+}
+
+export interface LibraryDashboard {
+  libraries: number;
+  books: number;
+  copies: number;
+  issued: number;
+  overdue: number;
+  finesCollected: number;
+  finesPending: number;
+}
+
+// ==================== LIBRARY v2 — Purchase / Announcements / Rules ====================
+export type BookPurchaseRequestStatus = "PENDING" | "UNDER_REVIEW" | "APPROVED" | "REJECTED" | "ORDERED" | "RECEIVED" | "CANCELLED";
+export type BookPurchasePriority = "URGENT" | "HIGH" | "NORMAL" | "LOW";
+
+export interface BookPurchaseRequest {
+  uuid: string;
+  requestNumber: string;
+  title: string;
+  author?: string | null;
+  isbn?: string | null;
+  category?: string | null;
+  quantity: number;
+  estimatedPrice?: number | null;
+  estimatedCost?: number | null;
+  currency: string;
+  priority: BookPurchasePriority;
+  reason: string;
+  targetAudience?: string | null;
+  status: BookPurchaseRequestStatus;
+  rejectionReason?: string | null;
+  reviewNotes?: string | null;
+  supplierSuggestion?: string | null;
+  requestedBy?: { uuid: string; name: string } | null;
+  reviewedBy?: { uuid: string; name: string } | null;
+  reviewedAt?: string | null;
+  createdAt: string;
+}
+
+export type AnnouncementType = "GENERAL" | "NEW_ARRIVAL" | "EVENT" | "CLOSURE" | "OVERDUE_REMINDER" | "RULE_CHANGE" | "MAINTENANCE";
+
+export interface LibraryAnnouncement {
+  uuid: string;
+  title: string;
+  content: string;
+  type: AnnouncementType;
+  priority: string;
+  targetRoles: string[];
+  attachmentUrl?: string | null;
+  publishedAt?: string | null;
+  expiresAt?: string | null;
+  isPinned: boolean;
+  author?: { uuid: string; name: string } | null;
+  createdAt: string;
+}
+
+export type RuleCategory = "GENERAL" | "BORROWING" | "FINE_POLICY" | "CONDUCT" | "DIGITAL" | "MEMBERSHIP" | "TIMINGS" | "DAMAGE";
+export type RuleSeverity = "INFO" | "WARNING" | "STRICT";
+
+export interface LibraryRule {
+  uuid: string;
+  libraryId?: string | null;
+  category: RuleCategory;
+  title: string;
+  description: string;
+  sortOrder: number;
+  severity: RuleSeverity;
+  effectiveFrom?: string | null;
+  effectiveUntil?: string | null;
+  isActive: boolean;
+  version: number;
+  createdAt?: string;
 }
 
 // ==================== STAFF / HR ====================

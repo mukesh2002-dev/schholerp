@@ -2,11 +2,13 @@
 
 import React, { useState } from "react";
 import { useERP } from "@/components/providers/erp-provider";
-import { mockDb } from "@/lib/services/mock-db";
+import { fetchNotices, createNoticeApi, Notice } from "@/lib/api/notices";
+import { useCampusData } from "@/lib/hooks/use-campus-data";
+import { SectionOfflineBanner } from "@/components/layout/section-guard";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Plus, Megaphone, Clock, Activity } from "lucide-react";
+import { Plus, Megaphone, Clock } from "lucide-react";
 import { formatDateTime } from "@/lib/utils";
 import {
   Dialog,
@@ -29,6 +31,7 @@ import { NoticePriority } from "@/types";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { toast } from "sonner";
 
 const noticeSchema = z.object({
   title: z.string().min(1, "Notice title is required"),
@@ -42,8 +45,18 @@ type NoticeFormValues = z.infer<typeof noticeSchema>;
 
 export function NoticesAndCirculars() {
   const { activeBranchId, branches } = useERP();
-  const [notices, setNotices] = useState(() => mockDb.getNotices(activeBranchId));
-  const [activities] = useState(() => mockDb.getActivities(activeBranchId));
+  const {
+    data: notices,
+    isLoading,
+    isOffline,
+    error,
+    refresh,
+  } = useCampusData<Notice[]>({
+    fetcher: (cid) => fetchNotices({ campusId: cid }),
+    campusId: activeBranchId,
+    fallback: [],
+    queryKeyPrefix: "notices",
+  });
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const {
@@ -68,20 +81,25 @@ export function NoticesAndCirculars() {
   const category = watch("category");
   const branchId = watch("branchId");
 
-  const handlePostNotice = (data: NoticeFormValues) => {
-    mockDb.addNotice({
-      title: data.title,
-      content: data.content,
-      priority: data.priority as NoticePriority,
-      category: data.category as any,
-      branchId: data.branchId,
-      author: "School Administration",
-      targetAudience: ["ALL"],
-    });
-
-    setNotices(mockDb.getNotices(activeBranchId));
-    setDialogOpen(false);
-    reset();
+  const handlePostNotice = async (data: NoticeFormValues) => {
+    try {
+      await createNoticeApi(
+        {
+          title: data.title,
+          content: data.content,
+          priority: String(data.priority).toLowerCase(),
+          campusId: data.branchId && data.branchId !== "all" ? data.branchId : undefined,
+          targetRoles: [],
+        },
+        activeBranchId !== "all" ? activeBranchId : undefined
+      );
+      toast.success("Notice published", { description: data.title });
+      setDialogOpen(false);
+      reset();
+      void refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to publish notice");
+    }
   };
 
   const priorityVariant = (priority: string) => {
@@ -95,30 +113,12 @@ export function NoticesAndCirculars() {
     }
   };
 
-  const actionVariant = (action: string) => {
-    switch (action) {
-      case "CREATE":
-        return "success";
-      case "UPDATE":
-        return "info";
-      case "APPROVE":
-        return "purple";
-      case "PAYMENT":
-        return "default";
-      case "SYNC":
-        return "warning";
-      case "DELETE":
-        return "destructive";
-      default:
-        return "secondary";
-    }
-  };
-
   return (
     <>
+      <SectionOfflineBanner isOffline={isOffline} error={error} isLoading={isLoading} />
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Notices Board */}
-        <Card className="col-span-full lg:col-span-6 border-border/80 shadow-xs">
+        <Card className="col-span-full lg:col-span-12 border-border/80 shadow-xs">
           <CardHeader className="flex flex-row items-center justify-between pb-3">
             <div>
               <CardTitle className="text-base font-bold text-foreground flex items-center gap-2">
@@ -138,86 +138,40 @@ export function NoticesAndCirculars() {
             </Button>
           </CardHeader>
           <CardContent className="space-y-3 pt-1">
-            <div className="max-h-[340px] overflow-y-auto space-y-3 pr-1">
-              {notices.map((n) => (
-                <div
-                  key={n.id}
-                  className="p-4 rounded-xl bg-card border border-border/70 hover:border-primary/40 transition-colors space-y-2 shadow-2xs"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="space-y-0.5">
-                      <span className="text-xs font-bold text-foreground line-clamp-1">{n.title}</span>
-                      <span className="text-[10px] text-muted-foreground">{n.category} Circular</span>
-                    </div>
-                    <Badge variant={priorityVariant(n.priority) as any} className="text-[9px] py-0 px-2 shrink-0">
-                      {n.priority}
-                    </Badge>
-                  </div>
-                  <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">{n.content}</p>
-                  <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-1 border-t border-border/40">
-                    <span>
-                      Author: <strong className="text-foreground">{n.author}</strong>
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      {formatDateTime(n.date)}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Recent Activity & Audit Trail */}
-        <Card className="col-span-full lg:col-span-6 border-border/80 shadow-xs">
-          <CardHeader className="flex flex-row items-center justify-between pb-3">
-            <div>
-              <CardTitle className="text-base font-bold text-foreground flex items-center gap-2">
-                <Activity className="h-4 w-4 text-primary" />
-                Recent Activity &amp; Audit Trail
-              </CardTitle>
-              <CardDescription>Live system operations and user actions across campuses</CardDescription>
-            </div>
-            <Badge variant="outline" className="text-xs">
-              Realtime Stream
-            </Badge>
-          </CardHeader>
-          <CardContent className="space-y-3 pt-1">
-            <div className="max-h-[340px] overflow-y-auto space-y-3 pr-1">
-              {activities.slice(0, 6).map((act) => (
-                <div
-                  key={act.id}
-                  className="flex items-start gap-3 p-3 rounded-xl bg-muted/30 border border-border/40 hover:bg-muted/60 transition-colors"
-                >
-                  <img
-                    src={act.user.avatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100"}
-                    alt={act.user.name}
-                    className="h-8 w-8 rounded-lg object-cover ring-1 ring-border mt-0.5 shrink-0"
-                  />
-                  <div className="flex-1 min-w-0 space-y-1">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-1.5 truncate">
-                        <span className="text-xs font-semibold text-foreground truncate">{act.user.name}</span>
-                        <span className="text-[10px] text-muted-foreground">• {act.user.role}</span>
+            {notices.length === 0 ? (
+              <div className="p-6 text-center rounded-xl border border-dashed text-xs text-muted-foreground">
+                No published circulars yet. Use “Post Notice” to broadcast one.
+              </div>
+            ) : (
+              <div className="max-h-[380px] overflow-y-auto space-y-3 pr-1">
+                {notices.map((n) => (
+                  <div
+                    key={n.id}
+                    className="p-4 rounded-xl bg-card border border-border/70 hover:border-primary/40 transition-colors space-y-2 shadow-2xs"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="space-y-0.5">
+                        <span className="text-xs font-bold text-foreground line-clamp-1">{n.title}</span>
+                        <span className="text-[10px] text-muted-foreground">{n.category} Circular • {n.branchName}</span>
                       </div>
-                      <Badge variant={actionVariant(act.action) as any} className="text-[9px] py-0 px-1.5 shrink-0">
-                        {act.action}
+                      <Badge variant={priorityVariant(n.priority) as any} className="text-[9px] py-0 px-2 shrink-0">
+                        {n.priority}
                       </Badge>
                     </div>
-                    <p className="text-xs text-foreground font-medium truncate">{act.entityName}</p>
-                    <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">{act.details}</p>
-                    <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-1">
-                      <span className="font-medium text-primary/80">{act.branchName}</span>
+                    <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">{n.content}</p>
+                    <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-1 border-t border-border/40">
+                      <span>
+                        Author: <strong className="text-foreground">{n.author}</strong>
+                      </span>
                       <span className="flex items-center gap-1">
                         <Clock className="h-3 w-3" />
-                        {formatDateTime(act.timestamp)}
+                        {formatDateTime(n.date)}
                       </span>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

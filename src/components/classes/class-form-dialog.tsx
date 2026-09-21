@@ -2,7 +2,6 @@
 
 import React, { useEffect } from "react";
 import { useERP } from "@/components/providers/erp-provider";
-import { mockDb } from "@/lib/services/mock-db";
 import { ClassRoom } from "@/types";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -26,7 +25,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { BookOpen } from "lucide-react";
-import { SCHOOL_BOARDS, MEDIUMS_OF_INSTRUCTION } from "@/lib/india";
+import { toast } from "sonner";
+import { createClassApi, updateClassApi } from "@/lib/api/classes";
+import { ApiError } from "@/lib/api/client";
 
 interface ClassFormDialogProps {
   open: boolean;
@@ -37,24 +38,20 @@ interface ClassFormDialogProps {
 
 const classSchema = z.object({
   name: z.string().min(1, "Class name is required (e.g. Grade 10)"),
-  gradeLevel: z.number().min(1).max(12),
+  gradeLevel: z.coerce.number().min(1).max(20),
   category: z.string().min(1),
   branchId: z.string().min(1),
-  board: z.string().min(1, "Select board"),
-  medium: z.string().min(1, "Select medium"),
-  capacity: z.number().min(1, "Capacity must be greater than 0"),
+  capacity: z.coerce.number().min(1, "Capacity must be greater than 0"),
   description: z.string().optional(),
   sectionName: z.string().min(1),
-  roomNumber: z.string().min(1),
-  classTeacherId: z.string().min(1),
 });
 
 type ClassFormValues = z.infer<typeof classSchema>;
 
 export function ClassFormDialog({ open, onOpenChange, onSuccess, editingClass }: ClassFormDialogProps) {
   const { branches, activeBranchId } = useERP();
-  const [teachers] = React.useState(() => mockDb.getTeachers());
   const isEditing = !!editingClass;
+  const [submitting, setSubmitting] = React.useState(false);
 
   const {
     register,
@@ -62,29 +59,22 @@ export function ClassFormDialog({ open, onOpenChange, onSuccess, editingClass }:
     setValue,
     watch,
     reset,
-    formState: { errors, isSubmitting },
+    formState: { errors },
   } = useForm<ClassFormValues>({
     resolver: zodResolver(classSchema),
     defaultValues: {
       name: "",
       gradeLevel: 10,
       category: "High School",
-      branchId: activeBranchId !== "all" ? activeBranchId : "br-apex-01",
-      board: "CBSE",
-      medium: "English",
+      branchId: activeBranchId !== "all" ? activeBranchId : branches[0]?.id || "",
       capacity: 120,
       description: "",
-      sectionName: "Section A",
-      roomNumber: "Room 101",
-      classTeacherId: teachers[0]?.id || "tch-01",
+      sectionName: "A",
     },
   });
 
   const category = watch("category");
   const branchId = watch("branchId");
-  const board = watch("board");
-  const medium = watch("medium");
-  const classTeacherId = watch("classTeacherId");
 
   useEffect(() => {
     if (open) {
@@ -94,94 +84,50 @@ export function ClassFormDialog({ open, onOpenChange, onSuccess, editingClass }:
           gradeLevel: editingClass.gradeLevel,
           category: editingClass.category,
           branchId: editingClass.branchId,
-          board: "CBSE",
-          medium: "English",
           capacity: editingClass.capacity,
           description: editingClass.description || "",
-          sectionName: editingClass.sections[0]?.name || "Section A",
-          roomNumber: editingClass.sections[0]?.roomNumber || "Room 101",
-          classTeacherId: editingClass.sections[0]?.classTeacherId || teachers[0]?.id || "tch-01",
+          sectionName: editingClass.sections[0]?.name.replace("Section ", "").trim() || "A",
         });
       } else {
         reset({
           name: "",
           gradeLevel: 10,
           category: "High School",
-          branchId: activeBranchId !== "all" ? activeBranchId : "br-apex-01",
-          board: "CBSE",
-          medium: "English",
+          branchId: activeBranchId !== "all" ? activeBranchId : branches[0]?.id || "",
           capacity: 120,
           description: "",
-          sectionName: "Section A",
-          roomNumber: "Room 101",
-          classTeacherId: teachers[0]?.id || "tch-01",
+          sectionName: "A",
         });
       }
     }
-  }, [open, editingClass, activeBranchId, reset, teachers]);
+  }, [open, editingClass, activeBranchId, branches, reset]);
 
-  const onSubmit = (data: ClassFormValues) => {
-    const targetBranch = branches.find((b) => b.id === data.branchId) || branches[0];
-    const assignedTeacher = teachers.find((t) => t.id === data.classTeacherId) || teachers[0];
-
-    if (isEditing && editingClass) {
-      const updated: ClassRoom = {
-        ...editingClass,
-        name: data.name,
+  const onSubmit = async (data: ClassFormValues) => {
+    setSubmitting(true);
+    try {
+      const basePayload = {
+        name: data.name.trim(),
+        section: data.sectionName.trim(),
         gradeLevel: Number(data.gradeLevel),
-        category: data.category as ClassRoom["category"],
-        branchId: targetBranch.id,
-        branchName: targetBranch.name,
+        category: data.category,
         capacity: Number(data.capacity),
-        description: data.description || editingClass.description,
+        description: data.description?.trim() || null,
       };
-      // update first section meta if needed (keep other sections)
-      if (updated.sections.length > 0) {
-        updated.sections[0] = {
-          ...updated.sections[0],
-          name: data.sectionName || updated.sections[0].name,
-          roomNumber: data.roomNumber || updated.sections[0].roomNumber,
-          classTeacherId: assignedTeacher?.id || updated.sections[0].classTeacherId,
-          classTeacherName: assignedTeacher?.fullName || updated.sections[0].classTeacherName,
-        };
+      if (isEditing && editingClass) {
+        await updateClassApi(editingClass.id, basePayload);
+        toast.success(`Class "${data.name}" updated`);
+      } else {
+        await createClassApi({ ...basePayload, campusId: data.branchId }, data.branchId);
+        toast.success(`Class "${data.name}" created`);
       }
-      mockDb.saveClass(updated);
       onOpenChange(false);
-      if (onSuccess) onSuccess();
-      return;
+      onSuccess?.();
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : "Failed to save class. Try again.";
+      toast.error(msg);
+    } finally {
+      setSubmitting(false);
     }
-
-    const classPayload: Omit<ClassRoom, "id"> = {
-      name: data.name,
-      gradeLevel: Number(data.gradeLevel),
-      category: data.category as ClassRoom["category"],
-      branchId: targetBranch.id,
-      branchName: targetBranch.name,
-      totalStudents: 32,
-      capacity: Number(data.capacity),
-      description: data.description || `${data.name} academic curriculum and subject tracks.`,
-      sections: [
-        {
-          id: `sec-${Date.now().toString(36)}`,
-          name: data.sectionName,
-          roomNumber: data.roomNumber,
-          classTeacherId: assignedTeacher?.id || "tch-01",
-          classTeacherName: assignedTeacher?.fullName || "Assigned Teacher",
-          studentCount: 32,
-          capacity: Math.round(Number(data.capacity) / 3),
-        },
-      ],
-      subjects: [
-        { id: "sub-gen-1", name: "Mathematics", code: "MATH-CR", teacherId: assignedTeacher?.id || "tch-01", teacherName: assignedTeacher?.fullName || "Lead Faculty", weeklyPeriods: 6 },
-        { id: "sub-gen-2", name: "English", code: "ENG-CR", teacherId: assignedTeacher?.id || "tch-01", teacherName: assignedTeacher?.fullName || "Lead Faculty", weeklyPeriods: 5 },
-      ],
-    };
-
-    setTimeout(() => {
-      mockDb.saveClass(classPayload);
-      onOpenChange(false);
-      if (onSuccess) onSuccess();
-    }, 400);
   };
 
   return (
@@ -216,39 +162,6 @@ export function ClassFormDialog({ open, onOpenChange, onSuccess, editingClass }:
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-medium text-foreground mb-1 block">Board</label>
-              <Select value={board} onValueChange={(val) => setValue("board", val)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Board" />
-                </SelectTrigger>
-                <SelectContent>
-                  {SCHOOL_BOARDS.map((b) => (
-                    <SelectItem key={b} value={b}>
-                      {b}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="text-xs font-medium text-foreground mb-1 block">Medium</label>
-              <Select value={medium} onValueChange={(val) => setValue("medium", val)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Medium" />
-                </SelectTrigger>
-                <SelectContent>
-                  {MEDIUMS_OF_INSTRUCTION.map((m) => (
-                    <SelectItem key={m} value={m}>
-                      {m}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
               <label className="text-xs font-medium text-foreground mb-1 block">Grade Level (Numeric)</label>
               <Input
                 type="number"
@@ -267,6 +180,10 @@ export function ClassFormDialog({ open, onOpenChange, onSuccess, editingClass }:
                   <SelectItem value="Middle School">Middle School (6-8)</SelectItem>
                   <SelectItem value="High School">High School (9-10)</SelectItem>
                   <SelectItem value="Senior Secondary">Senior Secondary (11-12)</SelectItem>
+                  <SelectItem value="UG">UG</SelectItem>
+                  <SelectItem value="PG">PG</SelectItem>
+                  <SelectItem value="Diploma">Diploma</SelectItem>
+                  <SelectItem value="College">College</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -275,7 +192,7 @@ export function ClassFormDialog({ open, onOpenChange, onSuccess, editingClass }:
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-medium text-foreground mb-1 block">Campus Branch</label>
-              <Select value={branchId} onValueChange={(val) => setValue("branchId", val)}>
+              <Select value={branchId} onValueChange={(val) => setValue("branchId", val)} disabled={isEditing}>
                 <SelectTrigger>
                   <SelectValue placeholder="Campus" />
                 </SelectTrigger>
@@ -298,43 +215,10 @@ export function ClassFormDialog({ open, onOpenChange, onSuccess, editingClass }:
             </div>
           </div>
 
-          {/* Initial Section Assignment */}
-          <div className="p-3 rounded-xl bg-muted/40 border border-border/60 space-y-3">
-            <span className="text-xs font-semibold text-foreground block">Initial Section & Class Teacher</span>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-[11px] text-muted-foreground block mb-0.5">Section Name</label>
-                <Input
-                  {...register("sectionName")}
-                  placeholder="Section A"
-                  className="h-8 text-xs"
-                />
-              </div>
-              <div>
-                <label className="text-[11px] text-muted-foreground block mb-0.5">Room Number</label>
-                <Input
-                  {...register("roomNumber")}
-                  placeholder="Room 101"
-                  className="h-8 text-xs"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="text-[11px] text-muted-foreground block mb-0.5">Assigned Class Teacher</label>
-              <Select value={classTeacherId} onValueChange={(val) => setValue("classTeacherId", val)}>
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue placeholder="Select Teacher" />
-                </SelectTrigger>
-                <SelectContent>
-                  {teachers.map((t) => (
-                    <SelectItem key={t.id} value={t.id}>
-                      {t.fullName} ({t.department})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          <div>
+            <label className="text-xs font-medium text-foreground mb-1 block">Section Name</label>
+            <Input {...register("sectionName")} placeholder="A / B / C" className="h-9" />
+            {errors.sectionName && <p className="text-[11px] text-rose-500 mt-1">{errors.sectionName.message}</p>}
           </div>
 
           <div>
@@ -350,8 +234,8 @@ export function ClassFormDialog({ open, onOpenChange, onSuccess, editingClass }:
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting} variant="gradient">
-              {isSubmitting ? (isEditing ? "Updating..." : "Creating...") : isEditing ? "Update Class" : "Create Class"}
+            <Button type="submit" disabled={submitting} variant="gradient">
+              {submitting ? (isEditing ? "Updating..." : "Creating...") : isEditing ? "Update Class" : "Create Class"}
             </Button>
           </DialogFooter>
         </form>

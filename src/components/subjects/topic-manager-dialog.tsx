@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useState } from "react";
-import { mockDb } from "@/lib/services/mock-db";
-import { Subject } from "@/types";
+import { Subject, SubjectTopic } from "@/types";
+import { updateSubjectApi } from "@/lib/api/classes";
+import { ApiError } from "@/lib/api/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,8 +19,12 @@ interface Props {
   onOpenChange: (o: boolean) => void;
   classId: string;
   className: string;
-  subject: Subject;
+  subject: Subject & { id: string };
   onSuccess?: () => void;
+}
+
+function nowIso(): string {
+  return new Date().toISOString();
 }
 
 export function TopicManagerDialog({ open, onOpenChange, classId, className, subject, onSuccess }: Props) {
@@ -27,41 +32,71 @@ export function TopicManagerDialog({ open, onOpenChange, classId, className, sub
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState<"PLANNED" | "IN_PROGRESS" | "COMPLETED">("PLANNED");
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const topics = subject.topics || [];
 
   const resetForm = () => { setTitle(""); setDescription(""); setStatus("PLANNED"); setEditingId(null); };
 
-  const handleAddOrUpdate = () => {
-    if (!title.trim()) { toast.error("Topic title required"); return; }
-    if (editingId) {
-      const res = mockDb.saveTopic(classId, subject.id, { id: editingId, title: title.trim(), description: description.trim(), order: topics.find((t) => t.id === editingId)?.order || topics.length + 1, status });
-      if (res) toast.success(`Topic "${title}" updated`);
-    } else {
-      const res = mockDb.saveTopic(classId, subject.id, { title: title.trim(), description: description.trim(), order: topics.length + 1, status });
-      if (res) toast.success(`Topic "${title}" added to ${subject.name}`);
+  const persist = async (nextTopics: SubjectTopic[]) => {
+    setSaving(true);
+    try {
+      await updateSubjectApi(subject.id, { topics: nextTopics });
+      subject.topics = nextTopics;
+      onSuccess?.();
+      window.dispatchEvent(new Event("subjects:refresh"));
+      window.dispatchEvent(new Event("classes:refresh"));
+      return true;
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Failed to save topics");
+      return false;
+    } finally {
+      setSaving(false);
     }
-    resetForm();
-    onSuccess?.();
-    window.dispatchEvent(new Event("subjects:refresh"));
-    window.dispatchEvent(new Event("classes:refresh"));
   };
 
-  const handleEdit = (t: any) => {
+  const handleAddOrUpdate = async () => {
+    if (!title.trim()) { toast.error("Topic title required"); return; }
+    const next = [...topics];
+    if (editingId) {
+      const idx = next.findIndex((t) => t.id === editingId);
+      if (idx >= 0) {
+        next[idx] = {
+          ...next[idx],
+          title: title.trim(),
+          description: description.trim(),
+          status,
+          updatedAt: nowIso(),
+        };
+      }
+    } else {
+      next.push({
+        id: `top-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+        title: title.trim(),
+        description: description.trim(),
+        order: next.length + 1,
+        status,
+        createdAt: nowIso(),
+        updatedAt: nowIso(),
+      });
+    }
+    if (await persist(next)) {
+      toast.success(editingId ? `Topic "${title}" updated` : `Topic "${title}" added to ${subject.name}`);
+      resetForm();
+    }
+  };
+
+  const handleEdit = (t: SubjectTopic) => {
     setEditingId(t.id);
     setTitle(t.title);
     setDescription(t.description || "");
     setStatus(t.status || "PLANNED");
   };
 
-  const handleDelete = (topicId: string) => {
+  const handleDelete = async (topicId: string) => {
     if (!confirm("Delete this topic?")) return;
-    const ok = mockDb.deleteTopic(classId, subject.id, topicId);
-    if (ok) {
+    if (await persist(topics.filter((t) => t.id !== topicId))) {
       toast.success("Topic deleted");
-      onSuccess?.();
-      window.dispatchEvent(new Event("subjects:refresh"));
-      window.dispatchEvent(new Event("classes:refresh"));
     }
   };
 
@@ -73,7 +108,7 @@ export function TopicManagerDialog({ open, onOpenChange, classId, className, sub
             <DialogTitle className="flex items-center gap-2">
               <BookMarked className="h-4 w-4 text-violet-600" /> Topics — {subject.name} <span className="text-xs font-mono text-muted-foreground">({subject.code})</span>
             </DialogTitle>
-            <DialogDescription className="text-xs">{className} • {subject.teacherName} • {topics.length} topics — editable add / delete. Drag order not needed — order auto.</DialogDescription>
+            <DialogDescription className="text-xs">{className} • {subject.teacherName} • {topics.length} topics — editable add / delete. Order auto.</DialogDescription>
           </DialogHeader>
         </div>
 
@@ -92,7 +127,7 @@ export function TopicManagerDialog({ open, onOpenChange, classId, className, sub
                     <SelectItem value="COMPLETED">Completed</SelectItem>
                   </SelectContent>
                 </Select>
-                <Button onClick={handleAddOrUpdate} variant="gradient" size="sm" className="h-8 gap-1">{editingId ? <><Edit3 className="h-3.5 w-3.5" /> Update</> : <><Plus className="h-3.5 w-3.5" /> Add Topic</>}</Button>
+                <Button onClick={handleAddOrUpdate} disabled={saving} variant="gradient" size="sm" className="h-8 gap-1">{editingId ? <><Edit3 className="h-3.5 w-3.5" /> Update</> : <><Plus className="h-3.5 w-3.5" /> Add Topic</>}</Button>
                 {editingId && <Button variant="outline" size="sm" className="h-8" onClick={resetForm}>Cancel</Button>}
                 <span className="text-[11px] text-muted-foreground">{topics.length} total</span>
               </div>
@@ -103,7 +138,7 @@ export function TopicManagerDialog({ open, onOpenChange, classId, className, sub
             <div className="text-center py-8 text-sm text-muted-foreground border rounded-xl bg-card">No topics yet — add chapter-wise topics for lesson planning.</div>
           ) : (
             <div className="space-y-2">
-              {topics.sort((a, b) => a.order - b.order).map((t, idx) => (
+              {[...topics].sort((a, b) => a.order - b.order).map((t, idx) => (
                 <div key={t.id} className="flex gap-3 p-3 rounded-xl border bg-card hover:border-primary/30 transition-colors group">
                   <div className="flex flex-col items-center gap-1 pt-1">
                     <GripVertical className="h-3.5 w-3.5 text-muted-foreground/50" />

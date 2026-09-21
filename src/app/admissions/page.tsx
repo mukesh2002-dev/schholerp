@@ -9,10 +9,12 @@ import {
   AdmissionsPipelineView,
   AdmissionsPipelineViewSkeleton,
 } from "@/sections/admissions";
+import { SectionGuard } from "@/components/layout/section-guard";
 
 export default function AdmissionsPage() {
   return (
-    <div className="space-y-8 animate-in fade-in duration-300">
+    <SectionGuard>
+      <div className="space-y-8 animate-in fade-in duration-300">
       {/* 1. Header & Actions */}
       <Suspense fallback={<AdmissionsHeaderSkeleton />}>
         <AdmissionsHeader />
@@ -27,6 +29,7 @@ export default function AdmissionsPage() {
       <Suspense fallback={<AdmissionsPipelineViewSkeleton />}>
         <AdmissionsPipelineView />
       </Suspense>
-    </div>
+      </div>
+    </SectionGuard>
   );
 }

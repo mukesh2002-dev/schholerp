@@ -9,24 +9,22 @@ import {
   StudentDirectoryView,
   StudentDirectoryViewSkeleton,
 } from "@/sections/students";
+import { SectionGuard } from "@/components/layout/section-guard";
 
 export default function StudentsPage() {
   return (
-    <div className="space-y-8 animate-in fade-in duration-300">
-      {/* 1. Header & Quick Actions */}
-      <Suspense fallback={<StudentHeaderSkeleton />}>
-        <StudentHeader />
-      </Suspense>
-
-      {/* 2. Key Metrics Ribbon */}
-      <Suspense fallback={<StudentMetricsRibbonSkeleton />}>
-        <StudentMetricsRibbon />
-      </Suspense>
-
-      {/* 3. Search, Filters, Cards & Table View */}
-      <Suspense fallback={<StudentDirectoryViewSkeleton />}>
-        <StudentDirectoryView />
-      </Suspense>
-    </div>
+    <SectionGuard featureKey="students">
+      <div className="space-y-8 animate-in fade-in duration-300">
+        <Suspense fallback={<StudentHeaderSkeleton />}>
+          <StudentHeader />
+        </Suspense>
+        <Suspense fallback={<StudentMetricsRibbonSkeleton />}>
+          <StudentMetricsRibbon />
+        </Suspense>
+        <Suspense fallback={<StudentDirectoryViewSkeleton />}>
+          <StudentDirectoryView />
+        </Suspense>
+      </div>
+    </SectionGuard>
   );
 }

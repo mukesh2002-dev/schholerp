@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useERP } from "@/components/providers/erp-provider";
 import { mockDb } from "@/lib/services/mock-db";
+import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
 import { SearchResultItem } from "@/types";
 import {
   Building2,
@@ -37,14 +38,14 @@ export function GlobalSearchDialog() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResultItem[]>([]);
   const router = useRouter();
+  const debouncedQuery = useDebouncedValue(query, 300);
 
   useEffect(() => {
-    if (searchOpen) {
-      // populate default recent navigation items if query is empty
-      const res = mockDb.searchEntities(query.trim() || "campus");
-      setResults(res.length > 0 ? res : mockDb.searchEntities("overview"));
-    }
-  }, [searchOpen, query]);
+    if (!searchOpen) return;
+    const q = debouncedQuery.trim() || "campus";
+    const res = mockDb.searchEntities(q);
+    setResults(res.length > 0 ? res : mockDb.searchEntities("overview"));
+  }, [searchOpen, debouncedQuery]);
 
   const handleSelect = (item: SearchResultItem) => {
     setSearchOpen(false);

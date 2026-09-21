@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import type { RoleNavSubItem } from "@/lib/auth/role-navigation";
-import type { StaffRole } from "@/lib/auth/demo-accounts";
+import type { StaffRole } from "@/lib/auth/roles";
 import {
   ClipboardList,
   CalendarDays,

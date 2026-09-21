@@ -9,24 +9,27 @@ import {
   TransportDirectoryView,
   TransportDirectoryViewSkeleton,
 } from "@/sections/transport";
+import { SectionGuard } from "@/components/layout/section-guard";
 
 export default function TransportPage() {
   return (
-    <div className="space-y-8 animate-in fade-in duration-300">
-      {/* 1. Header & Breadcrumbs */}
-      <Suspense fallback={<TransportHeaderSkeleton />}>
-        <TransportHeader />
-      </Suspense>
+    <SectionGuard>
+      <div className="space-y-8 animate-in fade-in duration-300">
+        {/* 1. Header & Breadcrumbs */}
+        <Suspense fallback={<TransportHeaderSkeleton />}>
+          <TransportHeader />
+        </Suspense>
 
-      {/* 2. Key Metrics Ribbon */}
-      <Suspense fallback={<TransportMetricsRibbonSkeleton />}>
-        <TransportMetricsRibbon />
-      </Suspense>
+        {/* 2. Key Metrics Ribbon */}
+        <Suspense fallback={<TransportMetricsRibbonSkeleton />}>
+          <TransportMetricsRibbon />
+        </Suspense>
 
-      {/* 3. Transport Routes, Vehicles, Drivers & Student Assignments */}
-      <Suspense fallback={<TransportDirectoryViewSkeleton />}>
-        <TransportDirectoryView />
-      </Suspense>
-    </div>
+        {/* 3. Transport Routes, Vehicles, Drivers & Student Assignments */}
+        <Suspense fallback={<TransportDirectoryViewSkeleton />}>
+          <TransportDirectoryView />
+        </Suspense>
+      </div>
+    </SectionGuard>
   );
 }

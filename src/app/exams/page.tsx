@@ -2,6 +2,7 @@
 
 import React, { Suspense, useCallback, useState } from "react";
 import { ExamHeader, ExamHeaderSkeleton, ExamMetricsRibbon, ExamMetricsRibbonSkeleton, ExamWorkspace, ExamWorkspaceSkeleton } from "@/sections/exams";
+import { SectionGuard } from "@/components/layout/section-guard";
 
 export default function ExamsPage() {
   const [refreshKey, setRefreshKey] = useState(0);
@@ -13,18 +14,20 @@ export default function ExamsPage() {
   }, []);
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-300">
-      <Suspense fallback={<ExamHeaderSkeleton />}>
-        <ExamHeader onNewExam={handleNew} />
-      </Suspense>
+    <SectionGuard>
+      <div className="space-y-8 animate-in fade-in duration-300">
+        <Suspense fallback={<ExamHeaderSkeleton />}>
+          <ExamHeader onNewExam={handleNew} />
+        </Suspense>
 
-      <Suspense fallback={<ExamMetricsRibbonSkeleton />}>
-        <ExamMetricsRibbon key={refreshKey} />
-      </Suspense>
+        <Suspense fallback={<ExamMetricsRibbonSkeleton />}>
+          <ExamMetricsRibbon key={refreshKey} />
+        </Suspense>
 
-      <Suspense fallback={<ExamWorkspaceSkeleton />}>
-        <ExamWorkspace />
-      </Suspense>
-    </div>
+        <Suspense fallback={<ExamWorkspaceSkeleton />}>
+          <ExamWorkspace />
+        </Suspense>
+      </div>
+    </SectionGuard>
   );
 }

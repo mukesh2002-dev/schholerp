@@ -3,8 +3,11 @@
 import React, { useState, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { useERP } from "@/components/providers/erp-provider";
-import { mockDb } from "@/lib/services/mock-db";
 import { Student } from "@/types";
+import { fetchStudents } from "@/lib/api/students";
+import { fetchClasses } from "@/lib/api/classes";
+import { useCampusData } from "@/lib/hooks/use-campus-data";
+import { SectionOfflineBanner } from "@/components/layout/section-guard";
 import { StudentCard } from "@/components/students/student-card";
 import { StudentFormDialog } from "@/components/students/student-form-dialog";
 import { Button } from "@/components/ui/button";
@@ -40,8 +43,28 @@ import {
 
 export function StudentDirectoryView() {
   const { activeBranchId } = useERP();
-  const [students, setStudents] = useState(() => mockDb.getStudents(activeBranchId));
-  const [classes] = useState(() => mockDb.getClasses(activeBranchId));
+  const {
+    data: students,
+    isLoading: studentsLoading,
+    isOffline: studentsOffline,
+    error: studentsError,
+    refresh: refreshStudents,
+  } = useCampusData<Student[]>({
+    fetcher: async (cid) => {
+      const res = await fetchStudents({ campusId: cid, limit: 100 });
+      return res.data;
+    },
+    campusId: activeBranchId,
+    fallback: [],
+  });
+  const {
+    data: classes,
+    isLoading: classesLoading,
+  } = useCampusData({
+    fetcher: (cid) => fetchClasses({ campusId: cid }),
+    campusId: activeBranchId,
+    fallback: [],
+  });
 
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
@@ -56,8 +79,8 @@ export function StudentDirectoryView() {
   const debouncedQuery = useDebouncedValue(searchQuery, 300);
 
   const refreshList = useCallback(() => {
-    setStudents(mockDb.getStudents(activeBranchId));
-  }, [activeBranchId]);
+    void refreshStudents();
+  }, [refreshStudents]);
 
   const filteredStudents = useMemo(() => {
     const q = debouncedQuery.trim().toLowerCase();
@@ -105,6 +128,7 @@ export function StudentDirectoryView() {
 
   return (
     <div className="space-y-4">
+      <SectionOfflineBanner isOffline={studentsOffline} error={studentsError} isLoading={studentsLoading} />
       {/* Controls Bar */}
       <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 p-3 rounded-xl bg-card border border-border/70">
         <div className="flex flex-1 items-center gap-2 flex-wrap">

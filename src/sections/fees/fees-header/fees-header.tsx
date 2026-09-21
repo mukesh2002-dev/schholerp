@@ -2,7 +2,8 @@
 
 import React from "react";
 import { useERP } from "@/components/providers/erp-provider";
-import { mockDb } from "@/lib/services/mock-db";
+import { fetchInvoices } from "@/lib/api/fees";
+import { useCampusData } from "@/lib/hooks/use-campus-data";
 import { Breadcrumbs } from "@/components/layout/breadcrumbs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,7 +12,12 @@ import { toast } from "sonner";
 
 export function FeesHeader() {
   const { activeBranchId } = useERP();
-  const invoices = mockDb.getInvoices(activeBranchId);
+  const { data: invoices } = useCampusData({
+    fetcher: (cid) => fetchInvoices({ campusId: cid }),
+    campusId: activeBranchId,
+    fallback: [],
+    queryKeyPrefix: "fees-invoices",
+  });
 
   return (
     <div className="space-y-4">

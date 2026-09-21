@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState } from "react";
-import { useRouter } from "next/navigation";
 import { useERP } from "@/components/providers/erp-provider";
 import { useSettings } from "@/components/providers/settings-provider";
 import { BranchSelector } from "./branch-selector";
@@ -44,12 +43,12 @@ interface TopbarProps {
 export function Topbar({ sidebarCollapsed = false, onToggleSidebar }: TopbarProps) {
   const { session, setSearchOpen, triggerBiometricSync, logout } = useERP();
   const { stickyTopbar } = useSettings();
-  const router = useRouter();
 
   const handleLogout = () => {
     logout();
-    toast.success("Signed out", { description: "Demo session cleared. See you soon." });
-    router.replace("/login");
+    toast.success("Signed out", { description: "All local data and cookies cleared." });
+    // Hard navigation guarantees every provider resets (settings, theme, ERP).
+    window.location.assign("/login");
   };
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);

@@ -20,6 +20,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Search, Calendar, Clock, MapPin, Trophy, Award, BookOpen, Plus, Edit3, Trash2, Eye, Download, FileSpreadsheet, GraduationCap, Send, BarChart3, Settings2, FileBadge, ClipboardList, PenLine, FileText, AlertTriangle, Lock, History, CheckCircle2, XCircle, LayoutGrid, Save } from "lucide-react";
 import { formatDate } from "@/lib/utils";
+import { fetchExams } from "@/lib/api/exams";
+import { useCampusData } from "@/lib/hooks/use-campus-data";
+import { SectionOfflineBanner } from "@/components/layout/section-guard";
 
 // ─── Helpers ───
 function getGradeForPercentage(p: number, scale: GradeScale[]): string {
@@ -135,14 +138,34 @@ export function ExamWorkspace() {
 
 // ════════════════════ Exams Tab ════════════════════
 function ExamsTab({ branchId }: { branchId: string }) {
-  const [exams, setExams] = useState(() => mockDb.getExams(branchId));
+  const fallbackExams = useMemo(() => mockDb.getExams(branchId), [branchId]);
+  const {
+    data: apiExams,
+    isLoading: examsLoading,
+    isOffline: examsOffline,
+    error: examsError,
+    refresh: refreshApi,
+    setData: setApiExams,
+  } = useCampusData<Exam[]>({
+    fetcher: async (cid) => {
+      const data = await fetchExams({ campusId: cid });
+      return Array.isArray(data) && data.length > 0 ? (data as unknown as Exam[]) : fallbackExams;
+    },
+    campusId: branchId,
+    fallback: fallbackExams,
+  });
+  const exams = apiExams.length > 0 || examsOffline || !examsLoading ? apiExams : fallbackExams;
+  const setExams = setApiExams;
+  const refresh = useCallback(() => {
+    refreshApi();
+    // keep mock fallback in sync for writes while offline
+    setApiExams([...mockDb.getExams(branchId)]);
+  }, [branchId, refreshApi, setApiExams]);
   const [classes] = useState(() => mockDb.getClasses(branchId));
   const [examTypes, setExamTypes] = useState<ExamType[]>(() => mockDb.getExamTypes());
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Exam | null>(null);
   const [search, setSearch] = useState("");
-
-  const refresh = useCallback(() => setExams([...mockDb.getExams(branchId)]), [branchId]);
   const refreshTypes = useCallback(() => setExamTypes([...mockDb.getExamTypes()]), []);
   useEffect(() => {
     const h = () => { setEditing(null); setOpen(true); };
@@ -210,6 +233,7 @@ function ExamsTab({ branchId }: { branchId: string }) {
 
   return (
     <div className="space-y-4">
+      <SectionOfflineBanner isOffline={examsOffline} error={examsError} isLoading={examsLoading} />
       <div className="flex flex-col sm:flex-row gap-3 justify-between">
         <div className="relative w-full sm:w-72">
           <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />

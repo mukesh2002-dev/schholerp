@@ -2,10 +2,11 @@
 
 import React from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useERP } from "@/components/providers/erp-provider";
 import { getNavForRole } from "@/lib/auth/role-navigation";
+import { useAdminConfig } from "@/lib/hooks/use-admin-config";
 import { toast } from "sonner";
 import {
   Sparkles,
@@ -28,13 +29,16 @@ interface SidebarProps {
 
 export function Sidebar({ collapsed = false, onToggle, onNavigate }: SidebarProps) {
   const pathname = usePathname();
-  const router = useRouter();
   const { session, logout } = useERP();
   const [pendingHref, setPendingHref] = React.useState<string | null>(null);
   const [logoFailed, setLogoFailed] = React.useState(false);
   const showLogo = !logoFailed && SCHOOL_DATA.logoPath;
 
-  const navGroups = React.useMemo(() => getNavForRole(session.role), [session.role]);
+  const { isFeatureEnabled } = useAdminConfig();
+  const navGroups = React.useMemo(
+    () => getNavForRole(session.role, { isFeatureEnabled, allowedModules: session.sidebar }),
+    [session.role, session.sidebar, isFeatureEnabled]
+  );
 
   // Derive full active route including query for tab-aware matching – client-only, avoids useSearchParams CSR bailout
   const [searchString, setSearchString] = React.useState("");
@@ -45,12 +49,15 @@ export function Sidebar({ collapsed = false, onToggle, onNavigate }: SidebarProp
     const origReplace = window.history.replaceState.bind(window.history);
     const patchedPush: typeof window.history.pushState = (...args) => {
       const res = (origPush as any)(...args);
-      sync();
+      // Defer state update – Next's router calls pushState from inside
+      // useInsertionEffect; scheduling a React update synchronously there
+      // violates React 19's "useInsertionEffect must not schedule updates".
+      queueMicrotask(sync);
       return res;
     };
     const patchedReplace: typeof window.history.replaceState = (...args) => {
       const res = (origReplace as any)(...args);
-      sync();
+      queueMicrotask(sync);
       return res;
     };
     window.history.pushState = patchedPush as any;
@@ -64,14 +71,9 @@ export function Sidebar({ collapsed = false, onToggle, onNavigate }: SidebarProp
   }, [pathname]);
   const activeRoute = searchString ? `${pathname}${searchString}` : pathname;
 
-  const [expanded, setExpanded] = React.useState<Record<string, boolean>>(() => {
-    const init: Record<string, boolean> = {};
-    if (typeof window !== "undefined") {
-      if (window.location.pathname.startsWith("/exams")) init["Exams & Results"] = true;
-      if (window.location.pathname.startsWith("/classes") || window.location.pathname.startsWith("/subjects")) init["Classes & Sections"] = true;
-    }
-    return init;
-  });
+  // Start deterministic (all collapsed) so SSR and first client render match;
+  // the effect below expands menus for the current path after hydration.
+  const [expanded, setExpanded] = React.useState<Record<string, boolean>>({});
 
   React.useEffect(() => {
     if (pathname.startsWith("/exams")) setExpanded((prev) => ({ ...prev, "Exams & Results": true }));
@@ -84,9 +86,10 @@ export function Sidebar({ collapsed = false, onToggle, onNavigate }: SidebarProp
 
   const handleLogout = () => {
     logout();
-    toast.success("Signed out", { description: "See you soon. Demo session cleared." });
-    router.replace("/login");
+    toast.success("Signed out", { description: "See you soon. All local data cleared." });
     onNavigate?.();
+    // Hard navigation guarantees every provider resets (settings, theme, ERP).
+    window.location.assign("/login");
   };
 
   const toggleExpanded = React.useCallback((title: string) => {

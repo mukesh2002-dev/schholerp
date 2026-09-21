@@ -17,6 +17,9 @@ export const defaultUserSession: UserSession = {
   branchId: "all",
   roleLabel: "Admin (Global ERP)",
   title: "Group Director & Chief Academic Officer",
+  // Default/demo session is an ADMIN — NOT super_admin. super_admin is a
+  // separate account used only by the Super Admin panel.
+  rawRole: "admin",
 };
 
 export const demoRolesList: { role: UserSession["role"]; label: string; description: string; branchId: string }[] = [

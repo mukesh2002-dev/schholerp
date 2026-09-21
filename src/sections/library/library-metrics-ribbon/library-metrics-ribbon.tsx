@@ -2,23 +2,32 @@
 
 import React from "react";
 import { useERP } from "@/components/providers/erp-provider";
-import { mockDb } from "@/lib/services/mock-db";
+import { fetchBooks, fetchIssues } from "@/lib/api/library";
+import { useCampusData } from "@/lib/hooks/use-campus-data";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
 import { BookOpen, CheckCircle2, Clock, AlertTriangle } from "lucide-react";
 
 export function LibraryMetricsRibbon() {
   const { activeBranchId } = useERP();
-  const books = mockDb.getLibraryBooks(activeBranchId);
-  const issues = mockDb.getBookIssues(activeBranchId);
-  const fines = mockDb.getLibraryFines(activeBranchId);
+  const { data: books } = useCampusData({
+    fetcher: (cid) => fetchBooks({ campusId: cid }).then((r) => r.data),
+    campusId: activeBranchId,
+    fallback: [],
+    queryKeyPrefix: "library-books",
+  });
+  const { data: issues } = useCampusData({
+    fetcher: (cid) => fetchIssues({ campusId: cid }).then((r) => r.data),
+    campusId: activeBranchId,
+    fallback: [],
+    queryKeyPrefix: "library-issues",
+  });
 
   const totalCopies = books.reduce((s, b) => s + b.totalCopies, 0);
   const available = books.reduce((s, b) => s + b.availableCopies, 0);
   const overdue = issues.filter((i) => i.status === "OVERDUE").length;
-  const pendingFines = fines
-    .filter((f) => f.status === "PENDING")
-    .reduce((s, f) => s + (f.amount - f.paidAmount), 0);
+  const pendingFines = issues.filter((i) => i.fineAmount > 0 && i.finePaid < i.fineAmount).reduce((s, i) => s + (i.fineAmount - i.finePaid), 0);
+  const pendingFineCount = issues.filter((i) => i.fineAmount > 0 && i.finePaid < i.fineAmount).length;
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -75,7 +84,7 @@ export function LibraryMetricsRibbon() {
             {formatCurrency(pendingFines)}
           </span>
           <span className="text-[11px] text-rose-600 font-medium">
-            {fines.filter((f) => f.status === "PENDING").length} fines pending
+            {pendingFineCount} fines pending
           </span>
         </CardContent>
       </Card>

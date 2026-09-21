@@ -36,6 +36,7 @@ import {
   TrendingUp,
   TrendingDown,
 } from "lucide-react";
+import { SectionGuard } from "@/components/layout/section-guard";
 
 const attendanceTrendData = [
   { month: "Apr", students: 95.2, teachers: 97.8, workers: 94.1 },
@@ -137,7 +138,8 @@ export default function ReportsPage() {
   const monthlyExpenses = mockDb.getMonthlyExpenseSummary();
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-300">
+    <SectionGuard featureKey="admin_analytics">
+      <div className="space-y-8 animate-in fade-in duration-300">
       <Breadcrumbs />
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -741,6 +743,7 @@ export default function ReportsPage() {
           </div>
         </TabsContent>
       </Tabs>
-    </div>
+      </div>
+    </SectionGuard>
   );
 }

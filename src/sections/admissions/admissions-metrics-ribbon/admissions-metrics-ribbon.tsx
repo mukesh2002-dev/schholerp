@@ -2,13 +2,19 @@
 
 import React from "react";
 import { useERP } from "@/components/providers/erp-provider";
-import { mockDb } from "@/lib/services/mock-db";
+import { useCampusData } from "@/lib/hooks/use-campus-data";
+import { fetchAdmissions } from "@/lib/api/admissions";
 import { Card } from "@/components/ui/card";
 import { UserPlus, Clock, Sparkles, CheckCircle2 } from "lucide-react";
 
 export function AdmissionsMetricsRibbon() {
   const { activeBranchId } = useERP();
-  const admissions = mockDb.getAdmissions(activeBranchId);
+  const { data: admissions } = useCampusData({
+    fetcher: (cid) => fetchAdmissions({ campusId: cid }),
+    campusId: activeBranchId,
+    fallback: [],
+    queryKeyPrefix: "admissions",
+  });
 
   const totalCount = admissions.length;
   const newCount = admissions.filter((a) => a.status === "NEW").length;

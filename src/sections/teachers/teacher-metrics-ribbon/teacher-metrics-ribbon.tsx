@@ -2,13 +2,20 @@
 
 import React from "react";
 import { useERP } from "@/components/providers/erp-provider";
-import { mockDb } from "@/lib/services/mock-db";
+import { fetchTeachers } from "@/lib/api/teachers";
+import { useCampusData } from "@/lib/hooks/use-campus-data";
+import { Teacher } from "@/types";
 import { Card } from "@/components/ui/card";
 import { Users, Award, Building2, CheckCircle2 } from "lucide-react";
 
 export function TeacherMetricsRibbon() {
   const { activeBranchId } = useERP();
-  const teachers = mockDb.getTeachers(activeBranchId);
+  const { data: teachers } = useCampusData<Teacher[]>({
+    fetcher: (cid) => fetchTeachers({ campusId: cid }).then((r) => r.data),
+    campusId: activeBranchId,
+    fallback: [],
+    queryKeyPrefix: "teachers",
+  });
 
   const activeTeachers = teachers.filter((t) => t.status === "ACTIVE").length;
   const departments = new Set(teachers.map((t) => t.department)).size;
@@ -34,7 +41,7 @@ export function TeacherMetricsRibbon() {
           <CheckCircle2 className="h-4 w-4 text-emerald-500" />
         </div>
         <span className="text-2xl font-bold text-foreground mt-1 block">{activeTeachers}</span>
-        <span className="text-[11px] text-emerald-600 font-medium">98.4% Faculty Attendance</span>
+        <span className="text-[11px] text-emerald-600 font-medium">Faculty on active status</span>
       </Card>
 
       <Card className="p-4 border-border/70 shadow-2xs">
@@ -51,12 +58,14 @@ export function TeacherMetricsRibbon() {
       <Card className="p-4 border-border/70 shadow-2xs">
         <div className="flex items-center justify-between">
           <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
-            Student-Faculty Ratio
+            Students per Faculty
           </span>
           <Award className="h-4 w-4 text-amber-500" />
         </div>
-        <span className="text-2xl font-bold text-foreground mt-1 block">1:16</span>
-        <span className="text-[11px] text-muted-foreground">Ideal pedagogical balance</span>
+        <span className="text-2xl font-bold text-foreground mt-1 block">
+          {teachers.length > 0 ? "—" : "—"}
+        </span>
+        <span className="text-[11px] text-muted-foreground">Computed in dashboard analytics</span>
       </Card>
     </div>
   );

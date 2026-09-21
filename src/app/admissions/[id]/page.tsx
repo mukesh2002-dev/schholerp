@@ -1,14 +1,20 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useERP } from "@/components/providers/erp-provider";
-import { mockDb } from "@/lib/services/mock-db";
-import { AdmissionStatus, ClassRoom } from "@/types";
+import {
+  fetchAdmissionById,
+  updateAdmissionStatusApi,
+  updateAdmissionDocumentApi,
+} from "@/lib/api/admissions";
+import { fetchClasses } from "@/lib/api/classes";
+import { createStudentApi } from "@/lib/api/students";
+import { AdmissionApplication, AdmissionStatus, ClassRoom } from "@/types";
 import { Breadcrumbs } from "@/components/layout/breadcrumbs";
 import { AdmissionStatusBadge } from "@/components/admissions/admission-status-badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -44,8 +50,10 @@ import {
   Sparkles,
   ShieldCheck,
   Award,
+  Loader2,
 } from "lucide-react";
 import { formatDate, formatDateTime } from "@/lib/utils";
+import { toast } from "sonner";
 
 const enrollSchema = z.object({
   classId: z.string().min(1, "Select a class cohort"),
@@ -55,8 +63,8 @@ const enrollSchema = z.object({
 type EnrollFormValues = z.infer<typeof enrollSchema>;
 
 const ENROLL_DEFAULTS: EnrollFormValues = {
-  classId: "cls-g10",
-  sectionId: "sec-g10-a",
+  classId: "",
+  sectionId: "",
 };
 
 export default function AdmissionDetailPage() {
@@ -64,10 +72,31 @@ export default function AdmissionDetailPage() {
   const router = useRouter();
   const applicationId = params.id as string;
 
-  const [application, setApplication] = useState(() => mockDb.getAdmissionById(applicationId));
+  const [application, setApplication] = useState<AdmissionApplication | null>(null);
+  const [loading, setLoading] = useState(true);
   const [enrollModalOpen, setEnrollModalOpen] = useState(false);
+  const [classes, setClasses] = useState<ClassRoom[]>([]);
 
-  const classes = mockDb.getClasses();
+  const loadAdmission = useCallback(async () => {
+    if (!applicationId) return;
+    setLoading(true);
+    try {
+      const [appData, clsData] = await Promise.all([
+        fetchAdmissionById(applicationId),
+        fetchClasses(),
+      ]);
+      setApplication(appData);
+      setClasses(clsData);
+    } catch {
+      setApplication(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [applicationId]);
+
+  useEffect(() => {
+    void loadAdmission();
+  }, [loadAdmission]);
 
   const {
     watch,
@@ -84,8 +113,22 @@ export default function AdmissionDetailPage() {
 
   // Fresh defaults every time the enroll modal opens.
   React.useEffect(() => {
-    if (enrollModalOpen) reset(ENROLL_DEFAULTS);
-  }, [enrollModalOpen, reset]);
+    if (enrollModalOpen) {
+      reset({
+        classId: classes[0]?.id || "",
+        sectionId: classes[0]?.sections[0]?.id || "",
+      });
+    }
+  }, [enrollModalOpen, reset, classes]);
+
+  if (loading) {
+    return (
+      <div className="py-24 text-center space-y-4">
+        <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+        <p className="text-sm text-muted-foreground">Loading application dossier...</p>
+      </div>
+    );
+  }
 
   if (!application) {
     return (
@@ -104,22 +147,34 @@ export default function AdmissionDetailPage() {
     );
   }
 
-  const handleStatusChange = (newStatus: AdmissionStatus) => {
-    const updated = mockDb.updateAdmissionStatus(application.id, newStatus, application.interviewFeedback);
-    if (updated) {
+  const handleStatusChange = async (newStatus: AdmissionStatus) => {
+    try {
+      const updated = await updateAdmissionStatusApi(application.id, {
+        status: newStatus,
+        notes: application.notes ?? undefined,
+      });
       setApplication(updated);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update status");
     }
   };
 
-  const handleToggleDocVerification = (docId: string) => {
-    const updatedDocs = application.documents.map((d) =>
-      d.id === docId ? { ...d, verified: !d.verified } : d
-    );
-    const updated = mockDb.saveAdmission({
-      ...application,
-      documents: updatedDocs,
-    });
-    setApplication(updated);
+  const handleToggleDocVerification = async (docId: string) => {
+    const doc = application.documents.find((d) => d.id === docId);
+    if (!doc) return;
+    try {
+      const updated = await updateAdmissionDocumentApi(application.id, doc.name, {
+        verified: !doc.verified,
+      });
+      setApplication({
+        ...application,
+        documents: application.documents.map((d) =>
+          d.id === docId ? { ...d, verified: updated.verified } : d
+        ),
+      });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update document");
+    }
   };
 
   const handleClassChange = (classId: string) => {
@@ -129,11 +184,28 @@ export default function AdmissionDetailPage() {
     setValue("sectionId", nextClass?.sections[0]?.id || "", { shouldValidate: true });
   };
 
-  const handleEnrollStudent = (values: EnrollFormValues) => {
-    const newStudent = mockDb.enrollApplicantAsStudent(application.id, values.classId, values.sectionId);
-    if (newStudent) {
+  const handleEnrollStudent = async (values: EnrollFormValues) => {
+    try {
+      const created = await createStudentApi(
+        {
+          firstName: application.applicantFirstName,
+          lastName: application.applicantLastName,
+          dob: application.dateOfBirth,
+          gender: application.gender,
+          guardianName: application.parentName,
+          guardianPhone: application.parentPhone,
+          guardianEmail: application.parentEmail,
+          admissionNo: application.applicationNumber,
+          rollNo: String(Math.floor(Math.random() * 900) + 100),
+          classId: values.classId,
+        },
+        application.branchId !== "all" ? application.branchId : undefined
+      );
       setEnrollModalOpen(false);
-      router.push(`/students/${newStudent.id}`);
+      toast.success("Student enrolled", { description: `${created.fullName} • ${created.rollNumber}` });
+      router.push(`/students/${created.id}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Enrollment failed");
     }
   };
 

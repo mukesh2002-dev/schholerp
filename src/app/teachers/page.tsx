@@ -9,24 +9,27 @@ import {
   TeacherDirectoryView,
   TeacherDirectoryViewSkeleton,
 } from "@/sections/teachers";
+import { SectionGuard } from "@/components/layout/section-guard";
 
 export default function TeachersPage() {
   return (
-    <div className="space-y-8 animate-in fade-in duration-300">
-      {/* 1. Header & Actions */}
-      <Suspense fallback={<TeacherHeaderSkeleton />}>
-        <TeacherHeader />
-      </Suspense>
+    <SectionGuard>
+      <div className="space-y-8 animate-in fade-in duration-300">
+        {/* 1. Header & Actions */}
+        <Suspense fallback={<TeacherHeaderSkeleton />}>
+          <TeacherHeader />
+        </Suspense>
 
-      {/* 2. Key Metrics Ribbon */}
-      <Suspense fallback={<TeacherMetricsRibbonSkeleton />}>
-        <TeacherMetricsRibbon />
-      </Suspense>
+        {/* 2. Key Metrics Ribbon */}
+        <Suspense fallback={<TeacherMetricsRibbonSkeleton />}>
+          <TeacherMetricsRibbon />
+        </Suspense>
 
-      {/* 3. Search, Filter & Faculty Directory (Cards/Table) */}
-      <Suspense fallback={<TeacherDirectoryViewSkeleton />}>
-        <TeacherDirectoryView />
-      </Suspense>
-    </div>
+        {/* 3. Search, Filter & Faculty Directory (Cards/Table) */}
+        <Suspense fallback={<TeacherDirectoryViewSkeleton />}>
+          <TeacherDirectoryView />
+        </Suspense>
+      </div>
+    </SectionGuard>
   );
 }

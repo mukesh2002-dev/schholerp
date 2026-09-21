@@ -2,7 +2,8 @@
 
 import React, { useState } from "react";
 import { useERP } from "@/components/providers/erp-provider";
-import { mockDb } from "@/lib/services/mock-db";
+import { useCampusData } from "@/lib/hooks/use-campus-data";
+import { fetchStudents } from "@/lib/api/students";
 import { Breadcrumbs } from "@/components/layout/breadcrumbs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,7 +12,15 @@ import { StudentFormDialog } from "@/components/students/student-form-dialog";
 
 export function StudentHeader() {
   const { activeBranchId } = useERP();
-  const students = mockDb.getStudents(activeBranchId);
+  const { data: students, refresh: refreshStudents } = useCampusData({
+    fetcher: async (cid) => {
+      const res = await fetchStudents({ campusId: cid, limit: 100 });
+      return res.data;
+    },
+    campusId: activeBranchId,
+    fallback: [],
+    queryKeyPrefix: "students",
+  });
   const [dialogOpen, setDialogOpen] = useState(false);
 
   return (
@@ -45,6 +54,7 @@ export function StudentHeader() {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         studentToEdit={null}
+        onSuccess={() => void refreshStudents()}
       />
     </>
   );

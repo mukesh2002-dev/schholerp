@@ -15,9 +15,31 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
 export function BranchSelector() {
-  const { activeBranchId, setActiveBranchId, branches } = useERP();
+  const { activeBranchId, setActiveBranchId, branches, session } = useERP();
+  const isAdmin = session.role === "ADMIN";
 
   const selectedBranch = branches.find((b) => b.id === activeBranchId);
+
+  // Campus-bound roles (principal/hr/teacher/staff) are locked to their own
+  // campus — they see a read-only chip, only admin gets the global switcher.
+  if (!isAdmin) {
+    // Fall back to the session's campus name so the header shows the real
+    // campus immediately after login (the branches list loads slightly later).
+    const lockedName = selectedBranch?.name ?? session.campusName ?? "My Campus";
+    const lockedCode = selectedBranch?.code ?? (session.campusName ? "Campus" : "Campus scope locked");
+    return (
+      <div className="flex items-center gap-2 px-3 h-9 rounded-lg border border-border/80 bg-background/80 text-left">
+        <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: selectedBranch?.color || "#3b82f6" }} />
+        <div className="flex flex-col text-left leading-tight">
+          <span className="text-xs font-semibold truncate text-foreground">{lockedName}</span>
+          <span className="hidden sm:block text-[10px] text-muted-foreground truncate">{lockedCode}</span>
+        </div>
+        <span className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground border border-border/70 rounded px-1.5 py-0.5">
+          Campus
+        </span>
+      </div>
+    );
+  }
 
   return (
     <DropdownMenu>

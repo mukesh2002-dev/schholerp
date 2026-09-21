@@ -25,6 +25,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Building2, Check } from "lucide-react";
+import { toast } from "sonner";
+import { ApiError } from "@/lib/api/client";
 import {
   SCHOOL_BOARDS,
   INDIAN_STATES,
@@ -241,7 +243,7 @@ export function BranchFormDialog({
     }
   }, [branchToEdit, open, reset]);
 
-  const onSubmit = (data: BranchFormValues) => {
+  const onSubmit = async (data: BranchFormValues) => {
     const facilities = (data.facilitiesString || "")
       .split(",")
       .map((f) => f.trim())
@@ -285,11 +287,17 @@ export function BranchFormDialog({
       color: data.color,
     };
 
-    setTimeout(() => {
-      saveBranch(branchPayload);
+    try {
+      await saveBranch(branchPayload);
       onOpenChange(false);
       if (onSuccess) onSuccess();
-    }, 400);
+    } catch (err) {
+      const msg =
+        err instanceof ApiError && err.status === 403
+          ? "Permission denied — you don't have access to manage campuses."
+          : "Failed to save campus. Try again.";
+      toast.error(msg);
+    }
   };
 
   return (

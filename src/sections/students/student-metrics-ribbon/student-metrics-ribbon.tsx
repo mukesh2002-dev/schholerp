@@ -2,20 +2,29 @@
 
 import React from "react";
 import { useERP } from "@/components/providers/erp-provider";
-import { mockDb } from "@/lib/services/mock-db";
+import { useCampusData } from "@/lib/hooks/use-campus-data";
+import { fetchStudents } from "@/lib/api/students";
 import { Card } from "@/components/ui/card";
 import { GraduationCap, Users, CheckCircle2, DollarSign } from "lucide-react";
 
 export function StudentMetricsRibbon() {
   const { activeBranchId } = useERP();
-  const students = mockDb.getStudents(activeBranchId);
+  const { data: students } = useCampusData({
+    fetcher: async (cid) => {
+      const res = await fetchStudents({ campusId: cid, limit: 100 });
+      return res.data;
+    },
+    campusId: activeBranchId,
+    fallback: [],
+    queryKeyPrefix: "students",
+  });
 
   const activeStudents = students.filter((s) => s.status === "ACTIVE").length;
   const collegeCount = students.filter((s) => !!(s as any).program).length;
   const schoolCount = students.length - collegeCount;
-  const avgAttendance = Math.round(
-    students.reduce((acc, s) => acc + (s.attendanceSummary?.attendanceRate || 0), 0) / (students.length || 1)
-  );
+  const avgAttendance = students.length > 0
+    ? Math.round(students.reduce((acc, s) => acc + (s.attendanceSummary?.attendanceRate || 0), 0) / students.length)
+    : 0;
   const paidFeesCount = students.filter((s) => s.feeSummary?.status === "PAID").length;
 
   return (

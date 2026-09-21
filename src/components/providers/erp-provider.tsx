@@ -1,18 +1,41 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Branch, Role, UserSession } from "@/types";
 import { mockDb } from "@/lib/services/mock-db";
 import { defaultUserSession, demoRolesList } from "@/lib/mock-data/dashboard";
-import { initialBranches } from "@/lib/mock-data/branches";
-import { authenticateDemoUser, getDemoAccountByRole } from "@/lib/auth/demo-accounts";
+import { ApiError } from "@/lib/api/client";
+import {
+  fetchBranches,
+  createBranchApi,
+  updateBranchApi,
+  deleteBranchApi,
+} from "@/lib/api/branches";
+import {
+  loginRequest,
+  logoutRequest,
+  mapBackendUserToSession,
+  meRequest,
+} from "@/lib/auth/auth-service";
+import {
+  BackendRole,
+  backendRoleLabel,
+  backendRoleToStaffRole,
+  getPortalByRole,
+  StaffRole,
+} from "@/lib/auth/roles";
+import {
+  clearTokens,
+  clearAllAppData,
+  getAccessToken,
+  getRefreshToken,
+  setTokens,
+} from "@/lib/auth/tokens";
 
-const AUTH_STORAGE_KEY = "school_erp_auth_v1";
-
-interface PersistedAuth {
-  email: string;
-  role: Role;
-  loggedInAt: string;
+export interface LoginResult {
+  success: boolean;
+  error?: string;
 }
 
 interface ERPContextType {
@@ -24,118 +47,223 @@ interface ERPContextType {
   setRole: (role: Role) => void;
   isAuthenticated: boolean;
   isAuthLoading: boolean;
-  login: (email: string, password: string) => { success: boolean; error?: string };
+  login: (portalRole: StaffRole, email: string, password: string) => Promise<LoginResult>;
   logout: () => void;
-  refreshBranches: () => void;
-  saveBranch: (branchData: Omit<Branch, "id" | "createdAt" | "updatedAt"> & { id?: string }) => Branch;
-  deleteBranch: (id: string) => boolean;
+  refreshBranches: () => Promise<void>;
+  saveBranch: (branchData: Omit<Branch, "id" | "createdAt" | "updatedAt"> & { id?: string }) => Promise<Branch>;
+  deleteBranch: (id: string) => Promise<boolean>;
   searchOpen: boolean;
   setSearchOpen: (open: boolean) => void;
   stats: ReturnType<typeof mockDb.getAggregatedStats>;
   triggerBiometricSync: () => { success: boolean; syncedCount: number; message: string };
+  branchesLoading: boolean;
+  branchesError: string | null;
 }
 
 const ERPContext = createContext<ERPContextType | undefined>(undefined);
 
 export function ERPProvider({ children }: { children: React.ReactNode }) {
   const [activeBranchId, setActiveBranchIdState] = useState<string>("all");
-  const [branches, setBranches] = useState<Branch[]>(initialBranches);
+  const [branches, setBranches] = useState<Branch[]>([]);
   const [session, setSession] = useState<UserSession>(defaultUserSession);
   const [searchOpen, setSearchOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [branchesLoading, setBranchesLoading] = useState(false);
+  const [branchesError, setBranchesError] = useState<string | null>(null);
 
+  const queryClient = useQueryClient();
+
+  // ── Session hydration: validate the persisted token against the backend ────
   useEffect(() => {
+    let cancelled = false;
     setMounted(true);
-    const loadedBranches = mockDb.getBranches();
-    setBranches(loadedBranches);
-    try {
-      const raw = localStorage.getItem(AUTH_STORAGE_KEY);
-      if (raw) {
-        const persisted = JSON.parse(raw) as PersistedAuth;
-        const account = getDemoAccountByRole(persisted.role);
-        if (account && persisted.email.toLowerCase() === account.email.toLowerCase()) {
-          setSession(account.session);
-          mockDb.saveSession(account.session);
-          setActiveBranchIdState(account.session.branchId || "all");
-          setIsAuthenticated(true);
-        } else {
-          const loadedSession = mockDb.getSession();
-          setSession(loadedSession);
-          setActiveBranchIdState(loadedSession.branchId || "all");
-        }
-      } else {
-        const loadedSession = mockDb.getSession();
-        setSession(loadedSession);
-        setActiveBranchIdState(loadedSession.branchId || "all");
+    // Branches come only from the live backend (no mock seed). They load in
+    // hydrate() below once authenticated.
+
+    async function hydrate() {
+      if (!getRefreshToken() && !getAccessToken()) {
+        setIsAuthLoading(false);
+        return;
       }
-    } catch {
-      const loadedSession = mockDb.getSession();
-      setSession(loadedSession);
-      setActiveBranchIdState(loadedSession.branchId || "all");
-    } finally {
-      setIsAuthLoading(false);
+      try {
+        // apiFetch transparently refreshes + retries once on 401.
+        const { data } = await meRequest();
+        if (cancelled) return;
+        const nextSession = mapBackendUserToSession(data);
+        setSession(nextSession);
+        mockDb.saveSession(nextSession);
+        setActiveBranchIdState(nextSession.branchId || "all");
+        setIsAuthenticated(true);
+        // After auth, load branches from backend (source-of-truth, no mock).
+        setBranchesLoading(true);
+        try {
+          const backendBranches = await fetchBranches();
+          if (!cancelled) {
+            setBranches(backendBranches);
+            try { localStorage.setItem("school_erp_branches_v1", JSON.stringify(backendBranches)); } catch {}
+          }
+        } catch (err) {
+          if (!cancelled) {
+            const msg = err instanceof ApiError ? err.message : (err as Error)?.message ?? "Failed to load branches";
+            if (err instanceof ApiError && err.status === 403) {
+              setBranchesError("You don't have access to Campuses — this role's API permission is not enabled.");
+            } else if (!(err instanceof ApiError) || err.status !== 401) {
+              setBranchesError(msg);
+            }
+          }
+        } finally {
+          if (!cancelled) setBranchesLoading(false);
+        }
+      } catch {
+        // refresh already cleared tokens inside apiFetch; make sure they are.
+        if (!cancelled) {
+          clearTokens();
+          setIsAuthenticated(false);
+        }
+      } finally {
+        if (!cancelled) setIsAuthLoading(false);
+      }
     }
+
+    void hydrate();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const login = React.useCallback((email: string, password: string) => {
-    const result = authenticateDemoUser(email, password);
-    if (!result.success || !result.session || !result.account) {
-      return { success: false as const, error: result.error || "Login failed. Try admin123." };
-    }
-    setSession(result.session);
-    mockDb.saveSession(result.session);
-    setActiveBranchIdState(result.session.branchId || "all");
-    setIsAuthenticated(true);
-    try {
-      const persisted: PersistedAuth = {
-        email: result.account.email,
-        role: result.account.role,
-        loggedInAt: new Date().toISOString(),
-      };
-      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(persisted));
-    } catch {
-      // storage unavailable — session-only login still works
-    }
-    mockDb.addActivity({
-      user: { name: result.session.name, avatar: result.session.avatar, role: result.session.role },
-      action: "LOGIN",
-      module: "Auth",
-      entityName: `${result.account.label} sign-in`,
-      branchId: result.session.branchId,
-      branchName: "All Campuses",
-      details: `${result.session.name} signed in as ${result.account.label}.`,
-      status: "SUCCESS",
-    });
-    return { success: true as const };
-  }, []);
+  // ── Login: portal role is verified against the backend-issued role ─────────
+  const login = React.useCallback(
+    async (portalRole: StaffRole, email: string, password: string): Promise<LoginResult> => {
+      const portal = getPortalByRole(portalRole);
+      const portalLabel = portal?.label ?? portalRole;
+      try {
+        const { data } = await loginRequest(email.trim().toLowerCase(), password);
+        const backendRole: BackendRole | null = data.user?.role ?? null;
+        const mappedRole = backendRoleToStaffRole(backendRole);
+
+        if (!mappedRole) {
+          clearTokens();
+          return {
+            success: false,
+            error: `This account (${backendRole ?? "no role"}) is not recognized for this console.`,
+          };
+        }
+
+        setTokens(data.accessToken, data.refreshToken);
+        const nextSession = mapBackendUserToSession(data.user);
+        setSession(nextSession);
+        mockDb.saveSession(nextSession);
+        setActiveBranchIdState(nextSession.branchId || "all");
+        setIsAuthenticated(true);
+
+        // Load campuses immediately so the header shows the real campus name
+        // (and the branch list is ready) right after login — not just after refresh.
+        setBranchesLoading(true);
+        try {
+          const loadedBranches = await fetchBranches();
+          setBranches(loadedBranches);
+          try { localStorage.setItem("school_erp_branches_v1", JSON.stringify(loadedBranches)); } catch {}
+        } catch (err) {
+          const msg = err instanceof ApiError ? err.message : (err as Error)?.message ?? "Failed to load branches";
+          if (!(err instanceof ApiError) || err.status !== 401) setBranchesError(msg);
+        } finally {
+          setBranchesLoading(false);
+        }
+
+        mockDb.addActivity({
+          user: { name: nextSession.name, avatar: nextSession.avatar, role: nextSession.role },
+          action: "LOGIN",
+          module: "Auth",
+          entityName: `${portalLabel} portal sign-in`,
+          branchId: nextSession.branchId,
+          branchName: "All Campuses",
+          details: `${nextSession.name} signed in via the ${portalLabel} portal.`,
+          status: "SUCCESS",
+        });
+        return { success: true };
+      } catch (err) {
+        clearTokens();
+        if (err instanceof ApiError) {
+          const fieldHint = err.fields
+            ? Object.entries(err.fields)
+                .map(([k, v]) => `${k}: ${v[0]}`)
+                .join(" · ")
+            : undefined;
+          return {
+            success: false,
+            error: err.status === 0 ? err.message : fieldHint || err.message,
+          };
+        }
+        return { success: false, error: "Sign-in failed. Please try again." };
+      }
+    },
+    []
+  );
 
   const logout = React.useCallback(() => {
-    try {
-      localStorage.removeItem(AUTH_STORAGE_KEY);
-    } catch {
-      // ignore
-    }
+    // Revoke the refresh-token family server-side (best-effort) before wiping.
+    logoutRequest(getRefreshToken());
+    // Remove every persisted app datum: tokens, session, mock-DB data,
+    // settings, caches, sessionStorage and app cookies.
+    clearAllAppData();
+    // Drop all in-memory query data so nothing leaks across sign-ins.
+    queryClient.clear();
     setIsAuthenticated(false);
     setSession(defaultUserSession);
-    mockDb.saveSession(defaultUserSession);
     setActiveBranchIdState(defaultUserSession.branchId || "all");
-  }, []);
+  }, [queryClient]);
 
-  const refreshBranches = React.useCallback(() => {
-    const loadedBranches = mockDb.getBranches();
-    setBranches(loadedBranches);
+  const refreshBranches = React.useCallback(async () => {
+    setBranchesLoading(true);
+    setBranchesError(null);
+    if (getAccessToken() || getRefreshToken()) {
+      try {
+        const backendBranches = await fetchBranches();
+        setBranches(backendBranches);
+        try {
+          localStorage.setItem("school_erp_branches_v1", JSON.stringify(backendBranches));
+        } catch {}
+        setBranchesLoading(false);
+        return;
+      } catch (err) {
+        const msg = err instanceof ApiError ? err.message : (err as Error)?.message ?? "Failed to load branches";
+        if (err instanceof ApiError && err.status === 401) {
+          setBranches([]);
+          setBranchesLoading(false);
+          return;
+        }
+        if (err instanceof ApiError && err.status === 403) {
+          // Role-based API access is disabled for this role on the backend.
+          setBranches([]);
+          setBranchesError("You don't have access to Campuses — this role's API permission is not enabled.");
+          setBranchesLoading(false);
+          return;
+        }
+        setBranchesError(msg);
+        setBranchesLoading(false);
+        return;
+      }
+    }
+    // Not authenticated — no mock fallback, nothing to show yet.
+    setBranches([]);
+    setBranchesLoading(false);
   }, []);
 
   const setActiveBranchId = React.useCallback((id: string) => {
-    setActiveBranchIdState(id);
+    // Campus-bound roles (principal, hr, teacher, staff...) may only ever
+    // stay on their own campus — global switching is an admin privilege.
+    const role = session.role;
+    const lockedTo = session.branchId;
+    const next = role !== "ADMIN" && lockedTo && lockedTo !== "all" ? lockedTo : id;
+    setActiveBranchIdState(next);
     setSession((prev) => {
-      const updated = { ...prev, branchId: id };
+      const updated = { ...prev, branchId: next };
       mockDb.saveSession(updated);
       return updated;
     });
-  }, []);
+  }, [session.role, session.branchId]);
 
   const setRole = React.useCallback((role: Role) => {
     const roleConfig = demoRolesList.find((r) => r.role === role);
@@ -145,6 +273,9 @@ export function ERPProvider({ children }: { children: React.ReactNode }) {
         role,
         roleLabel: roleConfig ? roleConfig.label : role,
         branchId: roleConfig?.branchId || "all",
+        // Demo role switch uses the static role-based nav (no backend sidebar
+        // is known for the simulated persona).
+        sidebar: undefined,
       };
       setActiveBranchIdState(updated.branchId);
       mockDb.saveSession(updated);
@@ -152,21 +283,45 @@ export function ERPProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  const saveBranch = React.useCallback((branchData: Omit<Branch, "id" | "createdAt" | "updatedAt"> & { id?: string }) => {
-    const saved = mockDb.saveBranch(branchData);
-    const loadedBranches = mockDb.getBranches();
-    setBranches(loadedBranches);
+  const saveBranch = React.useCallback(async (branchData: Omit<Branch, "id" | "createdAt" | "updatedAt"> & { id?: string }) => {
+    // Campus writes go to the live backend only (no mock fallback). The
+    // backend is super_admin-only; permission errors surface as 403.
+    const isUpdate = Boolean(branchData.id);
+    if (!getAccessToken() && !getRefreshToken()) {
+      throw new Error("Sign in required to manage campuses.");
+    }
+    const saved = isUpdate
+      ? await updateBranchApi(branchData.id!, branchData)
+      : await createBranchApi(branchData as Omit<Branch, "id" | "createdAt" | "updatedAt">);
+    try {
+      const refreshed = await fetchBranches();
+      setBranches(refreshed);
+      try { localStorage.setItem("school_erp_branches_v1", JSON.stringify(refreshed)); } catch {}
+    } catch {
+      setBranches((prev) => {
+        if (isUpdate) return prev.map((b) => (b.id === saved.id ? saved : b));
+        return [saved, ...prev];
+      });
+    }
     return saved;
   }, []);
 
-  const deleteBranch = React.useCallback((id: string) => {
-    const result = mockDb.deleteBranch(id);
-    if (result) {
-      setActiveBranchIdState((prev) => (prev === id ? "all" : prev));
-      const loadedBranches = mockDb.getBranches();
-      setBranches(loadedBranches);
+  const deleteBranch = React.useCallback(async (id: string) => {
+    // Hard delete → backend only. 403/401 are soft-deleted (status INACTIVE)
+    // inside deleteBranchApi; any other error (409 FK conflict, 500) surfaces.
+    if (!getAccessToken() && !getRefreshToken()) {
+      throw new Error("Sign in required to manage campuses.");
     }
-    return result;
+    await deleteBranchApi(id);
+    setActiveBranchIdState((prev) => (prev === id ? "all" : prev));
+    try {
+      const refreshed = await fetchBranches();
+      setBranches(refreshed);
+      try { localStorage.setItem("school_erp_branches_v1", JSON.stringify(refreshed)); } catch {}
+    } catch {
+      setBranches((prev) => prev.filter((b) => b.id !== id));
+    }
+    return true;
   }, []);
 
   const triggerBiometricSync = React.useCallback(() => {
@@ -214,6 +369,8 @@ export function ERPProvider({ children }: { children: React.ReactNode }) {
       setSearchOpen,
       stats,
       triggerBiometricSync,
+      branchesLoading,
+      branchesError,
     }),
     [
       activeBranchId,
@@ -233,6 +390,8 @@ export function ERPProvider({ children }: { children: React.ReactNode }) {
       setSearchOpen,
       stats,
       triggerBiometricSync,
+      branchesLoading,
+      branchesError,
     ]
   );
 

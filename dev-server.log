@@ -1,0 +1,610 @@
+
+> school-erp@1.0.0 dev
+> next dev -p 3001
+
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3001
+   - Network:      http://10.28.110.1:3001
+   - Environments: .env.local
+   - Experiments (use with caution):
+     · optimizePackageImports
+
+ ✓ Starting...
+ ✓ Ready in 21s
+ ○ Compiling /middleware ...
+ ✓ Compiled /middleware in 3.2s (115 modules)
+ ○ Compiling /login ...
+ ✓ Compiled /login in 62.1s (1334 modules)
+ ✓ Compiled in 5.2s (549 modules)
+ ✓ Compiled in 341ms (535 modules)
+ GET /login 200 in 671ms
+ GET /login 200 in 305ms
+ ○ Compiling /login/principal ...
+ ✓ Compiled /login/principal in 3.5s (1373 modules)
+ GET /login/principal 200 in 4162ms
+ ○ Compiling / ...
+ ✓ Compiled / in 17.9s (2605 modules)
+ GET / 200 in 18986ms
+ GET / 200 in 191ms
+ GET / 200 in 112ms
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 1820ms (2606 modules)
+ GET /campus 404 in 4485ms
+ GET / 200 in 223ms
+ ○ Compiling /admissions ...
+ ✓ Compiled /admissions in 4.1s (2659 modules)
+ GET /admissions 200 in 4517ms
+ GET / 200 in 218ms
+ GET /login 200 in 289ms
+ GET /login 200 in 129ms
+ ○ Compiling /login/admin ...
+ ✓ Compiled /login/admin in 2.2s (2666 modules)
+ GET /login/admin 200 in 2775ms
+ GET / 200 in 307ms
+ GET / 200 in 113ms
+ GET / 200 in 113ms
+ ○ Compiling /branches ...
+ ✓ Compiled /branches in 4.9s (2716 modules)
+ GET /branches 200 in 5355ms
+ ✓ Compiled in 3s (2710 modules)
+ ○ Compiling /login ...
+ ✓ Compiled /login in 1387ms (1490 modules)
+ GET /login 200 in 2255ms
+ GET /login 200 in 122ms
+ GET /login/admin 200 in 232ms
+ GET / 200 in 229ms
+ GET / 200 in 126ms
+ GET / 200 in 144ms
+ GET /branches 200 in 249ms
+ GET /branches 200 in 3562ms
+ GET /login 200 in 282ms
+ GET /branches 200 in 1000ms
+ GET /branches 200 in 1187ms
+ GET /branches 200 in 1502ms
+ GET /branches 200 in 1560ms
+ ✓ Compiled in 7.5s (2710 modules)
+ ⚠ Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ GET /branches 200 in 3885ms
+ ✓ Compiled in 14.6s (2724 modules)
+ ✓ Compiled in 3.2s (2724 modules)
+ ✓ Compiled in 4.6s (2724 modules)
+ ✓ Compiled in 10.4s (2724 modules)
+ GET /branches 200 in 2961ms
+ ✓ Compiled in 9.8s (2724 modules)
+ ⚠ Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ GET /branches 200 in 1202ms
+ ✓ Compiled in 5.3s (2724 modules)
+ GET /branches 200 in 8621ms
+ GET /branches 200 in 2308ms
+ GET /branches 200 in 2005ms
+ ○ Compiling /library ...
+ ✓ Compiled /library in 9.1s (2749 modules)
+ GET /library 200 in 9832ms
+ GET /library 200 in 145ms
+ GET /branches 200 in 293ms
+ GET /branches 200 in 175ms
+ GET /branches 200 in 142ms
+ GET /branches 200 in 3420ms
+ GET /branches 200 in 1413ms
+ GET /branches 200 in 1490ms
+ GET /branches 200 in 2140ms
+ GET /branches 200 in 3090ms
+ GET /branches 200 in 2436ms
+ GET /branches 200 in 2827ms
+ ○ Compiling /login ...
+ ✓ Compiled /login in 3.8s (1506 modules)
+ GET /login 200 in 5917ms
+ GET /login 200 in 6092ms
+ GET /login/admin 200 in 228ms
+ ✓ Compiled in 6.6s (2191 modules)
+ GET /login/admin 200 in 895ms
+ ⚠ Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ GET /login/admin 200 in 1623ms
+ GET /login/admin 200 in 468ms
+ ○ Compiling / ...
+ ✓ Compiled / in 2.5s (1506 modules)
+ GET / 200 in 4075ms
+ GET / 200 in 135ms
+ GET / 200 in 141ms
+ GET /branches 200 in 292ms
+ GET /branches 200 in 6870ms
+ GET /branches 200 in 2651ms
+ GET /branches 200 in 1981ms
+ GET /branches 200 in 2565ms
+ GET /login 200 in 504ms
+ GET /login 200 in 618ms
+ GET /login 200 in 351ms
+ GET /login 200 in 258ms
+ GET /login 200 in 342ms
+ GET /login 200 in 421ms
+ GET /login/admin 200 in 363ms
+ GET / 200 in 169ms
+ GET / 200 in 133ms
+ GET / 200 in 113ms
+ GET /branches 200 in 117ms
+ GET /branches 200 in 1997ms
+ ✓ Compiled in 6.7s (2744 modules)
+ GET /branches 200 in 676ms
+ GET /branches 200 in 9206ms
+ GET /login 200 in 1879ms
+ GET /login 200 in 2448ms
+ GET /login/admin 200 in 959ms
+ GET / 200 in 1224ms
+ GET / 200 in 120ms
+ GET / 200 in 127ms
+ GET / 200 in 1079ms
+ GET /login 200 in 371ms
+ GET /login 200 in 433ms
+ GET /login 200 in 315ms
+ GET /login 200 in 216ms
+ GET /login 200 in 251ms
+ GET /login 200 in 301ms
+ GET /login 200 in 377ms
+ GET /login/admin 200 in 189ms
+ GET /login 200 in 358ms
+ GET / 200 in 105ms
+ GET / 200 in 155ms
+ GET / 200 in 122ms
+ GET /branches 200 in 150ms
+ GET /login 200 in 524ms
+ GET /login 200 in 585ms
+ GET /login/admin 200 in 215ms
+ GET / 200 in 138ms
+ GET / 200 in 138ms
+ GET / 200 in 141ms
+ GET /branches 200 in 115ms
+ GET /branches 200 in 2695ms
+ GET /login 200 in 512ms
+ GET /login 200 in 578ms
+ GET /login 200 in 212ms
+ GET /login/admin 200 in 99ms
+ GET /login 200 in 258ms
+ GET / 200 in 200ms
+ GET / 200 in 125ms
+ GET / 200 in 125ms
+ ✓ Compiled in 15.4s (2744 modules)
+ ⚠ Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ GET / 200 in 1756ms
+ GET / 200 in 5500ms
+ ✓ Compiled in 7.5s (2730 modules)
+ GET / 200 in 3223ms
+ GET /login 200 in 491ms
+ GET /login 200 in 549ms
+ GET /login/admin 200 in 317ms
+ GET / 200 in 166ms
+ GET / 200 in 119ms
+ GET / 200 in 118ms
+ GET / 200 in 480ms
+ GET /branches 200 in 285ms
+ ○ Compiling /admissions ...
+ ✓ Compiled /admissions in 2.9s (1506 modules)
+ GET /admissions 200 in 4249ms
+ ○ Compiling /students ...
+ ✓ Compiled /students in 13.1s (2773 modules)
+ GET /students 200 in 14139ms
+ GET /branches 200 in 12204ms
+ GET /admissions 200 in 2561ms
+ GET /branches 200 in 140ms
+ GET /branches 200 in 1476ms
+ GET /branches 200 in 1631ms
+ GET /login 200 in 412ms
+ GET /login 200 in 539ms
+ ○ Compiling /login/admin ...
+ ✓ Compiled /login/admin in 1591ms (1526 modules)
+ GET /login/admin 200 in 2315ms
+ GET / 200 in 303ms
+ GET / 200 in 119ms
+ GET / 200 in 112ms
+ GET /branches 200 in 2349ms
+ GET /branches 200 in 4390ms
+ GET /login 200 in 860ms
+ GET /login 200 in 910ms
+ GET /login/admin 200 in 179ms
+ GET / 200 in 183ms
+ GET / 200 in 142ms
+ GET / 200 in 128ms
+ GET /branches 200 in 120ms
+ GET /login 200 in 453ms
+ GET /login 200 in 524ms
+ GET /login 200 in 442ms
+ GET /login 200 in 291ms
+ GET /login/admin 200 in 107ms
+ GET /login 200 in 542ms
+ GET / 200 in 170ms
+ GET / 200 in 161ms
+ GET / 200 in 141ms
+ GET /branches 200 in 128ms
+ GET /branches 200 in 2083ms
+ GET /login 200 in 431ms
+ GET /login 200 in 524ms
+ GET /login/admin 200 in 221ms
+ GET / 200 in 148ms
+ GET / 200 in 146ms
+ GET / 200 in 119ms
+ GET /branches 200 in 130ms
+ GET /branches 200 in 2218ms
+ GET /admissions 200 in 268ms
+ GET /students 200 in 265ms
+ GET / 200 in 116ms
+ GET /admissions 200 in 158ms
+ GET /students 200 in 156ms
+ ○ Compiling /classes ...
+ ✓ Compiled /login in 14.8s (2830 modules)
+ GET /login 200 in 9860ms
+ GET /classes 200 in 17658ms
+ GET /login 200 in 9946ms
+ ✓ Compiled in 16.6s (2233 modules)
+ GET /login 200 in 745ms
+ ✓ Compiled in 3.3s (1298 modules)
+ GET /login 200 in 201ms
+ ✓ Compiled in 625ms (1284 modules)
+ ✓ Compiled in 586ms (1284 modules)
+ ⨯ ./src/sections/library/index.ts:4:1
+Module not found: Can't resolve './library-management-view'
+  2 | export * from "./library-metrics-ribbon";
+  3 | export * from "./library-directory-view";
+> 4 | export * from "./library-management-view";
+    | ^
+  5 |
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+./src/app/library/page.tsx
+ ⨯ ./src/sections/library/index.ts:4:1
+Module not found: Can't resolve './library-management-view'
+  2 | export * from "./library-metrics-ribbon";
+  3 | export * from "./library-directory-view";
+> 4 | export * from "./library-management-view";
+    | ^
+  5 |
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+./src/app/library/page.tsx
+ ⨯ ./src/sections/library/index.ts:4:1
+Module not found: Can't resolve './library-management-view'
+  2 | export * from "./library-metrics-ribbon";
+  3 | export * from "./library-directory-view";
+> 4 | export * from "./library-management-view";
+    | ^
+  5 |
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+./src/app/library/page.tsx
+ ⨯ ./src/sections/library/index.ts:4:1
+Module not found: Can't resolve './library-management-view'
+  2 | export * from "./library-metrics-ribbon";
+  3 | export * from "./library-directory-view";
+> 4 | export * from "./library-management-view";
+    | ^
+  5 |
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+./src/app/library/page.tsx
+ ⨯ ./src/sections/library/index.ts:4:1
+Module not found: Can't resolve './library-management-view'
+  2 | export * from "./library-metrics-ribbon";
+  3 | export * from "./library-directory-view";
+> 4 | export * from "./library-management-view";
+    | ^
+  5 |
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+./src/app/library/page.tsx
+ ⨯ ./src/sections/library/index.ts:4:1
+Module not found: Can't resolve './library-management-view'
+  2 | export * from "./library-metrics-ribbon";
+  3 | export * from "./library-directory-view";
+> 4 | export * from "./library-management-view";
+    | ^
+  5 |
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+./src/app/library/page.tsx
+ ⨯ ./src/sections/library/index.ts:4:1
+Module not found: Can't resolve './library-management-view'
+  2 | export * from "./library-metrics-ribbon";
+  3 | export * from "./library-directory-view";
+> 4 | export * from "./library-management-view";
+    | ^
+  5 |
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+./src/app/library/page.tsx
+ ⨯ ./src/sections/library/index.ts:4:1
+Module not found: Can't resolve './library-management-view'
+  2 | export * from "./library-metrics-ribbon";
+  3 | export * from "./library-directory-view";
+> 4 | export * from "./library-management-view";
+    | ^
+  5 |
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+./src/app/library/page.tsx
+ ⨯ ./src/sections/library/index.ts:4:1
+Module not found: Can't resolve './library-management-view'
+  2 | export * from "./library-metrics-ribbon";
+  3 | export * from "./library-directory-view";
+> 4 | export * from "./library-management-view";
+    | ^
+  5 |
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+./src/app/library/page.tsx
+ ⨯ ./src/sections/library/index.ts:4:1
+Module not found: Can't resolve './library-management-view'
+  2 | export * from "./library-metrics-ribbon";
+  3 | export * from "./library-directory-view";
+> 4 | export * from "./library-management-view";
+    | ^
+  5 |
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+./src/app/library/page.tsx
+ ⨯ ./src/sections/library/index.ts:4:1
+Module not found: Can't resolve './library-management-view'
+  2 | export * from "./library-metrics-ribbon";
+  3 | export * from "./library-directory-view";
+> 4 | export * from "./library-management-view";
+    | ^
+  5 |
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+./src/app/library/page.tsx
+ ○ Compiling /_error ...
+ ⨯ ./src/sections/library/index.ts:4:1
+Module not found: Can't resolve './library-management-view'
+  2 | export * from "./library-metrics-ribbon";
+  3 | export * from "./library-directory-view";
+> 4 | export * from "./library-management-view";
+    | ^
+  5 |
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+./src/app/library/page.tsx
+ GET /login 500 in 26335ms
+ ✓ Compiled /_error in 4.9s (1455 modules)
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ GET /login 200 in 2407ms
+ GET /login/admin 200 in 15581ms
+ GET /login/admin 200 in 3423ms
+ GET /login/admin 200 in 5526ms
+ GET /login/admin 200 in 2009ms
+ ○ Compiling / ...
+ ✓ Compiled / in 3.4s (1699 modules)
+ GET / 200 in 5206ms
+ GET / 200 in 148ms
+ GET / 200 in 151ms
+ GET / 200 in 2741ms
+ GET /login 200 in 481ms
+ GET /login 200 in 728ms
+ GET /login/admin 200 in 395ms
+ GET /login/admin 200 in 234ms
+ GET /login/admin 200 in 345ms
+ GET /login/admin 200 in 192ms
+ GET /login 200 in 456ms
+ GET / 200 in 1130ms
+ GET / 200 in 651ms
+ GET / 200 in 375ms
+ GET / 200 in 736ms
+ GET /branches 200 in 551ms
+ GET /admissions 200 in 310ms
+ GET /students 200 in 431ms
+ ○ Compiling /classes ...
+ ✓ Compiled /classes in 10.1s (1726 modules)
+ GET /students 200 in 6244ms
+ GET /classes 200 in 13089ms
+ GET /admissions 200 in 6814ms
+ GET /admissions 200 in 224ms
+ GET /admissions 200 in 6274ms
+ GET /admissions 200 in 1790ms
+ ○ Compiling /library ...
+ ✓ Compiled /library in 10.9s (1710 modules)
+ GET /library 200 in 12319ms
+ ✓ Compiled in 9s (3140 modules)
+ ✓ Compiled in 529ms (1455 modules)
+ ✓ Compiled in 387ms (1441 modules)
+ ✓ Compiled in 3.6s (1447 modules)
+ ✓ Compiled in 774ms (1461 modules)
+ ✓ Compiled in 681ms (1461 modules)
+ ○ Compiling /library ...
+ ✓ Compiled /library in 2.2s (1716 modules)
+ GET /library 200 in 3796ms
+ ○ Compiling /timetable ...
+ ✓ Compiled /timetable in 4.7s (3204 modules)
+ GET /timetable 200 in 4963ms
+ GET /timetable 200 in 99ms
+ GET /timetable 200 in 63ms
+ ○ Compiling /homework ...
+ ✓ Compiled /homework in 4.1s (3197 modules)
+ GET /homework 200 in 4857ms
+ ○ Compiling /students ...
+ ✓ Compiled /students in 1140ms (1739 modules)
+ GET /students 200 in 1872ms
+ ○ Compiling /fees ...
+ ✓ Compiled /fees in 2.2s (3266 modules)
+ GET /fees 200 in 2803ms
+ ○ Compiling /transport ...
+ ✓ Compiled /transport in 3.1s (3305 modules)
+ GET /transport 200 in 3318ms
+ ○ Compiling /expenses ...
+ ✓ Compiled /documents in 5s (3375 modules)
+ GET /documents 200 in 2955ms
+ GET /expenses 200 in 5240ms
+ GET /timetable 200 in 152ms
+ ○ Compiling /classes ...
+ ✓ Compiled /classes in 4.4s (1737 modules)
+ GET /classes 200 in 4940ms
+ GET /classes 200 in 52ms
+ GET / 200 in 1622ms
+ ○ Compiling /login ...
+ ✓ Compiled /login in 4.8s (1718 modules)
+ GET /login 200 in 6115ms
+ GET /login 200 in 6179ms
+ ○ Compiling /login/admin ...
+ ✓ Compiled /login/admin in 5.1s (1732 modules)
+ GET /login/admin 200 in 5771ms
+ GET /login/admin 200 in 117ms
+ GET /login/admin 200 in 76ms
+ GET /login/admin 200 in 81ms
+ GET / 200 in 167ms
+ GET / 200 in 119ms
+ GET / 200 in 102ms
+ ○ Compiling /branches ...
+ ✓ Compiled /branches in 3.6s (1756 modules)
+ GET /branches 200 in 4204ms
+ GET /branches 200 in 1105ms
+ GET /branches 200 in 417ms
+ GET / 200 in 126ms
+ GET /branches 200 in 78ms
+ GET /branches 200 in 447ms
+ ○ Compiling /branches/[id] ...
+ ✓ Compiled /branches/[id] in 8.8s (3274 modules)
+ ✓ Compiled in 980ms (1571 modules)
+ GET /branches/d08801c9-5cd2-48e7-b221-d5ea99c84dc4 200 in 17733ms
+ GET /branches/d08801c9-5cd2-48e7-b221-d5ea99c84dc4 200 in 166ms
+ GET /branches/d08801c9-5cd2-48e7-b221-d5ea99c84dc4 200 in 121ms
+ GET / 200 in 114ms
+ ○ Compiling /admissions ...
+ ✓ Compiled /admissions in 551ms (1695 modules)
+ GET /admissions 200 in 1076ms
+ ○ Compiling /students ...
+ ✓ Compiled /students in 3.6s (1715 modules)
+ GET /students 200 in 4901ms
+ GET /admissions 200 in 3563ms
+ GET /students 200 in 60ms
+ GET /admissions 200 in 107ms
+ ○ Compiling /classes ...
+ ✓ Compiled /classes in 5.8s (1722 modules)
+ GET /classes 200 in 6382ms
+ ○ Compiling /timetable ...
+ ✓ Compiled /timetable in 4.8s (1748 modules)
+ GET /timetable 200 in 5697ms
+ ○ Compiling /homework ...
+ ✓ Compiled /homework in 4.5s (1758 modules)
+ GET /homework 200 in 4902ms
+ ○ Compiling /exams ...
+ ✓ Compiled /library in 21.7s (3386 modules)
+ GET /library 200 in 18097ms
+ GET /exams 200 in 22372ms
+ GET /library 200 in 88ms
+ GET /library 200 in 77ms
+ GET /library 200 in 82ms
+ GET /library 200 in 69ms
+ ○ Compiling /documents ...
+ ✓ Compiled /documents in 5s (1170 modules)
+ GET /documents 200 in 5777ms
+ GET /admissions 200 in 845ms
+ ○ Compiling /students ...
+ ✓ Compiled /students in 971ms (1196 modules)
+ GET /students 200 in 2283ms
+ GET /admissions 200 in 1872ms
+ ○ Compiling /login ...
+ ✓ Compiled /login in 2.6s (1203 modules)
+ GET /login 200 in 3467ms
+ GET /login 200 in 3511ms
+ ○ Compiling /login/principal ...
+ ✓ Compiled /login/principal in 2.2s (1215 modules)
+ GET /login/principal 200 in 2825ms
+ ○ Compiling / ...
+ ✓ Compiled / in 4.4s (1781 modules)
+ GET / 200 in 6911ms
+ GET / 200 in 108ms
+ GET / 200 in 84ms
+ GET /admissions 200 in 154ms
+ GET /students 200 in 193ms
+ GET /timetable 200 in 190ms
+ GET /library 200 in 138ms
+ ○ Compiling /fees ...
+ ✓ Compiled /fees in 3.3s (1754 modules)
+ GET /fees 200 in 10812ms
+ GET /admissions 200 in 392ms
+ ○ Compiling /login ...
+ ✓ Compiled /login in 2s (1174 modules)
+ GET /login 200 in 3170ms
+ GET /login 200 in 3212ms
+ GET /login 200 in 247ms
+ ○ Compiling /login/admin ...
+ ✓ Compiled /login/admin in 5.1s (1163 modules)
+ GET /login/admin 200 in 5661ms
+ ○ Compiling / ...
+ ✓ Compiled / in 1990ms (1717 modules)
+ GET / 200 in 2667ms
+ GET / 200 in 59ms
+ GET / 200 in 56ms
+ ○ Compiling /admissions ...
+ ✓ Compiled /admissions in 1736ms (1711 modules)
+ GET /admissions 200 in 2296ms
+ GET /admissions 200 in 864ms
+ ○ Compiling /students ...
+ ✓ Compiled /students in 2.9s (1706 modules)
+ GET /students 200 in 3467ms
+ GET /admissions 200 in 125ms
+ GET /admissions 200 in 1334ms
+ GET /admissions 200 in 743ms
+ GET /admissions 200 in 620ms
+ GET /admissions 200 in 696ms
+ GET /students 200 in 61ms
+ GET /admissions 200 in 68ms
+ ✓ Compiled in 19.2s (3269 modules)
+ GET /admissions 200 in 605ms
+ ✓ Compiled in 2.3s (3255 modules)
+ ✓ Compiled in 2.1s (3255 modules)
+ ✓ Compiled in 6.5s (3255 modules)
+ ✓ Compiled in 7s (3255 modules)
+ ✓ Compiled in 2.3s (3255 modules)
+ GET /admissions 200 in 4408ms
+ GET /admissions 200 in 2625ms
+ GET /admissions 200 in 1897ms
+ GET /admissions 200 in 2107ms
+ GET /admissions 200 in 1917ms
+ ○ Compiling /admissions/[id] ...
+ ✓ Compiled /admissions/[id] in 27s (3279 modules)
+ GET /students 200 in 329ms
+ GET /admissions/f8abd0f8-0906-4174-8a8b-88bbb078451e 200 in 47684ms
+ GET /admissions/f8abd0f8-0906-4174-8a8b-88bbb078451e 200 in 19645ms
+ GET /students 200 in 2679ms
+ GET /students 200 in 2101ms
+ ⨯ The requested resource "https://api.dicebear.com/7.x/initials/svg?seed=Arjun" has type "image/svg+xml" but dangerouslyAllowSVG is disabled. Consider adding the "unoptimized" property to the <Image>.
+ ⨯ The requested resource "https://api.dicebear.com/7.x/initials/svg?seed=Sneha" has type "image/svg+xml" but dangerouslyAllowSVG is disabled. Consider adding the "unoptimized" property to the <Image>.
+ ⨯ The requested resource "https://api.dicebear.com/7.x/initials/svg?seed=Rohan" has type "image/svg+xml" but dangerouslyAllowSVG is disabled. Consider adding the "unoptimized" property to the <Image>.
+ ⨯ The requested resource "https://api.dicebear.com/7.x/initials/svg?seed=Priya" has type "image/svg+xml" but dangerouslyAllowSVG is disabled. Consider adding the "unoptimized" property to the <Image>.
+ ⨯ The requested resource "https://api.dicebear.com/7.x/initials/svg?seed=Aarav" has type "image/svg+xml" but dangerouslyAllowSVG is disabled. Consider adding the "unoptimized" property to the <Image>.
+ ⨯ The requested resource "https://api.dicebear.com/7.x/initials/svg?seed=Arjun" has type "image/svg+xml" but dangerouslyAllowSVG is disabled. Consider adding the "unoptimized" property to the <Image>.
+ ⨯ The requested resource "https://api.dicebear.com/7.x/initials/svg?seed=Sneha" has type "image/svg+xml" but dangerouslyAllowSVG is disabled. Consider adding the "unoptimized" property to the <Image>.
+ ⨯ The requested resource "https://api.dicebear.com/7.x/initials/svg?seed=Priya" has type "image/svg+xml" but dangerouslyAllowSVG is disabled. Consider adding the "unoptimized" property to the <Image>.
+ ⨯ The requested resource "https://api.dicebear.com/7.x/initials/svg?seed=Aarav" has type "image/svg+xml" but dangerouslyAllowSVG is disabled. Consider adding the "unoptimized" property to the <Image>.
+ ⨯ The requested resource "https://api.dicebear.com/7.x/initials/svg?seed=Rohan" has type "image/svg+xml" but dangerouslyAllowSVG is disabled. Consider adding the "unoptimized" property to the <Image>.
+ ○ Compiling /students/[id] ...
+ ✓ Compiled /students/[id] in 30s (3285 modules)
+ GET /admissions 200 in 8881ms
+ GET /students/735919a0-bc0f-4fec-ab35-cd6f3e56b3dd 200 in 33335ms
+ ✓ Compiled in 19.5s (3275 modules)
+ ⚠ Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ GET /admissions 200 in 3057ms
+ GET /students 200 in 5375ms
+ GET /admissions 200 in 179ms
+ GET /admissions 200 in 2621ms
+[?25h

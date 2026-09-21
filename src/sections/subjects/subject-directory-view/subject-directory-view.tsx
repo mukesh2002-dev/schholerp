@@ -2,7 +2,6 @@
 
 import React, { useState, useMemo } from "react";
 import { useERP } from "@/components/providers/erp-provider";
-import { mockDb } from "@/lib/services/mock-db";
 import { Subject } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,65 +9,98 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { EmptyState } from "@/components/ui/empty-state";
+import { SectionOfflineBanner } from "@/components/layout/section-guard";
+import { canMutateAcademics } from "@/lib/auth/roles";
 import { SubjectFormDialog } from "@/components/subjects/subject-form-dialog";
 import { TopicManagerDialog } from "@/components/subjects/topic-manager-dialog";
-import { Search, BookOpen, Layers, BookMarked, Edit3, Trash2, Users, Plus, GraduationCap } from "lucide-react";
+import { Search, BookOpen, Layers, BookMarked, Edit3, Trash2, Users, Plus, GraduationCap, Lock } from "lucide-react";
 import { toast } from "sonner";
+import { ApiError } from "@/lib/api/client";
+import { fetchSubjects, deleteSubjectApi, fetchClasses } from "@/lib/api/classes";
+import { useCampusData } from "@/lib/hooks/use-campus-data";
+
+type LiveSubject = Subject & { classId: string; className: string; branchId: string; branchName: string };
 
 export function SubjectDirectoryView() {
-  const { activeBranchId } = useERP();
-  const [refreshKey, setRefreshKey] = useState(0);
+  const { activeBranchId, session } = useERP();
+  const canEdit = canMutateAcademics(session.role);
+  const fallback: LiveSubject[] = [];
+
+  const { data: subjects, isLoading, isOffline, error, refresh } = useCampusData<LiveSubject[]>({
+    fetcher: (cid) => fetchSubjects({ campusId: cid }),
+    campusId: activeBranchId,
+    fallback,
+    queryKeyPrefix: "subjects",
+  });
+  const { data: classes } = useCampusData({
+    fetcher: (cid) => fetchClasses({ campusId: cid }),
+    campusId: activeBranchId,
+    fallback: [] as any[],
+    queryKeyPrefix: "classes",
+  });
+
   const [searchQuery, setSearchQuery] = useState("");
   const [classFilter, setClassFilter] = useState<string>("ALL");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingSubject, setEditingSubject] = useState<(Subject & { classId: string; branchId: string; branchName: string; className: string }) | null>(null);
   const [topicSubject, setTopicSubject] = useState<(Subject & { classId: string; className: string }) | null>(null);
 
-  const classes = mockDb.getClasses(activeBranchId);
-  const allSubjects = useMemo(() => mockDb.getAllSubjects(activeBranchId), [activeBranchId, refreshKey]);
-
   React.useEffect(() => {
-    const h = () => setRefreshKey((k) => k + 1);
+    const h = () => void refresh();
     window.addEventListener("subjects:refresh", h);
-    return () => window.removeEventListener("subjects:refresh", h);
-  }, []);
+    window.addEventListener("classes:refresh", h);
+    return () => {
+      window.removeEventListener("subjects:refresh", h);
+      window.removeEventListener("classes:refresh", h);
+    };
+  }, [refresh]);
 
   const filtered = useMemo(() => {
-    return allSubjects.filter((s) => {
+    return subjects.filter((s) => {
       const q = searchQuery.toLowerCase();
       const matchesSearch = !q || s.name.toLowerCase().includes(q) || s.code.toLowerCase().includes(q) || s.teacherName.toLowerCase().includes(q) || s.className.toLowerCase().includes(q);
       const matchesClass = classFilter === "ALL" || s.classId === classFilter;
       return matchesSearch && matchesClass;
     });
-  }, [allSubjects, searchQuery, classFilter]);
+  }, [subjects, searchQuery, classFilter]);
 
   const grouped = useMemo(() => {
     const map = new Map<string, typeof filtered>();
     for (const s of filtered) {
-      const k = `${s.classId}|${s.className}`;
+      const k = `${s.classId}|${s.className}|${s.branchId}`;
       const arr = map.get(k) || [];
       arr.push(s);
       map.set(k, arr);
     }
     return Array.from(map.entries()).map(([k, arr]) => {
-      const [classId, className] = k.split("|");
-      const cls = classes.find((c) => c.id === classId);
-      return { classId, className, branchName: cls?.branchName || "", subjects: arr, cls };
+      const [classId, className, branchId] = k.split("|");
+      const cls = classes.find((c: any) => c.id === classId);
+      return { classId, className, branchName: cls?.branchName || arr[0]?.branchName || "", subjects: arr, cls };
     });
   }, [filtered, classes]);
 
-  const handleDelete = (classId: string, subjectId: string, name: string) => {
-    if (!confirm(`Delete subject "${name}"? Topics also deleted.`)) return;
-    const ok = mockDb.deleteSubject(classId, subjectId);
-    if (ok) {
+  const handleDelete = async (classId: string, subjectId: string, name: string) => {
+    if (!confirm(`Delete subject "${name}"? Blocked if used in timetable/exams/homework.`)) return;
+    try {
+      await deleteSubjectApi(subjectId);
       toast.success(`Subject "${name}" deleted`);
-      setRefreshKey((k) => k + 1);
+      void refresh();
+      window.dispatchEvent(new Event("subjects:refresh"));
       window.dispatchEvent(new Event("classes:refresh"));
-    } else toast.error("Delete failed");
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Delete failed");
+    }
+  };
+
+  const openAddForClass = (classId: string) => {
+    setEditingSubject(null);
+    setClassFilter(classId);
+    setDialogOpen(true);
   };
 
   return (
     <div className="space-y-4">
+      <SectionOfflineBanner isOffline={isOffline} error={error} isLoading={isLoading} />
       <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 p-3 rounded-xl bg-card border border-border/60 shadow-sm">
         <div className="flex flex-1 items-center gap-2">
           <div className="relative flex-1 max-w-sm">
@@ -79,18 +111,26 @@ export function SubjectDirectoryView() {
             <SelectTrigger className="w-[160px] h-9 text-xs"><SelectValue placeholder="Class" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="ALL">All Classes</SelectItem>
-              {classes.map((c) => <SelectItem key={c.id} value={c.id}>{c.name} ({c.subjects.length})</SelectItem>)}
+              {classes.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name} ({c.subjects?.length ?? 0})</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
         <div className="flex items-center gap-2 self-end md:self-auto">
-          <Badge variant="outline" className="text-xs font-mono">Showing {filtered.length} of {allSubjects.length}</Badge>
-          <Button size="sm" variant="gradient" className="h-9 gap-1" onClick={() => { setEditingSubject(null); setDialogOpen(true); }}><Plus className="h-3.5 w-3.5" /> Add Subject</Button>
+          <Badge variant="outline" className="text-xs font-mono">Showing {filtered.length} of {subjects.length}</Badge>
+          {canEdit && (
+            <Button size="sm" variant="gradient" className="h-9 gap-1" onClick={() => { setEditingSubject(null); setDialogOpen(true); }}><Plus className="h-3.5 w-3.5" /> Add Subject</Button>
+          )}
         </div>
       </div>
 
+      {!canEdit && (
+        <div className="flex items-center gap-2 text-[11px] text-muted-foreground bg-muted/40 border border-border/50 rounded-lg px-3 py-2">
+          <Lock className="h-3.5 w-3.5" /> Read-only — only Admin or Principal can add, edit or delete subjects.
+        </div>
+      )}
+
       {filtered.length === 0 ? (
-        <EmptyState title="No Subjects Found" description="Add subjects class-wise. Each subject can have chapter-wise topics." actionLabel="Add Subject" onAction={() => setDialogOpen(true)} />
+        <EmptyState title="No Subjects Found" description="Add subjects class-wise. Each subject can have chapter-wise topics." actionLabel="Add Subject" onAction={() => canEdit && setDialogOpen(true)} />
       ) : (
         <div className="space-y-8">
           {grouped.map((g) => (
@@ -99,9 +139,11 @@ export function SubjectDirectoryView() {
                 <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center"><GraduationCap className="h-4 w-4" /></div>
                 <div>
                   <div className="text-sm font-bold flex items-center gap-2">{g.className} <Badge variant="outline" className="text-[11px]">{g.branchName}</Badge> <Badge className="text-[11px]">{g.subjects.length} subjects</Badge></div>
-                  <div className="text-xs text-muted-foreground">{g.cls?.sections.length || 0} sections • {g.cls?.totalStudents || 0} students</div>
+                  <div className="text-xs text-muted-foreground">{g.cls?.sections?.length ?? 0} section(s) • {g.cls?.totalStudents ?? 0} students</div>
                 </div>
-                <Button variant="outline" size="sm" className="ml-auto h-7 text-xs gap-1" onClick={() => { setEditingSubject(null); setDialogOpen(true); }}><Plus className="h-3 w-3" /> Add for {g.className}</Button>
+                {canEdit && (
+                  <Button variant="outline" size="sm" className="ml-auto h-7 text-xs gap-1" onClick={() => openAddForClass(g.classId)}><Plus className="h-3 w-3" /> Add for {g.className}</Button>
+                )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -129,13 +171,17 @@ export function SubjectDirectoryView() {
                             <BookMarked className="h-3 w-3" /> {t.title}
                           </span>
                         ))}
-                        {(sub.topics || []).length > 3 && <span className="text-[11px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">+{sub.topics!.length - 3} more</span>}
+                        {(sub.topics || []).length > 3 && <span className="text-[11px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">+{(sub.topics || []).length - 3} more</span>}
                         {(!sub.topics || sub.topics.length === 0) && <span className="text-[11px] text-muted-foreground italic">No topics — add chapter-wise</span>}
                       </div>
                       <div className="flex gap-1.5 pt-2 mt-auto">
                         <Button variant="outline" size="sm" className="flex-1 h-7 text-xs gap-1" onClick={() => setTopicSubject(sub as any)}><Layers className="h-3 w-3" /> Topics</Button>
-                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => { setEditingSubject(sub as any); setDialogOpen(true); }} title="Edit subject"><Edit3 className="h-3.5 w-3.5" /></Button>
-                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive hover:text-destructive" onClick={() => handleDelete(sub.classId, sub.id, sub.name)} title="Delete subject"><Trash2 className="h-3.5 w-3.5" /></Button>
+                        {canEdit && (
+                          <>
+                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => { setEditingSubject(sub as any); setDialogOpen(true); }} title="Edit subject"><Edit3 className="h-3.5 w-3.5" /></Button>
+                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive hover:text-destructive" onClick={() => handleDelete(g.classId, sub.id, sub.name)} title="Delete subject"><Trash2 className="h-3.5 w-3.5" /></Button>
+                          </>
+                        )}
                       </div>
                     </CardContent>
                   </Card>
@@ -146,9 +192,9 @@ export function SubjectDirectoryView() {
         </div>
       )}
 
-      <SubjectFormDialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) setEditingSubject(null); }} editingSubject={editingSubject} initialClassId={classFilter !== "ALL" ? classFilter : undefined} onSuccess={() => setRefreshKey((k) => k + 1)} />
+      <SubjectFormDialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) setEditingSubject(null); }} editingSubject={editingSubject} initialClassId={classFilter !== "ALL" ? classFilter : undefined} onSuccess={() => void refresh()} />
       {topicSubject && (
-        <TopicManagerDialog open={!!topicSubject} onOpenChange={(o) => !o && setTopicSubject(null)} classId={topicSubject.classId} className={topicSubject.className} subject={topicSubject as any} onSuccess={() => setRefreshKey((k) => k + 1)} />
+        <TopicManagerDialog open={!!topicSubject} onOpenChange={(o) => !o && setTopicSubject(null)} classId={topicSubject.classId} className={topicSubject.className} subject={topicSubject as any} onSuccess={() => void refresh()} />
       )}
     </div>
   );

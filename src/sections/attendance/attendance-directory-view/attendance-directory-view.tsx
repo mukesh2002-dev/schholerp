@@ -1,9 +1,17 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import { useERP } from "@/components/providers/erp-provider";
-import { mockDb } from "@/lib/services/mock-db";
-import { AttendanceCategory, AttendanceStatus } from "@/types";
+import {
+  fetchStudentAttendance,
+  fetchStaffAttendance,
+  fetchLeaves,
+  mapBackendStudentAttendance,
+  mapBackendStaffAttendance,
+} from "@/lib/api/attendance";
+import { useCampusData } from "@/lib/hooks/use-campus-data";
+import { SectionOfflineBanner } from "@/components/layout/section-guard";
+import { AttendanceCategory, AttendanceStatus, AttendanceRecord } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -37,10 +45,85 @@ export function AttendanceDirectoryView() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
 
-  const allRecords = useMemo(
-    () => mockDb.getAttendanceRecords(activeBranchId, category),
-    [activeBranchId, category]
-  );
+  const fallbackRecords: AttendanceRecord[] = [];
+  const fallbackSummaries: any[] = [];
+  const fallbackReport: any[] = [];
+
+  const {
+    data: apiRecords,
+    isLoading: recordsLoading,
+    isOffline: recordsOffline,
+    error: recordsError,
+    refresh: refreshRecords,
+  } = useCampusData<AttendanceRecord[]>({
+    fetcher: async (cid) => {
+      if (category === "STUDENT") {
+        const res = await fetchStudentAttendance({ campusId: cid });
+        return Array.isArray(res) ? res.map((r) => mapBackendStudentAttendance(r, cid)) : [];
+      }
+      const res = await fetchStaffAttendance({ campusId: cid });
+      return Array.isArray(res) ? res.map((r) => mapBackendStaffAttendance(r, cid)) : [];
+    },
+    campusId: activeBranchId,
+    fallback: fallbackRecords,
+  });
+
+  const {
+    data: apiLeaves,
+    isLoading: leavesLoading,
+    isOffline: leavesOffline,
+    error: leavesError,
+    refresh: refreshLeaves,
+  } = useCampusData<any[]>({
+    fetcher: (cid) => fetchLeaves({ campusId: cid }),
+    campusId: activeBranchId,
+    fallback: [],
+  });
+  void apiLeaves; void leavesLoading; void leavesOffline; void leavesError; void refreshLeaves;
+
+  const allRecords = apiRecords.length > 0 || recordsOffline || !recordsLoading ? apiRecords : fallbackRecords;
+  const summaries = useMemo(() => {
+    const byDate = new Map<string, { total: number; present: number; absent: number; late: number; leave: number }>();
+    allRecords.forEach((r) => {
+      const cur = byDate.get(r.date) ?? { total: 0, present: 0, absent: 0, late: 0, leave: 0 };
+      cur.total += 1;
+      if (r.status === "PRESENT") cur.present += 1;
+      else if (r.status === "LATE") cur.late += 1;
+      else if (r.status === "LEAVE") cur.leave += 1;
+      else cur.absent += 1;
+      byDate.set(r.date, cur);
+    });
+    return Array.from(byDate.entries())
+      .map(([date, v]) => ({
+        date,
+        category,
+        branchId: activeBranchId,
+        total: v.total,
+        present: v.present,
+        absent: v.absent,
+        late: v.late,
+        leave: v.leave,
+        rate: v.total > 0 ? Math.round(((v.present + v.late) / v.total) * 100) : 0,
+      }))
+      .sort((a, b) => b.date.localeCompare(a.date))
+      .slice(0, 10);
+  }, [allRecords, category, activeBranchId]);
+
+  const report = useMemo(() => {
+    const byPerson = new Map<string, { personId: string; personName: string; present: number; late: number; absent: number; totalDays: number; rate: number }>();
+    allRecords.forEach((r) => {
+      const cur = byPerson.get(r.personId) ?? { personId: r.personId, personName: r.personName, present: 0, late: 0, absent: 0, totalDays: 0, rate: 0 };
+      cur.totalDays += 1;
+      if (r.status === "PRESENT") cur.present += 1;
+      else if (r.status === "LATE") cur.late += 1;
+      else cur.absent += 1;
+      byPerson.set(r.personId, cur);
+    });
+    return Array.from(byPerson.values()).map((p) => ({
+      ...p,
+      rate: p.totalDays > 0 ? Math.round(((p.present + p.late) / p.totalDays) * 100) : 0,
+    }));
+  }, [allRecords]);
   const availableDates = useMemo(
     () => Array.from(new Set(allRecords.map((r) => r.date))).sort().reverse(),
     [allRecords]
@@ -59,28 +142,21 @@ export function AttendanceDirectoryView() {
     });
   }, [recordsForDate, search, statusFilter]);
 
-  const summaries = useMemo(
-    () =>
-      mockDb
-        .getAttendanceDaySummaries(activeBranchId)
-        .filter((s) => s.category === category)
-        .slice(0, 10),
-    [activeBranchId, category]
-  );
+  const refresh = useCallback(() => {
+    void refreshRecords();
+    void refreshLeaves();
+  }, [refreshRecords, refreshLeaves]);
 
-  const report = useMemo(
-    () => mockDb.getAttendanceReportEntries(activeBranchId, category),
-    [activeBranchId, category]
-  );
-
-  const handleMarkAllPresent = () => {
+  const handleMarkAllPresent = useCallback(() => {
     toast.success(
       `Marked ${filtered.length} ${category.toLowerCase()}s as PRESENT for ${effectiveDate}`
     );
-  };
+    refresh();
+  }, [filtered.length, category, effectiveDate, refresh]);
 
   return (
     <div className="space-y-4">
+      <SectionOfflineBanner isOffline={recordsOffline} error={recordsError} isLoading={recordsLoading} />
       {/* Category Filter Pills & Controls */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl bg-card border border-border/70">
         <div className="flex items-center gap-2">

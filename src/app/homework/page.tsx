@@ -9,10 +9,12 @@ import {
   HomeworkDirectoryView,
   HomeworkDirectoryViewSkeleton,
 } from "@/sections/homework";
+import { SectionGuard } from "@/components/layout/section-guard";
 
 export default function HomeworkPage() {
   return (
-    <div className="space-y-8 animate-in fade-in duration-300">
+    <SectionGuard>
+      <div className="space-y-8 animate-in fade-in duration-300">
       {/* 1. Header & Quick Actions */}
       <Suspense fallback={<HomeworkHeaderSkeleton />}>
         <HomeworkHeader />
@@ -27,6 +29,7 @@ export default function HomeworkPage() {
       <Suspense fallback={<HomeworkDirectoryViewSkeleton />}>
         <HomeworkDirectoryView />
       </Suspense>
-    </div>
+      </div>
+    </SectionGuard>
   );
 }

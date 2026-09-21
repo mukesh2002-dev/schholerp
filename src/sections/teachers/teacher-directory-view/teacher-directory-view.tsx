@@ -3,7 +3,9 @@
 import React, { useState, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { useERP } from "@/components/providers/erp-provider";
-import { mockDb } from "@/lib/services/mock-db";
+import { fetchTeachers } from "@/lib/api/teachers";
+import { useCampusData } from "@/lib/hooks/use-campus-data";
+import { SectionOfflineBanner } from "@/components/layout/section-guard";
 import { Teacher } from "@/types";
 import { TeacherCard } from "@/components/teachers/teacher-card";
 import { TeacherFormDialog } from "@/components/teachers/teacher-form-dialog";
@@ -40,8 +42,6 @@ import {
 
 export function TeacherDirectoryView() {
   const { activeBranchId } = useERP();
-  const [teachers, setTeachers] = useState(() => mockDb.getTeachers(activeBranchId));
-
   const [searchQuery, setSearchQuery] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState<string>("ALL");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
@@ -53,9 +53,22 @@ export function TeacherDirectoryView() {
   // Debounce search so filtering doesn't run on every keystroke
   const debouncedQuery = useDebouncedValue(searchQuery, 300);
 
+  const {
+    data: teachers,
+    isLoading: teachersLoading,
+    isOffline: teachersOffline,
+    error: teachersError,
+    refresh: refreshTeachers,
+  } = useCampusData<Teacher[]>({
+    fetcher: (cid) => fetchTeachers({ campusId: cid, search: debouncedQuery }).then((r) => r.data),
+    campusId: activeBranchId,
+    fallback: [],
+    queryKeyPrefix: "teachers",
+  });
+
   const refreshList = useCallback(() => {
-    setTeachers(mockDb.getTeachers(activeBranchId));
-  }, [activeBranchId]);
+    void refreshTeachers();
+  }, [refreshTeachers]);
 
   const filteredTeachers = useMemo(() => {
     const q = debouncedQuery.trim().toLowerCase();
@@ -94,6 +107,7 @@ export function TeacherDirectoryView() {
 
   return (
     <div className="space-y-4">
+      <SectionOfflineBanner isOffline={teachersOffline} error={teachersError} isLoading={teachersLoading} />
       {/* Controls Bar */}
       <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 p-3 rounded-xl bg-card border border-border/70">
         <div className="flex flex-1 items-center gap-2">

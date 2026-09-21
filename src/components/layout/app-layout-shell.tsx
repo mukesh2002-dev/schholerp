@@ -33,7 +33,7 @@ export function AppLayoutShell({ children }: { children: React.ReactNode }) {
     });
   };
 
-  const isLoginRoute = pathname === "/login";
+  const isLoginRoute = pathname === "/login" || pathname.startsWith("/login/");
 
   // Auth gate: unauthenticated users only ever see /login.
   useEffect(() => {
@@ -41,9 +41,9 @@ export function AppLayoutShell({ children }: { children: React.ReactNode }) {
     if (!isAuthenticated && !isLoginRoute) {
       router.replace("/login");
     } else if (isAuthenticated && isLoginRoute) {
-      router.replace(getLandingPageForRole(session.role));
-    } else if (isAuthenticated && !isLoginRoute && !canRoleAccessPath(session.role, pathname)) {
-      router.replace(getLandingPageForRole(session.role));
+      router.replace(getLandingPageForRole(session.role, { allowedModules: session.sidebar }));
+    } else if (isAuthenticated && !isLoginRoute && !canRoleAccessPath(session.role, pathname, { allowedModules: session.sidebar })) {
+      router.replace(getLandingPageForRole(session.role, { allowedModules: session.sidebar }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, isAuthLoading, pathname]);
@@ -60,10 +60,8 @@ export function AppLayoutShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // "Loading workspace…" is reserved for the dashboard (/). Other modules render
-  // their own shell + skeletons while auth resolves; logged-out visitors get a
-  // blank frame here while the gate above redirects them to /login.
-  if ((isAuthLoading || !isAuthenticated) && pathname === "/") {
+  // "Loading workspace…" is only shown while authentication state is actively resolving.
+  if (isAuthLoading && pathname === "/") {
     return (
       <div className="flex min-h-screen w-full items-center justify-center bg-background text-foreground">
         <div className="flex flex-col items-center gap-3">

@@ -12,12 +12,18 @@ import {
   Legend,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { initialAttendanceTrends } from "@/lib/mock-data/dashboard";
+import { useDashboard } from "@/lib/hooks/use-dashboard";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export function AttendanceRateTrends() {
   const [mounted, setMounted] = useState(false);
+  const { data } = useDashboard();
+  const todayCount = Number(data?.stats?.attendanceToday ?? 0);
+  const maxY = Math.max(100, Math.ceil(todayCount * 1.2));
+  const chartData = [
+    { date: "Today", students: todayCount, teachers: 0, workers: 0 },
+  ];
 
   useEffect(() => {
     setMounted(true);
@@ -31,11 +37,11 @@ export function AttendanceRateTrends() {
             Attendance Rate Trends (%)
           </CardTitle>
           <CardDescription>
-            30-day comparative attendance trajectory for Students, Teachers & Support Workers
+            Live student attendance records marked today (from the backend attendance ledger)
           </CardDescription>
         </div>
         <Badge variant="outline" className="text-xs bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
-          96.5% Avg Today
+          {todayCount} records today
         </Badge>
       </CardHeader>
       <CardContent className="min-w-0">
@@ -44,7 +50,7 @@ export function AttendanceRateTrends() {
             <Skeleton className="h-[280px] w-full rounded-xl" />
           ) : (
             <ResponsiveContainer width="100%" height={280} minWidth={0}>
-              <AreaChart data={initialAttendanceTrends} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorStudents" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4} />
@@ -69,13 +75,12 @@ export function AttendanceRateTrends() {
                   stroke="hsl(var(--muted-foreground))"
                 />
                 <YAxis
-                  domain={[90, 100]}
+                  domain={[0, maxY]}
                   tickLine={false}
                   axisLine={false}
                   tickMargin={8}
                   fontSize={12}
                   stroke="hsl(var(--muted-foreground))"
-                  unit="%"
                 />
                 <Tooltip
                   contentStyle={{
@@ -85,7 +90,7 @@ export function AttendanceRateTrends() {
                     fontSize: "12px",
                     boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
                   }}
-                  formatter={(value: any) => [`${value}%`]}
+                  formatter={(value: any) => [`${value} records`]}
                 />
                 <Legend
                   verticalAlign="top"

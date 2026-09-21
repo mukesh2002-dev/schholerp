@@ -1,10 +1,17 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useERP } from "@/components/providers/erp-provider";
-import { mockDb } from "@/lib/services/mock-db";
+import {
+  fetchInvoices,
+  fetchFeeStructures,
+  recordPaymentApi,
+  BackendInvoice,
+} from "@/lib/api/fees";
+import { fetchStudentById } from "@/lib/api/students";
+import { useCampusData } from "@/lib/hooks/use-campus-data";
 import { Breadcrumbs } from "@/components/layout/breadcrumbs";
 import { AppImage } from "@/components/ui/app-image";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -16,7 +23,6 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { calculateDueAmount, isOverdue, daysOverdue } from "@/lib/fees/fee-utils";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -32,8 +38,9 @@ import {
   Calendar,
   Bus,
   MapPin,
+  Loader2,
 } from "lucide-react";
-import type { PaymentRecord } from "@/types";
+import type { PaymentRecord, Student } from "@/types";
 
 export default function FeeStudentDetailPage() {
   const params = useParams();
@@ -41,49 +48,140 @@ export default function FeeStudentDetailPage() {
   const studentId = params.id as string;
   const { activeBranchId } = useERP();
 
-  const [student] = useState(() => mockDb.getStudentById(studentId));
-  const [assignment, setAssignment] = useState(() => mockDb.getFeeAssignmentByStudentId(studentId));
-  const [invoices, setInvoices] = useState(() => mockDb.getInvoices().filter((i) => i.studentId === studentId));
-  const [payments, setPayments] = useState(() => mockDb.getPayments().filter((p) => p.studentId === studentId));
-  const feeHeads = mockDb.getFeeHeads();
-  const transportAssignment = mockDb.getStudentTransportAssignmentByStudentId(studentId);
+  const [student, setStudent] = useState<Student | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [invoices, setInvoices] = useState<BackendInvoice[]>([]);
+
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [stu, invs] = await Promise.all([
+        fetchStudentById(studentId),
+        fetchInvoices({ campusId: activeBranchId, studentId }),
+      ]);
+      setStudent(stu);
+      setInvoices(Array.isArray(invs) ? invs : []);
+    } finally {
+      setLoading(false);
+    }
+  }, [studentId, activeBranchId]);
+
+  useEffect(() => {
+    void loadData();
+  }, [loadData]);
+
+  const totalBilled = invoices.reduce((s, i) => s + Number(i.amount ?? 0), 0);
+  const totalPaid = invoices.reduce((s, i) => s + Number(i.paidAmount ?? 0), 0);
+  const due = totalBilled - totalPaid;
+
+  const assignment = useMemo(
+    () => ({
+      totalAssigned: totalBilled,
+      totalPaid,
+      totalPending: due,
+      status: due <= 0 ? "PAID" : totalPaid > 0 ? "PARTIAL" : "PENDING",
+      feeHeads: [] as any[],
+      discount: 0,
+      discountReason: "",
+      lateFee: 0,
+      dueDate: invoices.reduce((latest, i) => (i.dueDate && i.dueDate > latest ? i.dueDate : latest), ""),
+      structureName: "Live invoice records",
+      lastPaymentDate: "",
+    }),
+    [totalBilled, totalPaid, due, invoices]
+  );
+
+  const displayInvoices = invoices.map((inv) => ({
+    id: inv.uuid,
+    invoiceNumber: inv.invoiceNumber,
+    period: "Current",
+    totalAmount: Number(inv.amount ?? 0),
+    paidAmount: Number(inv.paidAmount ?? 0),
+    balanceAmount: Number(inv.amount ?? 0) - Number(inv.paidAmount ?? 0),
+    dueDate: inv.dueDate ?? "",
+    status:
+      Number(inv.amount ?? 0) - Number(inv.paidAmount ?? 0) <= 0
+        ? "PAID"
+        : Number(inv.paidAmount ?? 0) > 0
+        ? "PARTIAL"
+        : "PENDING",
+  }));
+
+  const payments = invoices
+    .filter((i) => Number(i.paidAmount ?? 0) > 0)
+    .map((inv) => ({
+      id: `${inv.uuid}-pay`,
+      receiptNumber: `${inv.invoiceNumber}-PAID`,
+      date: new Date().toISOString().split("T")[0],
+      invoiceNumber: inv.invoiceNumber,
+      amount: Number(inv.paidAmount ?? 0),
+      feeHeadNames: [] as string[],
+      notes: "Reflects paid portion of invoice",
+      method: "—",
+    }));
+
+  const { data: liveStructures } = useCampusData({
+    fetcher: (cid) => fetchFeeStructures({ campusId: cid }),
+    campusId: activeBranchId,
+    fallback: [],
+    queryKeyPrefix: "fee-structures",
+  });
+  const feeHeads = liveStructures.map((s) => ({ id: s.uuid, name: s.name, color: "#3b82f6" }));
 
   const [payOpen, setPayOpen] = useState(false);
-  const [payHeadIds, setPayHeadIds] = useState<string[]>(() => assignment?.feeHeads?.filter((h) => h.dueAmount > 0).map((h) => h.feeHeadId) ?? ["fh-01"]);
+  const [payHeadIds, setPayHeadIds] = useState<string[]>([]);
   const [payAmount, setPayAmount] = useState("");
   const [payMethod, setPayMethod] = useState<PaymentRecord["method"]>("UPI");
   const [lastReceipt, setLastReceipt] = useState<PaymentRecord | null>(null);
   const [receiptOpen, setReceiptOpen] = useState(false);
 
-  const due = assignment ? calculateDueAmount(assignment.totalAssigned, assignment.discount ?? 0, assignment.totalPaid) + (assignment.lateFee ?? 0) : 0;
-  const overdue = assignment ? isOverdue(assignment.dueDate) && due > 0 : false;
-  const daysOver = assignment ? daysOverdue(assignment.dueDate) : 0;
+  const overdue = false;
+  const daysOver = 0;
+  const transportAssignment: any = null;
+  const transportFee = 0;
 
-  const refresh = () => {
-    setAssignment(mockDb.getFeeAssignmentByStudentId(studentId) ?? undefined);
-    setInvoices(mockDb.getInvoices().filter((i) => i.studentId === studentId));
-    setPayments(mockDb.getPayments().filter((p) => p.studentId === studentId));
-  };
-
-  const handlePay = () => {
+  const handlePay = async () => {
     const amt = Number(payAmount);
     if (!amt || amt <= 0) { toast.error("Enter valid amount"); return; }
-    if (assignment && amt > due) { toast.error(`Amount exceeds due ${formatCurrency(due)}`); return; }
-    const pendingInv = invoices.find((i) => i.balanceAmount > 0);
-    let rec: PaymentRecord | null = null;
-    if (pendingInv) rec = mockDb.recordPayment(pendingInv.id, Math.min(amt, pendingInv.balanceAmount), payMethod, payHeadIds);
-    else rec = mockDb.recordDirectPayment(studentId, amt, payMethod, payHeadIds);
-    if (rec) {
-      setLastReceipt(rec);
+    const pendingInv = invoices.find((i) => Number(i.amount) - Number(i.paidAmount ?? 0) > 0);
+    if (!pendingInv) {
+      toast.error("No open invoice for this student", { description: "Generate an invoice first." });
+      return;
+    }
+    try {
+      const rec = await recordPaymentApi({
+        invoiceId: pendingInv.uuid,
+        amount: Math.min(amt, Number(pendingInv.amount) - Number(pendingInv.paidAmount ?? 0)),
+        paymentMethod: String(payMethod).toLowerCase(),
+        campusId: activeBranchId !== "all" ? activeBranchId : undefined,
+      });
+      setLastReceipt({
+        receiptNumber: rec.receiptNumber,
+        amount: Number(rec.amount ?? amt),
+        date: new Date().toISOString().split("T")[0],
+        invoiceNumber: pendingInv.invoiceNumber,
+        method: payMethod,
+        studentName: student?.fullName ?? "",
+        studentId: student?.id ?? "",
+      } as PaymentRecord);
       setReceiptOpen(true);
       toast.success(`Payment recorded — ${formatCurrency(amt)}`, { description: `Receipt ${rec.receiptNumber}` });
       setPayOpen(false);
       setPayAmount("");
-      refresh();
-    } else toast.error("Payment failed");
+      void loadData();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Payment failed");
+    }
   };
 
-  const transportFee = transportAssignment?.feePerMonth ?? 0;
+  if (loading) {
+    return (
+      <div className="py-24 text-center space-y-4">
+        <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+        <p className="text-sm text-muted-foreground">Loading fee ledger...</p>
+      </div>
+    );
+  }
 
   if (!student) {
     return (
@@ -249,7 +347,7 @@ export default function FeeStudentDetailPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {invoices.map((inv) => (
+                {displayInvoices.map((inv) => (
                   <TableRow key={inv.id}>
                     <TableCell className="font-mono text-xs font-bold">{inv.invoiceNumber}</TableCell>
                     <TableCell className="text-xs">{inv.period}</TableCell>

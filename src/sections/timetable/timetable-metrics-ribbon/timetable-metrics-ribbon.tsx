@@ -1,18 +1,40 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useERP } from "@/components/providers/erp-provider";
-import { mockDb } from "@/lib/services/mock-db";
 import { Card } from "@/components/ui/card";
-import { Calendar, Users, BookOpen, MapPin } from "lucide-react";
+import { Calendar, Users, BookOpen, MapPin, Loader2 } from "lucide-react";
+import { fetchSlots } from "@/lib/api/timetable";
 
 export function TimetableMetricsRibbon() {
   const { activeBranchId } = useERP();
-  const slots = mockDb.getTimetableSlots(activeBranchId);
+  const campusId = activeBranchId !== "all" ? activeBranchId : undefined;
+  const [slots, setSlots] = useState<Array<{ subjectId: string; teacherId: string; roomNumber: string }>>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    fetchSlots({ campusId })
+      .then((list) => { if (!cancelled) setSlots(list); })
+      .catch(() => { if (!cancelled) setSlots([]); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [campusId]);
 
   const uniqueSubjects = new Set(slots.map((s) => s.subjectId)).size;
   const uniqueTeachers = new Set(slots.map((s) => s.teacherId)).size;
   const uniqueRooms = new Set(slots.map((s) => s.roomNumber)).size;
+
+  if (loading) {
+    return (
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Card key={i} className="p-4 border-border/70 shadow-2xs flex items-center justify-center h-[84px]"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></Card>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

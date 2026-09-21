@@ -4,7 +4,17 @@ import React, { useState, useMemo, useCallback, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useERP } from "@/components/providers/erp-provider";
-import { mockDb } from "@/lib/services/mock-db";
+import {
+  fetchFeeStructures,
+  fetchInvoices,
+  fetchFeeCollectionReport,
+  recordPaymentApi,
+  createFeeStructureApi,
+} from "@/lib/api/fees";
+import { fetchStudents } from "@/lib/api/students";
+import { fetchClasses } from "@/lib/api/classes";
+import { useCampusData } from "@/lib/hooks/use-campus-data";
+import { SectionOfflineBanner } from "@/components/layout/section-guard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -52,12 +62,94 @@ function FeeStatusBadge({ status }: { status: string }) {
 export function FeesDirectoryView() {
   const router = useRouter();
   const { activeBranchId } = useERP();
-  const [students] = useState(() => mockDb.getStudents(activeBranchId));
-  const [assignments, setAssignments] = useState(() => mockDb.getFeeAssignments(activeBranchId));
-  const [invoices, setInvoices] = useState(() => mockDb.getInvoices(activeBranchId));
-  const [payments, setPayments] = useState(() => mockDb.getPayments(activeBranchId));
-  const feeHeads = mockDb.getFeeHeads();
-  const classes = mockDb.getClasses(activeBranchId);
+  const { data: students } = useCampusData({
+    fetcher: (cid) => fetchStudents({ campusId: cid }).then((r) => r.data),
+    campusId: activeBranchId,
+    fallback: [],
+    queryKeyPrefix: "students",
+  });
+  const fallbackAssignments: any[] = [];
+  const fallbackInvoices: any[] = [];
+  const fallbackPayments: any[] = [];
+  const fallbackFeeStructures: any[] = [];
+  const {
+    data: apiAssignments,
+    isLoading: assignmentsLoading,
+    isOffline: assignmentsOffline,
+    error: assignmentsError,
+    refresh: refreshAssignments,
+  } = useCampusData({
+    fetcher: async (cid) => {
+      const data = await fetchFeeStructures({ campusId: cid });
+      return (Array.isArray(data) && data.length > 0 ? data : fallbackAssignments) as unknown as typeof fallbackAssignments;
+    },
+    campusId: activeBranchId,
+    fallback: fallbackAssignments,
+  });
+  const {
+    data: apiInvoices,
+    isLoading: invoicesLoading,
+    isOffline: invoicesOffline,
+    error: invoicesError,
+    refresh: refreshInvoices,
+  } = useCampusData({
+    fetcher: (cid) => fetchInvoices({ campusId: cid }) as unknown as Promise<typeof fallbackInvoices>,
+    campusId: activeBranchId,
+    fallback: fallbackInvoices,
+  });
+  const {
+    data: apiPayments,
+    isLoading: paymentsLoading,
+    isOffline: paymentsOffline,
+    error: paymentsError,
+    refresh: refreshPayments,
+  } = useCampusData({
+    fetcher: async (cid) => {
+      const report = await fetchFeeCollectionReport({ campusId: cid });
+      if (report && Array.isArray((report as any).payments) && (report as any).payments.length > 0) return (report as any).payments as unknown as typeof fallbackPayments;
+      if (Array.isArray(report) && report.length > 0) return report as unknown as typeof fallbackPayments;
+      return fallbackPayments;
+    },
+    campusId: activeBranchId,
+    fallback: fallbackPayments,
+  });
+  const {
+    data: apiFeeStructures,
+    isLoading: feeStructuresLoading,
+    isOffline: feeStructuresOffline,
+    error: feeStructuresError,
+    refresh: refreshFeeStructures,
+  } = useCampusData({
+    fetcher: (cid) => fetchFeeStructures({ campusId: cid }) as unknown as Promise<typeof fallbackFeeStructures>,
+    campusId: activeBranchId,
+    fallback: fallbackFeeStructures,
+  });
+  void apiFeeStructures; void feeStructuresLoading; void feeStructuresOffline; void feeStructuresError; void refreshFeeStructures;
+  const assignments = apiAssignments.length > 0 || assignmentsOffline || !assignmentsLoading ? apiAssignments : fallbackAssignments;
+  const invoices = apiInvoices.length > 0 || invoicesOffline || !invoicesLoading ? apiInvoices : fallbackInvoices;
+  const payments = apiPayments.length > 0 || paymentsOffline || !paymentsLoading ? apiPayments : fallbackPayments;
+  const { data: liveStructures } = useCampusData({
+    fetcher: (cid) => fetchFeeStructures({ campusId: cid }),
+    campusId: activeBranchId,
+    fallback: [],
+    queryKeyPrefix: "fee-structures",
+  });
+  const feeHeads = liveStructures.map((s) => ({
+    id: s.uuid,
+    name: s.name,
+    amount: Number(s.amount ?? 0),
+    isRecurring: !!s.frequency && s.frequency !== "one_time",
+    color: "#3b82f6",
+    description: s.frequency ?? "one_time",
+    category: "Fee Structure",
+  }));
+  const { data: liveClasses } = useCampusData({
+    fetcher: (cid) => fetchClasses({ campusId: cid }),
+    campusId: activeBranchId,
+    fallback: [],
+    queryKeyPrefix: "classes",
+  });
+  const classes = liveClasses.map((c) => ({ id: c.id, name: c.name }));
 
   // Search spec §4
   const [search, setSearch] = useState("");
@@ -77,10 +169,10 @@ export function FeesDirectoryView() {
   const [receiptOpen, setReceiptOpen] = useState(false);
 
   const refresh = useCallback(() => {
-    setAssignments([...mockDb.getFeeAssignments(activeBranchId)]);
-    setInvoices([...mockDb.getInvoices(activeBranchId)]);
-    setPayments([...mockDb.getPayments(activeBranchId)]);
-  }, [activeBranchId]);
+    void refreshAssignments();
+    void refreshInvoices();
+    void refreshPayments();
+  }, [refreshAssignments, refreshInvoices, refreshPayments]);
 
   // Map studentId -> assignment/payment helpers
   const assignmentByStudent = useMemo(() => {
@@ -89,14 +181,7 @@ export function FeesDirectoryView() {
     return m;
   }, [assignments]);
 
-  const transportByStudent = useMemo(() => {
-    const m = new Map<string, ReturnType<typeof mockDb.getStudentTransportAssignmentByStudentId>>();
-    students.forEach((s) => {
-      const t = mockDb.getStudentTransportAssignmentByStudentId(s.id);
-      if (t) m.set(s.id, t);
-    });
-    return m;
-  }, [students, assignments]);
+  const transportByStudent = new Map<string, any>();
 
   // Student List filtering per spec
   const filteredStudents = useMemo(() => {
@@ -158,7 +243,7 @@ export function FeesDirectoryView() {
     setPayAmount(due > 0 ? String(due) : "");
     // default fee heads: select all pending heads or first tuition
     if (a?.feeHeads && a.feeHeads.length > 0) {
-      const pendingIds = a.feeHeads.filter((h) => h.dueAmount > 0).map((h) => h.feeHeadId);
+      const pendingIds = a.feeHeads.filter((h: any) => h.dueAmount > 0).map((h: any) => h.feeHeadId);
       setPayFeeHeadIds(pendingIds.length > 0 ? pendingIds : [a.feeHeads[0].feeHeadId]);
     } else {
       setPayFeeHeadIds(["fh-01"]);
@@ -166,41 +251,38 @@ export function FeesDirectoryView() {
     setPayOpen(true);
   };
 
-  const handleCollectSubmit = () => {
+  const handleCollectSubmit = async () => {
     if (!payStudentId) { toast.error("Select a student"); return; }
     const amt = Number(payAmount);
     if (!amt || amt <= 0) { toast.error("Enter valid amount"); return; }
-    const a = assignmentByStudent.get(payStudentId);
-    const due = a ? calculateDueAmount(a.totalAssigned, a.discount ?? 0, a.totalPaid) + (a.lateFee ?? 0) : Infinity;
-    if (amt > due) { toast.error(`Amount exceeds due ${formatCurrency(due)}`); return; }
-    // try invoice first, fallback to direct
-    const pendingInv = invoices.find((i) => i.studentId === payStudentId && i.balanceAmount > 0);
-    let rec: PaymentRecord | null = null;
-    if (pendingInv) {
-      rec = mockDb.recordPayment(pendingInv.id, Math.min(amt, pendingInv.balanceAmount), payMethod, payFeeHeadIds);
-      // if amount larger than first invoice, apply remainder to next
-      let remaining = amt - (pendingInv.balanceAmount < amt ? pendingInv.balanceAmount : amt);
-      let idx = 0;
-      while (remaining > 0) {
-        const nextInv = invoices.filter((i) => i.studentId === payStudentId && i.balanceAmount > 0)[idx];
-        if (!nextInv) break;
-        // already paid first, find next pending after refresh? simplified use direct
-        const extra = mockDb.recordDirectPayment(payStudentId, remaining, payMethod, payFeeHeadIds);
-        if (extra) rec = extra;
-        break;
+    try {
+      // Live payment against an open invoice for this student.
+      const studentInvoices = await fetchInvoices({ campusId: activeBranchId, studentId: payStudentId });
+      const pending = (studentInvoices || []).find(
+        (i) => Number(i.amount ?? 0) - Number(i.paidAmount ?? 0) > 0
+      );
+      if (!pending) {
+        toast.error("No open invoice for this student", {
+          description: "Generate an invoice in the Fees module before collecting payment.",
+        });
+        return;
       }
-    } else {
-      rec = mockDb.recordDirectPayment(payStudentId, amt, payMethod, payFeeHeadIds);
-    }
-    if (rec) {
-      setLastReceipt(rec);
+      const rec = await recordPaymentApi({
+        invoiceId: pending.uuid,
+        amount: Math.min(amt, Number(pending.amount) - Number(pending.paidAmount ?? 0)),
+        paymentMethod: String(payMethod).toLowerCase(),
+        campusId: activeBranchId !== "all" ? activeBranchId : undefined,
+      });
+      setLastReceipt(rec as unknown as PaymentRecord);
       setReceiptOpen(true);
       toast.success(`Payment recorded — ${formatCurrency(amt)}`, { description: `Receipt ${rec.receiptNumber} • ${payMethod}` });
       setPayOpen(false);
       setPayAmount("");
-      refresh();
-    } else {
-      toast.error("Payment failed — student not found");
+      void refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Payment failed", {
+        description: "Check the invoice and payment method.",
+      });
     }
   };
 
@@ -217,6 +299,7 @@ export function FeesDirectoryView() {
 
   return (
     <div className="space-y-4">
+      <SectionOfflineBanner isOffline={invoicesOffline || assignmentsOffline || paymentsOffline} error={invoicesError || assignmentsError || paymentsError} isLoading={invoicesLoading || assignmentsLoading || paymentsLoading} />
       <Tabs defaultValue="students" className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <TabsList className="flex-wrap h-auto">
@@ -613,36 +696,56 @@ export function FeesDirectoryView() {
 }
 
 function FeeStructuresTab({ branchId }: { branchId: string }) {
-  const [structures, setStructures] = useState(() => mockDb.getFeeStructures(branchId));
+  const { data: liveStructures, refresh } = useCampusData({
+    fetcher: (cid) => fetchFeeStructures({ campusId: cid }),
+    campusId: branchId,
+    fallback: [],
+    queryKeyPrefix: "fee-structures",
+  });
+  const structures = liveStructures.map((s) => ({
+    id: s.uuid,
+    name: s.name,
+    branchId: s.classId ?? branchId,
+    branchName: "Campus",
+    applicableClasses: s.classId ? [s.classId] : [],
+    academicYear: "Current",
+    items: [{ feeHeadId: s.uuid, feeHeadName: s.name, amount: Number(s.amount ?? 0), frequency: (s.frequency === "one_time" ? "ONE_TIME" : "ANNUAL") as "ONE_TIME" | "ANNUAL" }],
+    totalAmount: Number(s.amount ?? 0),
+    status: "ACTIVE" as const,
+  }));
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
-  const feeHeads = mockDb.getFeeHeads();
+  const feeHeads = liveStructures.map((s) => ({
+    id: s.uuid,
+    name: s.name,
+    isRecurring: !!s.frequency && s.frequency !== "one_time",
+  }));
   const [name, setName] = useState(""); const [year, setYear] = useState("2026-2027"); const [classes, setClasses] = useState("");
   const [items, setItems] = useState<{ feeHeadId: string; amount: string }[]>([]);
-  useEffect(() => {
-    const h = () => setStructures([...mockDb.getFeeStructures(branchId)]);
-    window.addEventListener("fees:updated", h); return () => window.removeEventListener("fees:updated", h);
-  }, [branchId]);
   const openEdit = (s: any) => {
     setEditing(s); setName(s.name); setYear(s.academicYear); setClasses(s.applicableClasses.join(", "));
     setItems(s.items.map((it: any) => ({ feeHeadId: it.feeHeadId, amount: String(it.amount) })));
     setOpen(true);
   };
-  const openCreate = () => { setEditing(null); setName(""); setYear("2026-2027"); setClasses(""); setItems([{ feeHeadId: feeHeads[0].id, amount: "45000" }]); setOpen(true); };
-  const save = () => {
+  const openCreate = () => { setEditing(null); setName(""); setYear("2026-2027"); setClasses(""); setItems([{ feeHeadId: feeHeads[0]?.id ?? "", amount: "45000" }]); setOpen(true); };
+  const save = async () => {
     if (!name || !classes) return toast.error("Name & classes required");
     const list = items.filter((x) => x.feeHeadId && Number(x.amount) > 0);
     if (!list.length) return toast.error("At least one fee head required");
-    const applicableClasses = classes.split(",").map((s) => s.trim()).filter(Boolean);
-    const branch = mockDb.getBranches().find((b) => b.id === branchId) ?? mockDb.getBranches()[0];
-    const rec = {
-      id: editing?.id ?? `fs-${Date.now().toString(36)}`,
-      name, branchId: branch.id, branchName: branch.name, applicableClasses, academicYear: year,
-      items: list.map((it) => { const h = feeHeads.find((x) => x.id === it.feeHeadId)!; return { feeHeadId: h.id, feeHeadName: h.name, amount: Number(it.amount), frequency: h.isRecurring ? "ANNUAL" as const : "ONE_TIME" as const }; }),
-      totalAmount: list.reduce((a, b) => a + Number(b.amount), 0), status: "ACTIVE" as const, createdAt: editing?.createdAt ?? new Date().toISOString(),
-    };
-    mockDb.saveFeeStructure(rec as any); toast.success(editing ? "Updated" : "Created"); setOpen(false); setStructures([...mockDb.getFeeStructures(branchId)]);
+    try {
+      await createFeeStructureApi({
+        name,
+        amount: list.reduce((a, b) => a + Number(b.amount), 0),
+        frequency: "one_time",
+        classId: undefined,
+      }, branchId !== "all" ? branchId : undefined);
+      toast.success(editing ? "Updated" : "Created");
+      setOpen(false);
+      void refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to save fee structure");
+    }
   };
   const filtered = structures.filter((s) => !q || s.name.toLowerCase().includes(q.toLowerCase()) || s.applicableClasses.join(" ").toLowerCase().includes(q.toLowerCase()));
   return (

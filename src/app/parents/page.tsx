@@ -1,3 +1,5 @@
+"use client";
+
 import { Suspense } from "react";
 import {
   ParentsHeader,
@@ -7,10 +9,12 @@ import {
   ParentsDirectoryView,
   ParentsDirectoryViewSkeleton,
 } from "@/sections/parents";
+import { SectionGuard } from "@/components/layout/section-guard";
 
 export default function ParentsPage() {
   return (
-    <div className="flex-1 space-y-8 p-4 md:p-8 pt-6">
+    <SectionGuard>
+      <div className="flex-1 space-y-8 p-4 md:p-8 pt-6">
       <Suspense fallback={<ParentsHeaderSkeleton />}>
         <ParentsHeader />
       </Suspense>
@@ -22,6 +26,7 @@ export default function ParentsPage() {
       <Suspense fallback={<ParentsDirectoryViewSkeleton />}>
         <ParentsDirectoryView />
       </Suspense>
-    </div>
+      </div>
+    </SectionGuard>
   );
 }

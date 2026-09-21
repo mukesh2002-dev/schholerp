@@ -35,14 +35,14 @@
 | Principals can't see cross-campus numbers | ✅ **Multi-campus dashboard** with Recharts BI + Reports module |
 | Fee defaulters discovered too late | ✅ **Fees & Collections** pipeline with dues, receipts & badges |
 | Timetable clashes every term | ✅ **Timetable grid** + class/section manager |
-| No audit trail for edits | ✅ **Audit Logs** + role-guarded routes (Super Admin only) |
+| No audit trail for edits | ✅ **Audit Logs** + role-guarded routes (Admin only) |
 | Ugly admin panels nobody wants to use | ✅ **shadcn-style UI**, dark mode, collapsible sidebar, skeletons everywhere |
 
 ---
 
 ## ✨ Feature Highlights
 
-- 🧭 **Role-aware navigation** — sidebar reshapes itself per role (Super Admin / Principal / Accountant / HR Manager)
+- 🧭 **Role-aware navigation** — sidebar reshapes itself per role (Admin / Principal / Accountant / HR Manager)
 - 📊 **BI dashboards** — lazy-loaded Recharts (`next/dynamic`, `ssr:false`) with skeleton fallbacks, never blocking first paint
 - 🔍 **Fast directories everywhere** — 300ms debounced search + `usePagination` + `ListPagination`, memoized row cards
 - 📝 **Bulletproof forms** — `react-hook-form` + `zod` + `@hookform/resolvers`, inline errors, `reset()` prefill on edit
@@ -63,7 +63,7 @@
 | Module | Route | Badge | Who sees it |
 |---|---|---|---|
 | 📊 Dashboard | `/` | — | Everyone |
-| 🏢 Campus Branches | `/branches` | `6 Active` | Super Admin, Principal |
+| 🏢 Campus Branches | `/branches` | `6 Active` | Admin |
 
 ### 🟩 2. Academics & Faculty
 
@@ -111,17 +111,17 @@
 | Module | Route | Badge | Guard |
 |---|---|---|---|
 | 📈 Reports & BI | `/reports` | `7` | Everyone |
-| 🐞 QA & Bug Tracker | `/qa` + `/qa/bugs` + `/qa/bugs/[id]` + `/qa/test-cases` | `8` | Super Admin only 🔒 |
-| 🛡️ Audit Logs | `/audit` | `10` | Super Admin only 🔒 |
-| 🧪 Engineering | `/engineering` | `10` | Super Admin only 🔒 |
+| 🐞 QA & Bug Tracker | `/qa` + `/qa/bugs` + `/qa/bugs/[id]` + `/qa/test-cases` | `8` | Admin only 🔒 |
+| 🛡️ Audit Logs | `/audit` | `10` | Admin only 🔒 |
+| 🧪 Engineering | `/engineering` | `10` | Admin only 🔒 |
 
 ### ⬛ 7. System & DevOps
 
 | Module | Route | Badge | Guard |
 |---|---|---|---|
-| 🚀 Builds | `/builds` | `9` | Super Admin only 🔒 |
-| 🖥️ Deployments | `/deployments` | `9` | Super Admin only 🔒 |
-| ⚙️ Settings | `/settings` | — | Super Admin only 🔒 (theme, font, radius) |
+| 🚀 Builds | `/builds` | `9` | Admin only 🔒 |
+| 🖥️ Deployments | `/deployments` | `9` | Admin only 🔒 |
+| ⚙️ Settings | `/settings` | — | Admin only 🔒 (theme, font, radius) |
 
 > ➕ **Adding a module?** Create route `src/app/<domain>/page.tsx` (+ `[id]/page.tsx`) → trio in `src/sections/<domain>/` (header, metrics-ribbon, directory-view, each with `.skeleton.tsx`) → barrel `index.ts` → sidebar entry in `role-navigation.ts` → breadcrumb key.
 
@@ -133,7 +133,7 @@ All demo passwords are identical for easy testing:
 
 | 🧑‍💼 Role | 📧 Email | 🔒 Password | 🏁 Lands on | 🎯 Sees |
 |---|---|---|---|---|
-| 👑 **Super Admin** — Dr. Alexander Wright | `admin@gmail.com` | `admin123` | `/` | Everything (31 modules) |
+| 👑 **Admin** — School Admin | `admin@school.local` | `Mukesh@1234` | `/` | Everything (multi-campus) |
 | 🎓 **Principal** — Dr. Clara Higgins | `principal@gmail.com` | `admin123` | `/` | Academics, campus, fees-read, events |
 | 🧾 **Chief Accountant** — Hannah Montgomery | `accountant@gmail.com` | `admin123` | `/fees` | Fees, payroll, expenses, students, attendance |
 | 🤝 **HR Manager** — Daniel Okafor | `hr@gmail.com` | `admin123` | `/hr` | HR, payroll, events, attendance |
