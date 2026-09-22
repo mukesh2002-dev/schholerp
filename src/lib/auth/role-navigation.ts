@@ -145,7 +145,7 @@ export const ROLE_NAV_GROUPS: RoleNavGroup[] = [
         href: "/homework",
         icon: ClipboardList,
         badge: "5",
-        allowedRoles: LEADERSHIP,
+        allowedRoles: [...LEADERSHIP, "HR_MANAGER"],
       },
       {
         title: "Exams & Results",
