@@ -1,14 +1,21 @@
 "use client";
 
 import { useERP } from "@/components/providers/erp-provider";
-import { mockDb } from "@/lib/services/mock-db";
+import { fetchEvents } from "@/lib/api/events";
+import { useCampusData } from "@/lib/hooks/use-campus-data";
+import { SchoolEvent } from "@/types";
 import { Breadcrumbs } from "@/components/layout/breadcrumbs";
 import { Badge } from "@/components/ui/badge";
 
 export function EventsHeader() {
   const { activeBranchId } = useERP();
-  const events = mockDb.getEvents(activeBranchId) || [];
-  const upcomingCount = events.filter((e) => e.status === "UPCOMING").length;
+  const { data: events } = useCampusData<SchoolEvent[]>({
+    fetcher: (cid) => fetchEvents({ campusId: cid }),
+    campusId: activeBranchId,
+    fallback: [],
+    queryKeyPrefix: "events",
+  });
+  const publishedCount = events.filter((e) => e.status === "PUBLISHED").length;
 
   return (
     <div className="space-y-4">
@@ -20,11 +27,11 @@ export function EventsHeader() {
               Events &amp; Academic Calendar
             </h1>
             <Badge variant="outline" className="text-xs">
-              {upcomingCount} Upcoming Events
+              {publishedCount} Published Events
             </Badge>
           </div>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-            Manage, schedule, and view campus events, workshops, sports, holidays, and meetings.
+            HR creates events → principal approves → published on the calendar → completed.
           </p>
         </div>
       </div>

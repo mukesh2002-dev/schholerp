@@ -39,6 +39,8 @@ import { formatDate } from "@/lib/utils";
 
 export function AdmissionsPipelineView() {
   const { activeBranchId } = useERP();
+  // Backend hides already-enrolled applications by default (new work only).
+  const [showEnrolled, setShowEnrolled] = useState(false);
   const {
     data: admissions,
     isLoading: admissionsLoading,
@@ -46,10 +48,10 @@ export function AdmissionsPipelineView() {
     error: admissionsError,
     refresh: refreshAdmissions,
   } = useCampusData<AdmissionApplication[]>({
-    fetcher: (cid) => fetchAdmissions({ campusId: cid }),
+    fetcher: (cid) => fetchAdmissions({ campusId: cid, includeEnrolled: showEnrolled }),
     campusId: activeBranchId,
     fallback: [],
-    queryKeyPrefix: "admissions",
+    queryKeyPrefix: showEnrolled ? "admissions-all" : "admissions",
   });
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
@@ -147,6 +149,15 @@ export function AdmissionsPipelineView() {
         <Badge variant="outline" className="text-xs self-end md:self-auto font-mono">
           Showing {filteredAdmissions.length} of {admissions.length}
         </Badge>
+        <label className="flex items-center gap-1.5 text-xs text-muted-foreground self-end md:self-auto cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={showEnrolled}
+            onChange={(e) => setShowEnrolled(e.target.checked)}
+            className="h-3.5 w-3.5 rounded"
+          />
+          Show already-enrolled
+        </label>
       </div>
 
       {/* Main Table View */}
@@ -234,6 +245,9 @@ export function AdmissionsPipelineView() {
                     </TableCell>
                     <TableCell>
                       <AdmissionStatusBadge status={a.status} />
+                      {a.enrolledStudentId && (
+                        <Badge variant="secondary" className="ml-1 text-[10px]">Enrolled</Badge>
+                      )}
                     </TableCell>
                     <TableCell className="text-right">
                       <Button asChild size="sm" variant="ghost" className="h-8 gap-1.5 text-xs">

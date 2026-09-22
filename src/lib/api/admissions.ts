@@ -24,6 +24,9 @@ export interface BackendAdmission {
   postalCode?: string | null;
   previousSchool?: string | null;
   previousGrade?: string | null;
+  previousGpa?: string | null;
+  aadhaarNumber?: string | null;
+  board?: string | null;
   category?: string | null;
   rteQuota?: boolean;
   status?: string;
@@ -36,6 +39,22 @@ export interface BackendAdmission {
   createdAt?: string;
   updatedAt?: string;
   [key: string]: unknown;
+}
+
+export interface ApprovedDropdownItem {
+  uuid: string;
+  applicationNumber: string;
+  firstName: string | null;
+  lastName: string | null;
+  gradeApplied: string | null;
+  parentName: string | null;
+  parentPhone: string | null;
+  campus?: { uuid: string; name: string } | null;
+}
+
+export interface AdmissionFiles {
+  avatar?: File | null;
+  documents?: Array<{ file: File; name: string }>;
 }
 
 function cap(s?: string | null): string {
@@ -71,13 +90,13 @@ export function mapBackendAdmission(a: BackendAdmission): AdmissionApplication {
     postalCode: a.postalCode ?? "",
     previousSchool: a.previousSchool ?? undefined,
     previousGrade: a.previousGrade ?? undefined,
-    previousGpa: undefined,
-    aadhaarNumber: undefined,
+    previousGpa: a.previousGpa ?? undefined,
+    aadhaarNumber: a.aadhaarNumber ?? undefined,
     apaarId: undefined,
     category: a.category ?? undefined,
     religion: undefined,
     motherTongue: undefined,
-    board: undefined,
+    board: a.board ?? undefined,
     rteQuota: a.rteQuota ?? undefined,
     entranceTestScore: a.entranceTestScore ?? undefined,
     interviewDate: a.interviewDate ?? undefined,
@@ -99,12 +118,13 @@ export function mapBackendAdmission(a: BackendAdmission): AdmissionApplication {
   };
 }
 
-export async function fetchAdmissions(params: { campusId?: string | null; search?: string; status?: string; page?: number; limit?: number } = {}): Promise<AdmissionApplication[]> {
+export async function fetchAdmissions(params: { campusId?: string | null; search?: string; status?: string; includeEnrolled?: boolean; page?: number; limit?: number } = {}): Promise<AdmissionApplication[]> {
   // Do NOT swallow errors — let ApiError surface so useCampusData shows the
   // proper offline / permission banner instead of a silent empty list.
   const q = new URLSearchParams();
   if (params.search) q.set("search", params.search);
   if (params.status) q.set("status", params.status);
+  if (params.includeEnrolled) q.set("includeEnrolled", "true");
   if (params.page) q.set("page", String(params.page));
   if (params.limit) q.set("limit", String(params.limit));
   const qs = q.toString() ? `?${q.toString()}` : "";
@@ -120,7 +140,30 @@ export async function fetchAdmissionById(id: string): Promise<AdmissionApplicati
   return null;
 }
 
-export async function createAdmissionApi(payload: Record<string, unknown>, campusId?: string | null): Promise<AdmissionApplication> {
+export async function createAdmissionApi(
+  payload: Record<string, unknown>,
+  campusId?: string | null,
+  files?: AdmissionFiles
+): Promise<AdmissionApplication> {
+  // With files (photo / documents) send multipart so the backend streams them
+  // to Cloudinary and persists the URLs; otherwise plain JSON.
+  if (files && (files.avatar || (files.documents && files.documents.length > 0))) {
+    const form = new FormData();
+    for (const [k, v] of Object.entries(payload)) {
+      if (v !== undefined && v !== null && v !== "") form.append(k, String(v));
+    }
+    if (files.avatar) form.append("avatar", files.avatar);
+    for (const d of files.documents ?? []) {
+      form.append("documentNames[]", d.name || d.file.name);
+      form.append("documents", d.file);
+    }
+    const res = await apiFetch<{ data: BackendAdmission }>(
+      `/admissions`,
+      { method: "POST", body: form as unknown as BodyInit },
+      { campusId: campusId ?? undefined }
+    );
+    return mapBackendAdmission(res.data);
+  }
   const res = await apiFetch<{ data: BackendAdmission }>(`/admissions`, { method: "POST", body: JSON.stringify(payload) }, { campusId: campusId ?? undefined });
   return mapBackendAdmission(res.data);
 }
@@ -139,4 +182,44 @@ export async function updateAdmissionDocumentApi(uuid: string, docName: string, 
     { method: "PATCH", body: JSON.stringify(payload) }
   );
   return res.data;
+}
+
+export async function uploadAdmissionDocumentApi(uuid: string, docName: string, file: File): Promise<AdmissionDocumentItem> {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await apiFetch<{ data: AdmissionDocumentItem }>(
+    `/admissions/${uuid}/documents/${encodeURIComponent(docName)}`,
+    { method: "PATCH", body: form as unknown as BodyInit }
+  );
+  return res.data;
+}
+
+export interface ApproveAdmissionResult {
+  application: AdmissionApplication;
+  student: { uuid: string; admissionNo: string; firstName: string; lastName?: string | null; classId?: string | null };
+}
+
+/** Approve → enroll: creates the lean student + enrollment, marks APPROVED. Principal / HR / admin. */
+export async function approveAdmissionApi(
+  uuid: string,
+  payload: { classId?: string | null; section?: string | null; rollNo?: string | null; academicYearId?: string | null } = {}
+): Promise<ApproveAdmissionResult> {
+  const res = await apiFetch<{ data: { application: BackendAdmission; student: ApproveAdmissionResult["student"] } }>(
+    `/admissions/${uuid}/approve`,
+    { method: "POST", body: JSON.stringify(payload) }
+  );
+  return { application: mapBackendAdmission(res.data.application), student: res.data.student };
+}
+
+/** Approved-but-not-enrolled names for the principal/HR dropdown. Never includes already-students. */
+export async function fetchApprovedDropdown(params: { campusId?: string | null; gradeApplied?: string } = {}): Promise<ApprovedDropdownItem[]> {
+  const q = new URLSearchParams();
+  if (params.gradeApplied) q.set("gradeApplied", params.gradeApplied);
+  const qs = q.toString() ? `?${q.toString()}` : "";
+  const res = await apiFetch<{ data: ApprovedDropdownItem[] }>(
+    `/admissions/dropdown/approved${qs}`,
+    {},
+    { campusId: params.campusId ?? undefined }
+  );
+  return Array.isArray(res.data) ? res.data : [];
 }

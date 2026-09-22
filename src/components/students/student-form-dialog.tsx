@@ -2,10 +2,10 @@
 
 import React, { useEffect, useState, useMemo } from "react";
 import { useERP } from "@/components/providers/erp-provider";
-import { fetchAdmissions } from "@/lib/api/admissions";
+import { fetchApprovedDropdown, approveAdmissionApi, type ApprovedDropdownItem } from "@/lib/api/admissions";
 import { fetchClasses } from "@/lib/api/classes";
-import { createStudentApi, updateStudentApi } from "@/lib/api/students";
-import { AdmissionApplication, ClassRoom, Student, StudentStatus } from "@/types";
+import { updateStudentApi } from "@/lib/api/students";
+import { ClassRoom, Student } from "@/types";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -36,12 +36,15 @@ interface StudentFormDialogProps {
   onSuccess?: () => void;
 }
 
-// Smart enrollment: admission holds all personal data, student dialog only assigns campus/class/section
+// Smart enrollment: admission holds all personal data, HR only assigns
+// campus/class/section (+ leftover roll no). Approve API creates the student
+// and links enrolledStudentId so the admission never repeats in the dropdown.
 const createSchema = z.object({
-  admissionId: z.string().min(1, "Select an admitted student"),
+  admissionId: z.string().min(1, "Select an approved admission"),
   branchId: z.string().min(1, "Select campus"),
   classId: z.string().min(1, "Select class"),
   sectionId: z.string().min(1, "Select section"),
+  rollNo: z.string().max(30).optional(),
 });
 
 const editSchema = z.object({
@@ -62,21 +65,24 @@ export function StudentFormDialog({
 }: StudentFormDialogProps) {
   const { branches, activeBranchId } = useERP();
   const [classes, setClasses] = useState<ClassRoom[]>([]);
-  const [admissions, setAdmissions] = useState<AdmissionApplication[]>([]);
+  const [admissions, setAdmissions] = useState<ApprovedDropdownItem[]>([]);
   const isEdit = !!studentToEdit;
 
   useEffect(() => {
     if (!open) return;
     void fetchClasses({ campusId: activeBranchId }).then(setClasses);
     if (!isEdit) {
-      void fetchAdmissions({ campusId: activeBranchId }).then(setAdmissions);
+      // Server-side: APPROVED + not yet enrolled only — already-students never repeat.
+      void fetchApprovedDropdown({ campusId: activeBranchId !== "all" ? activeBranchId : undefined })
+        .then(setAdmissions)
+        .catch(() => setAdmissions([]));
     }
   }, [open, activeBranchId, isEdit]);
 
-  // Admissions that can be enrolled: APPROVED/NEW/UNDER_REVIEW and not yet linked
+  // Approved dropdown is already filtered server-side; keep client guard too.
   const enrollableAdmissions = useMemo(() => {
     if (isEdit) return [];
-    return admissions.filter((a) => !a.enrolledStudentId && (a.status === "APPROVED" || a.status === "NEW" || a.status === "UNDER_REVIEW" || a.status === "INTERVIEW_SCHEDULED"));
+    return admissions;
   }, [admissions, isEdit]);
 
   const {
@@ -93,6 +99,7 @@ export function StudentFormDialog({
       branchId: activeBranchId !== "all" ? activeBranchId : branches[0]?.id || "",
       classId: classes[0]?.id || "",
       sectionId: classes[0]?.sections[0]?.id || "",
+      rollNo: "",
     },
   });
 
@@ -124,7 +131,7 @@ export function StudentFormDialog({
 
   const selectedCreateClass = classes.find((c) => c.id === createClassId) || classes[0];
   const selectedEditClass = classes.find((c) => c.id === editClassId) || classes[0];
-  const selectedAdmission = enrollableAdmissions.find((a) => a.id === createAdmissionId);
+  const selectedAdmission = enrollableAdmissions.find((a) => a.uuid === createAdmissionId);
 
   useEffect(() => {
     if (!open) return;
@@ -136,22 +143,23 @@ export function StudentFormDialog({
         status: studentToEdit.status,
       });
     } else {
-      // Reset create: keep first enrollable selected by default for speed
+      // Reset create: keep first approved admission selected by default for speed
       const firstAdmission = enrollableAdmissions[0];
       const firstClass = classes[0];
       resetCreate({
-        admissionId: firstAdmission?.id || "",
-        branchId: firstAdmission?.branchId || (activeBranchId !== "all" ? activeBranchId : branches[0]?.id || ""),
+        admissionId: firstAdmission?.uuid || "",
+        branchId: firstAdmission?.campus?.uuid || (activeBranchId !== "all" ? activeBranchId : branches[0]?.id || ""),
         classId: firstClass?.id || "",
         sectionId: firstClass?.sections[0]?.id || "",
+        rollNo: "",
       });
     }
   }, [open, isEdit, studentToEdit, enrollableAdmissions, classes, branches, activeBranchId, resetCreate, resetEdit]);
 
   // When admission changes, auto-fill campus to its branch
   useEffect(() => {
-    if (!isEdit && selectedAdmission) {
-      setCreateValue("branchId", selectedAdmission.branchId);
+    if (!isEdit && selectedAdmission?.campus) {
+      setCreateValue("branchId", selectedAdmission.campus.uuid);
     }
   }, [selectedAdmission, isEdit, setCreateValue]);
 
@@ -172,29 +180,22 @@ export function StudentFormDialog({
       toast.error("Enrollment failed — admission not found");
       return;
     }
-    const targetBranch = branches.find((b) => b.id === data.branchId);
-    const payload: Record<string, unknown> = {
-      firstName: selectedAdmission.applicantFirstName,
-      lastName: selectedAdmission.applicantLastName ?? "",
-      dob: selectedAdmission.dateOfBirth,
-      gender: selectedAdmission.gender,
-      guardianName: selectedAdmission.parentName,
-      guardianPhone: selectedAdmission.parentPhone,
-      guardianEmail: selectedAdmission.parentEmail,
-      admissionNo: selectedAdmission.applicationNumber ?? `ADM-${Date.now()}`,
-      rollNo: String(Math.floor(Math.random() * 900) + 100),
-      classId: data.classId,
-      campusUuid: data.branchId !== "all" ? data.branchId : targetBranch?.id,
-      campusId: data.branchId !== "all" ? data.branchId : targetBranch?.id,
-    };
+    // Section backends expect the section NAME (e.g. "Section A").
+    const sectionName = selectedCreateClass?.sections.find((s) => s.id === data.sectionId)?.name ?? data.sectionId;
     try {
-      const created = await createStudentApi(payload, data.branchId !== "all" ? data.branchId : undefined);
-      toast.success("Student enrolled", { description: `${created.fullName} • ${created.rollNumber} • ${selectedCreateClass?.name || ""}` });
+      // Single approve → enroll call: creates lean student + enrollment and
+      // links enrolledStudentId, so this admission never repeats in the list.
+      const result = await approveAdmissionApi(selectedAdmission.uuid, {
+        classId: data.classId,
+        section: sectionName,
+        rollNo: data.rollNo || undefined,
+      });
+      toast.success("Student enrolled", { description: `${selectedAdmission.firstName} ${selectedAdmission.lastName ?? ""} • ${result.student.admissionNo}` });
       onOpenChange(false);
       if (onSuccess) onSuccess();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Enrollment failed", {
-        description: "Check that the class and campus are valid.",
+        description: "Only principal / HR / admin can approve admissions.",
       });
     }
   };
@@ -256,8 +257,8 @@ export function StudentFormDialog({
                   </SelectTrigger>
                   <SelectContent>
                     {enrollableAdmissions.map((a) => (
-                      <SelectItem key={a.id} value={a.id}>
-                        {a.applicantFullName} • {a.applicationNumber} • {a.gradeApplied} • {a.branchName} • {a.status}
+                      <SelectItem key={a.uuid} value={a.uuid}>
+                        {a.firstName} {a.lastName ?? ""} • {a.applicationNumber} • {a.gradeApplied} • {a.campus?.name ?? ""}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -266,9 +267,8 @@ export function StudentFormDialog({
               {createErrors.admissionId && <p className="text-[11px] text-rose-500 mt-1">{createErrors.admissionId.message}</p>}
               {selectedAdmission && (
                 <div className="mt-2 p-2 rounded-lg bg-muted/40 border text-[11px] space-y-0.5">
-                  <div className="font-semibold text-foreground">{selectedAdmission.applicantFullName} • {selectedAdmission.gradeApplied} • {selectedAdmission.category} • {selectedAdmission.board}</div>
-                  <div className="text-muted-foreground">Parent: {selectedAdmission.parentName} • {selectedAdmission.parentPhone} • {selectedAdmission.parentEmail}</div>
-                  <div className="text-muted-foreground">DOB: {selectedAdmission.dateOfBirth} • Aadhaar: {selectedAdmission.aadhaarNumber || "—"} • RTE: {selectedAdmission.rteQuota ? "Yes" : "No"}</div>
+                  <div className="font-semibold text-foreground">{selectedAdmission.firstName} {selectedAdmission.lastName ?? ""} • {selectedAdmission.gradeApplied} • {selectedAdmission.applicationNumber}</div>
+                  <div className="text-muted-foreground">Parent: {selectedAdmission.parentName} • {selectedAdmission.parentPhone}</div>
                 </div>
               )}
             </div>
@@ -321,7 +321,12 @@ export function StudentFormDialog({
 
             <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200 text-[11px] text-blue-900 dark:text-blue-100 flex gap-2">
               <Building2 className="h-4 w-4 shrink-0" />
-              <span>Full name, DOB, Aadhaar, guardian, address, documents all come from <strong>Admissions dossier</strong> — no duplicate entry.</span>
+              <span>Full name, DOB, guardian, address, documents all come from <strong>Admissions dossier</strong> — HR only fills class / section / roll no here.</span>
+            </div>
+
+            <div>
+              <label className="text-xs font-medium text-foreground mb-1 block">Roll No (HR leftover field, optional)</label>
+              <Input {..._regC("rollNo")} placeholder="e.g. 101" className="h-9 text-xs" />
             </div>
 
             <DialogFooter className="gap-2 pt-2">

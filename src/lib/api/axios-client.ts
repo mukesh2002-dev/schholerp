@@ -104,6 +104,12 @@ function getCampusIdHeader(explicit?: string | null): string | null {
 
 // ── Request interceptor: auth + campus scoping ───────────────────────
 apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  // File uploads: let the browser set multipart/form-data WITH boundary.
+  // The instance default (application/json) would otherwise be sent with the
+  // FormData body and the backend could not parse the files.
+  if (typeof FormData !== "undefined" && config.data instanceof FormData) {
+    config.headers.delete("Content-Type");
+  }
   if (!config._skipAuth) {
     const token = getAccessToken();
     if (token) {

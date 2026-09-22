@@ -11,12 +11,14 @@ import {
   fetchAdmissionById,
   updateAdmissionStatusApi,
   updateAdmissionDocumentApi,
+  uploadAdmissionDocumentApi,
+  approveAdmissionApi,
 } from "@/lib/api/admissions";
 import { fetchClasses } from "@/lib/api/classes";
-import { createStudentApi } from "@/lib/api/students";
 import { AdmissionApplication, AdmissionStatus, ClassRoom } from "@/types";
 import { Breadcrumbs } from "@/components/layout/breadcrumbs";
 import { AdmissionStatusBadge } from "@/components/admissions/admission-status-badge";
+import { AppImage } from "@/components/ui/app-image";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -71,6 +73,11 @@ export default function AdmissionDetailPage() {
   const params = useParams();
   const router = useRouter();
   const applicationId = params.id as string;
+  const { session } = useERP();
+  // Approve & enroll is a principal / HR operation (also admin / super_admin).
+  const canApprove = ["super_admin", "admin", "principal", "hr"].includes(
+    String(session?.rawRole ?? session?.role ?? "").toLowerCase()
+  );
 
   const [application, setApplication] = useState<AdmissionApplication | null>(null);
   const [loading, setLoading] = useState(true);
@@ -186,26 +193,44 @@ export default function AdmissionDetailPage() {
 
   const handleEnrollStudent = async (values: EnrollFormValues) => {
     try {
-      const created = await createStudentApi(
-        {
-          firstName: application.applicantFirstName,
-          lastName: application.applicantLastName,
-          dob: application.dateOfBirth,
-          gender: application.gender,
-          guardianName: application.parentName,
-          guardianPhone: application.parentPhone,
-          guardianEmail: application.parentEmail,
-          admissionNo: application.applicationNumber,
-          rollNo: String(Math.floor(Math.random() * 900) + 100),
-          classId: values.classId,
-        },
-        application.branchId !== "all" ? application.branchId : undefined
-      );
+      // Single approve → enroll call: lean student + enrollment are created and
+      // enrolledStudentId is linked, so this admission never repeats in lists.
+      const sectionName =
+        targetClass?.sections.find((s) => s.id === values.sectionId)?.name ?? values.sectionId;
+      const result = await approveAdmissionApi(application.id, {
+        classId: values.classId,
+        section: sectionName,
+      });
       setEnrollModalOpen(false);
-      toast.success("Student enrolled", { description: `${created.fullName} • ${created.rollNumber}` });
-      router.push(`/students/${created.id}`);
+      toast.success("Student enrolled", { description: `${application.applicantFullName} • ${result.student.admissionNo}` });
+      await loadAdmission();
+      router.push(`/students/${result.student.uuid}`);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Enrollment failed");
+      toast.error(err instanceof Error ? err.message : "Enrollment failed", {
+        description: "Only principal / HR / admin can approve admissions.",
+      });
+    }
+  };
+
+  const handleDocFileUpload = async (docId: string, file: File | undefined) => {
+    if (!file) return;
+    const doc = application.documents.find((d) => d.id === docId);
+    if (!doc) return;
+    if (!(file.type.startsWith("image/") || file.type === "application/pdf")) {
+      toast.error("Images + PDF only");
+      return;
+    }
+    try {
+      const updated = await uploadAdmissionDocumentApi(application.id, doc.name, file);
+      setApplication({
+        ...application,
+        documents: application.documents.map((d) =>
+          d.id === docId ? { ...d, submitted: updated.submitted, verified: updated.verified, fileUrl: updated.fileUrl } : d
+        ),
+      });
+      toast.success("Document uploaded to Cloudinary");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Upload failed");
     }
   };
 
@@ -219,9 +244,17 @@ export default function AdmissionDetailPage() {
       <div className="p-6 sm:p-8 rounded-2xl border border-border/80 bg-card shadow-xs space-y-4">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-start gap-4">
-            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-indigo-500/10 text-indigo-600 font-extrabold text-2xl">
-              {application.applicantFirstName.charAt(0)}
-            </div>
+            {application.avatar && !application.avatar.includes("dicebear") ? (
+              <AppImage
+                src={application.avatar}
+                alt={application.applicantFullName}
+                className="h-16 w-16 shrink-0 rounded-2xl ring-1 ring-border object-cover"
+              />
+            ) : (
+              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-indigo-500/10 text-indigo-600 font-extrabold text-2xl">
+                {application.applicantFirstName.charAt(0)}
+              </div>
+            )}
             <div className="space-y-1">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-muted text-muted-foreground">
@@ -247,7 +280,7 @@ export default function AdmissionDetailPage() {
 
           {/* Workflow Action Buttons */}
           <div className="flex items-center gap-2 flex-wrap">
-            {application.status !== "APPROVED" && (
+            {!application.enrolledStudentId && canApprove && (
               <Button
                 variant="gradient"
                 size="sm"
@@ -257,6 +290,11 @@ export default function AdmissionDetailPage() {
                 <CheckCircle2 className="h-4 w-4" />
                 <span>Approve & Enroll Student</span>
               </Button>
+            )}
+            {application.enrolledStudentId && (
+              <Badge variant="secondary" className="text-xs gap-1">
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> Already enrolled — hidden from new lists
+              </Badge>
             )}
 
             <Select
@@ -319,12 +357,12 @@ export default function AdmissionDetailPage() {
               <div className="space-y-2 pt-2 border-t border-border/60">
                 <div className="flex items-center justify-between p-2 rounded-lg bg-card border border-border/60">
                   <span className="text-muted-foreground">Previous School Attended:</span>
-                  <span className="font-semibold text-foreground">{application.previousSchool || "St. Jude Prep"}</span>
+                  <span className="font-semibold text-foreground">{application.previousSchool || "—"}</span>
                 </div>
                 <div className="flex items-center justify-between p-2 rounded-lg bg-card border border-border/60">
                   <span className="text-muted-foreground">Previous Class & Percentage:</span>
-                  <span className="font-semibold text-foreground font-mono">
-                    {application.previousGrade || "Class 8"} • {application.previousGpa || "85%"}
+                    <span className="font-semibold text-foreground font-mono">
+                      {application.previousGrade || "—"} • {application.previousGpa || "—"}
                   </span>
                 </div>
               </div>
@@ -336,6 +374,49 @@ export default function AdmissionDetailPage() {
                   {application.interviewFeedback ||
                     "Candidate performed well in quantitative entrance evaluation. Recommended for Advanced Honors section."}
                 </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Admission Details — every field filled during input */}
+          <Card className="border-border/80 shadow-xs">
+            <CardHeader>
+              <CardTitle className="text-base font-bold flex items-center gap-2">
+                <FileText className="h-4 w-4 text-primary" />
+                Admission Details
+              </CardTitle>
+              <CardDescription>Exactly as filled during application input.</CardDescription>
+            </CardHeader>
+            <CardContent className="text-xs">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div className="p-3 rounded-xl bg-muted/40 border border-border/60">
+                  <span className="text-muted-foreground block mb-0.5">Grade Applied</span>
+                  <span className="font-bold text-foreground text-sm">{application.gradeApplied || "—"}</span>
+                </div>
+                <div className="p-3 rounded-xl bg-muted/40 border border-border/60">
+                  <span className="text-muted-foreground block mb-0.5">Category</span>
+                  <span className="font-bold text-foreground text-sm">{application.category || "—"}</span>
+                </div>
+                <div className="p-3 rounded-xl bg-muted/40 border border-border/60">
+                  <span className="text-muted-foreground block mb-0.5">Board</span>
+                  <span className="font-bold text-foreground text-sm">{application.board || "—"}</span>
+                </div>
+                <div className="p-3 rounded-xl bg-muted/40 border border-border/60">
+                  <span className="text-muted-foreground block mb-0.5">Previous GPA</span>
+                  <span className="font-bold text-foreground text-sm">{application.previousGpa || "—"}</span>
+                </div>
+                <div className="p-3 rounded-xl bg-muted/40 border border-border/60">
+                  <span className="text-muted-foreground block mb-0.5">RTE Quota</span>
+                  <span className="font-bold text-foreground text-sm">{application.rteQuota ? "Yes" : "No"}</span>
+                </div>
+                <div className="p-3 rounded-xl bg-muted/40 border border-border/60">
+                  <span className="text-muted-foreground block mb-0.5">Interview Date</span>
+                  <span className="font-bold text-foreground text-sm">{application.interviewDate ? formatDate(application.interviewDate) : "—"}</span>
+                </div>
+              </div>
+              <div className="mt-3 p-3 rounded-xl bg-muted/40 border border-border/60 flex items-center justify-between gap-2">
+                <span className="text-muted-foreground">Aadhaar Number</span>
+                <span className="font-semibold text-foreground font-mono">{application.aadhaarNumber || "—"}</span>
               </div>
             </CardContent>
           </Card>
@@ -412,14 +493,39 @@ export default function AdmissionDetailPage() {
                       <span className="text-[10px] text-muted-foreground">
                         {doc.required ? "Mandatory" : "Optional"} • {doc.submitted ? "Attached" : "Missing"}
                       </span>
+                      {doc.fileUrl && (
+                        <a
+                          href={doc.fileUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-[10px] text-primary hover:underline block truncate"
+                        >
+                          View on Cloudinary
+                        </a>
+                      )}
                     </div>
                   </div>
-                  <Badge
-                    variant={doc.verified ? "success" : "outline"}
-                    className="text-[10px] py-0 px-2 shrink-0"
-                  >
-                    {doc.verified ? "Verified" : "Pending"}
-                  </Badge>
+                  <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+                    <label className="text-[10px] px-2 py-1 rounded-md border hover:bg-muted cursor-pointer">
+                      Upload
+                      <input
+                        type="file"
+                        accept="image/*,application/pdf"
+                        className="hidden"
+                        onChange={(e) => {
+                          void handleDocFileUpload(doc.id, e.target.files?.[0]);
+                          e.target.value = "";
+                        }}
+                      />
+                    </label>
+                    <Badge
+                      variant={doc.verified ? "success" : "outline"}
+                      className="text-[10px] py-0 px-2 shrink-0"
+                    >
+                      {doc.verified ? "Verified" : "Pending"}
+                    </Badge>
+                  </div>
                 </div>
               ))}
             </CardContent>

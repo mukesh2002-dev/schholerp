@@ -52,6 +52,17 @@ const admissionSchema = z.object({
   parentRelationship: z.string().min(1),
   parentEmail: z.string().optional(),
   parentPhone: z.string().min(1, "Parent mobile is required"),
+  // Previous schooling + address (optional at admission, reused at enrollment)
+  previousSchool: z.string().max(120).optional(),
+  previousGrade: z.string().max(60).optional(),
+  board: z.string().max(30).optional(),
+  category: z.string().max(20).optional(),
+  aadhaarNumber: z.string().max(12).optional(),
+  address: z.string().optional(),
+  city: z.string().max(60).optional(),
+  state: z.string().max(60).optional(),
+  postalCode: z.string().max(10).optional(),
+  rteQuota: z.boolean().optional(),
 });
 
 type AdmissionFormValues = z.infer<typeof admissionSchema>;
@@ -60,8 +71,10 @@ export function AdmissionFormDialog({ open, onOpenChange, onSuccess }: Admission
   const { branches, activeBranchId } = useERP();
   const [step, setStep] = useState<1 | 2>(1);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
-  const [avatarDataUrl, setAvatarDataUrl] = useState<string>("");
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [docFiles, setDocFiles] = useState<Array<{ file: File; name: string }>>([]);
   const avatarInputRef = useRef<HTMLInputElement>(null);
+  const docsInputRef = useRef<HTMLInputElement>(null);
 
   const {
     register,
@@ -84,6 +97,16 @@ export function AdmissionFormDialog({ open, onOpenChange, onSuccess }: Admission
       parentRelationship: "Father",
       parentEmail: "",
       parentPhone: "",
+      previousSchool: "",
+      previousGrade: "",
+      board: "",
+      category: "",
+      aadhaarNumber: "",
+      address: "",
+      city: "",
+      state: "",
+      postalCode: "",
+      rteQuota: false,
     },
   });
 
@@ -91,6 +114,8 @@ export function AdmissionFormDialog({ open, onOpenChange, onSuccess }: Admission
   const gradeApplied = watch("gradeApplied");
   const branchId = watch("branchId");
   const parentRelationship = watch("parentRelationship");
+  const category = watch("category");
+  const rteQuota = watch("rteQuota");
 
   useEffect(() => {
     if (open) {
@@ -106,10 +131,21 @@ export function AdmissionFormDialog({ open, onOpenChange, onSuccess }: Admission
         parentRelationship: "Father",
         parentEmail: "",
         parentPhone: "",
+        previousSchool: "",
+        previousGrade: "",
+        board: "",
+        category: "",
+        aadhaarNumber: "",
+        address: "",
+        city: "",
+        state: "",
+        postalCode: "",
+        rteQuota: false,
       });
       setStep(1);
       setAvatarPreview(null);
-      setAvatarDataUrl("");
+      setAvatarFile(null);
+      setDocFiles([]);
     }
   }, [open, activeBranchId, reset]);
 
@@ -117,16 +153,24 @@ export function AdmissionFormDialog({ open, onOpenChange, onSuccess }: Admission
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith("image/")) { toast.error("Please select an image file"); return; }
-    if (file.size > 2 * 1024 * 1024) { toast.error("Image must be < 2MB"); return; }
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const dataUrl = String(ev.target?.result || "");
-      setAvatarPreview(dataUrl);
-      setAvatarDataUrl(dataUrl);
-      toast.success("Photo attached — will be saved with application");
-    };
-    reader.readAsDataURL(file);
+    if (file.size > 10 * 1024 * 1024) { toast.error("Photo must be < 10MB"); return; }
+    setAvatarFile(file);
+    setAvatarPreview(URL.createObjectURL(file));
+    toast.success("Photo attached — uploads to Cloudinary on submit");
     if (avatarInputRef.current) avatarInputRef.current.value = "";
+  };
+
+  const handleDocsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length) return;
+    const ok = files.filter((f) => {
+      if (!(f.type.startsWith("image/") || f.type === "application/pdf")) { toast.error(`${f.name}: images + PDF only`); return false; }
+      if (f.size > 10 * 1024 * 1024) { toast.error(`${f.name}: must be < 10MB`); return false; }
+      return true;
+    });
+    if (docFiles.length + ok.length > 10) { toast.error("Max 10 documents"); return; }
+    setDocFiles((prev) => [...prev, ...ok.map((file) => ({ file, name: file.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ") }))]);
+    if (docsInputRef.current) docsInputRef.current.value = "";
   };
 
   const onSubmit = async (data: AdmissionFormValues) => {
@@ -142,10 +186,25 @@ export function AdmissionFormDialog({ open, onOpenChange, onSuccess }: Admission
       parentEmail: data.parentEmail || undefined,
       parentPhone: data.parentPhone,
       campusUuid: data.branchId && data.branchId !== "all" ? data.branchId : undefined,
+      // Previous schooling + address detail (new fields — persisted in DB)
+      previousSchool: data.previousSchool || undefined,
+      previousGrade: data.previousGrade || undefined,
+      board: data.board || undefined,
+      category: data.category || undefined,
+      aadhaarNumber: data.aadhaarNumber || undefined,
+      address: data.address || undefined,
+      city: data.city || undefined,
+      state: data.state || undefined,
+      postalCode: data.postalCode || undefined,
+      rteQuota: data.rteQuota ?? false,
     };
 
     try {
-      const saved = await createAdmissionApi(payload, data.branchId !== "all" ? data.branchId : undefined);
+      // Files go as multipart → backend uploads to Cloudinary + saves URLs in DB.
+      const saved = await createAdmissionApi(payload, data.branchId !== "all" ? data.branchId : undefined, {
+        avatar: avatarFile,
+        documents: docFiles,
+      });
       toast.success(`School application submitted`, { description: `${saved.applicantFullName} • ${saved.applicationNumber}` });
       onOpenChange(false);
       setStep(1);
@@ -181,11 +240,11 @@ export function AdmissionFormDialog({ open, onOpenChange, onSuccess }: Admission
         <div className="flex items-center gap-4 p-3 rounded-xl border bg-muted/20">
           <div className="relative">
             <AppImage src={avatarPreview || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150"} alt="Applicant photo" className="h-16 w-16 rounded-xl ring-1 ring-border object-cover" />
-            {avatarPreview && <button type="button" onClick={() => { setAvatarPreview(null); setAvatarDataUrl(""); }} className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-destructive text-white flex items-center justify-center"><X className="h-3 w-3" /></button>}
+            {avatarPreview && <button type="button" onClick={() => { setAvatarPreview(null); setAvatarFile(null); }} className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-destructive text-white flex items-center justify-center"><X className="h-3 w-3" /></button>}
           </div>
           <div className="space-y-1 flex-1">
             <div className="text-xs font-semibold flex items-center gap-1"><ImageIcon className="h-3.5 w-3.5" /> Student Photo</div>
-            <p className="text-[11px] text-muted-foreground">Upload passport photo — JPG/PNG, {"<"} 2MB. Stored with application & student dossier.</p>
+            <p className="text-[11px] text-muted-foreground">Upload passport photo — JPG/PNG, {"<"} 10MB. Stored on Cloudinary with application & student dossier.</p>
             <Button type="button" variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={() => avatarInputRef.current?.click()}><Upload className="h-3.5 w-3.5" /> {avatarPreview ? "Change Photo" : "Upload Photo"}</Button>
             <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
           </div>
@@ -297,9 +356,86 @@ export function AdmissionFormDialog({ open, onOpenChange, onSuccess }: Admission
                 </Select>
               </div>
 
+              <p className="text-[11px] font-semibold text-foreground mt-1">Last School Details</p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="text-xs font-medium text-foreground mb-1 block">Previous School</label>
+                  <Input {...register("previousSchool")} placeholder="e.g. St. Jude Prep" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-foreground mb-1 block">Previous Class</label>
+                  <Input {...register("previousGrade")} placeholder="e.g. Class 8" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-foreground mb-1 block">Board</label>
+                  <Input {...register("board")} placeholder="e.g. CBSE" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="text-xs font-medium text-foreground mb-1 block">Category</label>
+                  <Select value={category || ""} onValueChange={(val) => setValue("category", val)}>
+                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="General">General</SelectItem>
+                      <SelectItem value="EWS">EWS</SelectItem>
+                      <SelectItem value="OBC">OBC</SelectItem>
+                      <SelectItem value="SC">SC</SelectItem>
+                      <SelectItem value="ST">ST</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-foreground mb-1 block">Aadhaar Number</label>
+                  <Input {...register("aadhaarNumber")} placeholder="12-digit" inputMode="numeric" maxLength={12} />
+                </div>
+                <label className="flex items-center gap-2 text-xs font-medium text-foreground cursor-pointer pt-5">
+                  <input
+                    type="checkbox"
+                    checked={!!rteQuota}
+                    onChange={(e) => setValue("rteQuota", e.target.checked)}
+                    className="h-4 w-4 rounded"
+                  />
+                  RTE Quota
+                </label>
+              </div>
+
+              <p className="text-[11px] font-semibold text-foreground mt-1">Address</p>
+              <div>
+                <Input {...register("address")} placeholder="Street address" />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div><Input {...register("city")} placeholder="City" /></div>
+                <div><Input {...register("state")} placeholder="State" /></div>
+                <div><Input {...register("postalCode")} placeholder="PIN code" inputMode="numeric" /></div>
+              </div>
+
               <p className="text-[11px] text-muted-foreground">
-                Remaining details (category, address, previous school, documents) can be completed later on the student profile after enrolment.
+                These stay saved on the application and are reused at enrollment — HR fills only what is left blank.
               </p>
+
+              {/* Supporting documents → Cloudinary */}
+              <div className="space-y-2 p-3 rounded-xl border bg-muted/20">
+                <div className="flex items-center justify-between">
+                  <div className="text-xs font-semibold">Supporting Documents {docFiles.length > 0 && <Badge variant="secondary" className="ml-1 text-[10px]">{docFiles.length}</Badge>}</div>
+                  <Button type="button" variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={() => docsInputRef.current?.click()}><Upload className="h-3.5 w-3.5" /> Attach Files</Button>
+                  <input ref={docsInputRef} type="file" accept="image/*,application/pdf" multiple className="hidden" onChange={handleDocsChange} />
+                </div>
+                <p className="text-[11px] text-muted-foreground">Birth certificate, previous report card, address proof… images + PDF, max 10.</p>
+                {docFiles.map((d, i) => (
+                  <div key={`${d.file.name}-${i}`} className="flex items-center gap-2">
+                    <Input
+                      value={d.name}
+                      onChange={(e) => setDocFiles((prev) => prev.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))}
+                      placeholder="Document name"
+                      className="h-7 text-xs flex-1"
+                    />
+                    <span className="text-[10px] text-muted-foreground truncate max-w-[140px]">{d.file.name}</span>
+                    <button type="button" onClick={() => setDocFiles((prev) => prev.filter((_, j) => j !== i))} className="h-6 w-6 rounded-full hover:bg-destructive/10 hover:text-destructive flex items-center justify-center shrink-0"><X className="h-3 w-3" /></button>
+                  </div>
+                ))}
+              </div>
             </div>
           ) : (
             <div className="space-y-4">

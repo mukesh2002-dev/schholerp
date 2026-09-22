@@ -1320,6 +1320,33 @@ export interface CalendarEvent {
   updatedAt: string;
 }
 
+// ==================== EVENTS (calendar + approval workflow) ====================
+export type SchoolEventType = "ACADEMIC" | "CULTURAL" | "SPORTS" | "WORKSHOP" | "MEETING" | "HOLIDAY" | "EXCURSION" | "OTHER";
+export type SchoolEventStatus = "DRAFT" | "PENDING_APPROVAL" | "PUBLISHED" | "COMPLETED" | "REJECTED" | "CANCELLED";
+export type SchoolEventAudience = "STUDENTS" | "PARENTS" | "TEACHERS" | "STAFF";
+
+export interface SchoolEvent {
+  uuid: string;
+  title: string;
+  type: SchoolEventType;
+  eventDate: string;
+  startTime?: string | null;
+  endTime?: string | null;
+  allDay: boolean;
+  venue?: string | null;
+  description?: string | null;
+  organizer?: string | null;
+  audience: SchoolEventAudience[];
+  status: SchoolEventStatus;
+  approvedAt?: string | null;
+  rejectionReason?: string | null;
+  campusId?: string | null;
+  creator?: { uuid: string; name: string } | null;
+  approver?: { uuid: string; name: string } | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // ==================== INVENTORY ====================
 export type InventoryItemStatus = "IN_STOCK" | "LOW_STOCK" | "OUT_OF_STOCK" | "DISCONTINUED";
 export type PurchaseStatus = "PENDING" | "APPROVED" | "RECEIVED" | "CANCELLED";

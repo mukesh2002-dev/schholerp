@@ -71,7 +71,7 @@ export interface RoleNavGroup {
   items: RoleNavItem[];
 }
 
-const ALL: StaffRole[] = ["ADMIN", "PRINCIPAL", "ACCOUNTANT", "HR_MANAGER"];
+const ALL: StaffRole[] = ["ADMIN", "PRINCIPAL", "ACCOUNTANT", "HR_MANAGER", "TEACHER", "STAFF"];
 const LEADERSHIP: StaffRole[] = ["ADMIN", "PRINCIPAL"];
 const FINANCE: StaffRole[] = ["ADMIN", "ACCOUNTANT"];
 const PEOPLE: StaffRole[] = ["ADMIN", "PRINCIPAL", "HR_MANAGER"];
@@ -100,7 +100,7 @@ export const ROLE_NAV_GROUPS: RoleNavGroup[] = [
         href: "/admissions",
         icon: UserPlus,
         badge: "Pipeline",
-        allowedRoles: LEADERSHIP,
+        allowedRoles: [...LEADERSHIP, "HR_MANAGER"],
         moduleKey: "students",
       },
       {
@@ -108,7 +108,7 @@ export const ROLE_NAV_GROUPS: RoleNavGroup[] = [
         href: "/students",
         icon: GraduationCap,
         badge: "Roster",
-        allowedRoles: [...LEADERSHIP, "ACCOUNTANT"],
+        allowedRoles: [...LEADERSHIP, "ACCOUNTANT", "HR_MANAGER"],
         featureKey: "students",
         moduleKey: "students",
       },
@@ -282,14 +282,19 @@ export function getNavForRole(
   opts?: { isFeatureEnabled?: (key: string) => boolean; allowedModules?: string[] }
 ): RoleNavGroup[] {
   if (!role) return ROLE_NAV_GROUPS;
-  const knownRoles: StaffRole[] = ["ADMIN", "PRINCIPAL", "ACCOUNTANT", "HR_MANAGER"];
+  const knownRoles: StaffRole[] = ["ADMIN", "PRINCIPAL", "ACCOUNTANT", "HR_MANAGER", "TEACHER", "STAFF"];
   const staffRole = knownRoles.includes(role as StaffRole) ? (role as StaffRole) : null;
   if (!staffRole) return [];
   const isFeatureEnabled = opts?.isFeatureEnabled ?? (() => true);
   const allowedModules = opts?.allowedModules;
   const hasModuleGate = Array.isArray(allowedModules) && allowedModules.length > 0;
-  const moduleAllowed = (moduleKey?: string) =>
-    !moduleKey || !hasModuleGate || allowedModules.includes(moduleKey);
+  const moduleAllowed = (moduleKey?: string) => {
+    if (!moduleKey) return true;
+    // HR is explicitly enabled on the frontend to access students
+    if (staffRole === "HR_MANAGER" && moduleKey === "students") return true;
+    if (!hasModuleGate) return true;
+    return allowedModules.includes(moduleKey);
+  };
 
   return ROLE_NAV_GROUPS.map((group) => ({
     ...group,

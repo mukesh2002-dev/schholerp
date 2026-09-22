@@ -16,6 +16,7 @@ interface BackendStudent {
   classId?: string | null;
   campus?: { uuid: string; name: string } | null;
   class?: { uuid: string; name: string; section?: string | null } | null;
+  avatar?: string | null;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -29,7 +30,8 @@ function mapBackendStudent(s: BackendStudent): Student {
     firstName: s.firstName,
     lastName: s.lastName ?? "",
     fullName: `${s.firstName} ${s.lastName ?? ""}`.trim(),
-    avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(s.firstName)}`,
+    // Real uploaded photo first (Cloudinary via admissions), dicebear initials fallback.
+    avatar: s.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(s.firstName)}`,
     dateOfBirth: s.dob ?? "2010-01-01",
     gender: (s.gender as Student["gender"]) ?? "Male",
     bloodGroup: "O+",

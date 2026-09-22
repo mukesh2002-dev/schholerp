@@ -36,7 +36,17 @@ export function ClassDirectoryView() {
     campusId: activeBranchId,
     fallback: fallbackClasses,
   });
-  const classes = apiClasses.length > 0 || classesOffline || !classesLoading ? apiClasses : fallbackClasses;
+  const classes = useMemo(() => {
+    // Normalize every row: whatever the cache/API hands us (stale HMR data,
+    // partial writes), render always sees arrays + strings — never crashes.
+    return (apiClasses ?? []).filter(Boolean).map((c: any) => ({
+      ...c,
+      name: c.name ?? "Unnamed Class",
+      branchName: c.branchName ?? "Campus",
+      sections: Array.isArray(c.sections) ? c.sections : [],
+      subjects: Array.isArray(c.subjects) ? c.subjects : [],
+    })) as ClassRoom[];
+  }, [apiClasses]);
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("ALL");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -63,12 +73,14 @@ export function ClassDirectoryView() {
   }, [refreshList]);
 
   const filteredClasses = useMemo(() => {
-    return classes.filter((c) => {
+    const q = searchQuery.toLowerCase();
+    return (classes ?? []).filter((c) => {
+      if (!c) return false;
       const matchesSearch =
-        c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        c.branchName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        c.sections.some((s) => s.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        c.subjects.some((s) => s.name.toLowerCase().includes(searchQuery.toLowerCase()));
+        String(c.name ?? "").toLowerCase().includes(q) ||
+        String(c.branchName ?? "").toLowerCase().includes(q) ||
+        (c.sections ?? []).some((s) => String(s?.name ?? "").toLowerCase().includes(q)) ||
+        (c.subjects ?? []).some((s) => String(s?.name ?? "").toLowerCase().includes(q));
       const matchesCategory = categoryFilter === "ALL" || c.category === categoryFilter;
       return matchesSearch && matchesCategory;
     });

@@ -57,18 +57,23 @@ export async function apiFetch<T>(
     headers[k] = v;
   });
 
-  // Let axios infer Content-Type if body is JSON string; preserve explicit headers
-  const data = init.body
-    ? (() => {
-        const b = init.body as string;
-        // Try to send as JSON object so axios handles stringify consistently
-        try {
-          return JSON.parse(b);
-        } catch {
-          return b;
-        }
-      })()
-    : undefined;
+  // Let axios infer Content-Type if body is JSON string; preserve explicit headers.
+  // FormData (file uploads) passes through untouched so axios sets the
+  // multipart boundary automatically.
+  const data =
+    init.body === undefined || init.body === null
+      ? undefined
+      : typeof init.body !== "string"
+        ? init.body
+        : (() => {
+            const b = init.body as string;
+            // Try to send as JSON object so axios handles stringify consistently
+            try {
+              return JSON.parse(b);
+            } catch {
+              return b;
+            }
+          })();
 
   // Build per-request config; `_skipAuth` and `_campusId` are read by interceptors
   const cfg = {

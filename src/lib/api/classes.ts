@@ -105,7 +105,7 @@ export function mapBackendClass(c: BackendClass): ClassRoom {
   };
   return {
     id: c.uuid,
-    name: c.name,
+    name: c.name ?? "Unnamed Class",
     gradeLevel: c.gradeLevel ?? 10,
     category: (c.category as ClassRoom["category"]) ?? "High School",
     branchId: c.campus?.uuid ?? "all",
@@ -155,7 +155,7 @@ export async function fetchClasses(
     {},
     { campusId: params.campusId ?? undefined }
   );
-  return Array.isArray(res.data) ? res.data.map(mapBackendClass) : [];
+  return Array.isArray(res.data) ? res.data.filter(Boolean).map(mapBackendClass) : [];
 }
 
 export async function fetchClassByUuid(uuid: string): Promise<ClassRoom> {
@@ -209,7 +209,7 @@ export async function fetchSubjects(
     {},
     { campusId: params.campusId ?? undefined }
   );
-  return Array.isArray(res.data) ? res.data.map((s) => mapBackendSubject(s)) : [];
+  return Array.isArray(res.data) ? res.data.filter(Boolean).map((s) => mapBackendSubject(s)) : [];
 }
 
 export async function fetchSubjectByUuid(uuid: string): Promise<BackendSubject> {
