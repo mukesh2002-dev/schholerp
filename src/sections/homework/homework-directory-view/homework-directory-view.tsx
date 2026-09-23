@@ -58,7 +58,7 @@ export function HomeworkDirectoryView() {
   const canWrite = session?.role === "ADMIN" || session?.role === "HR_MANAGER";
 
   const [homeworkList, setHomeworkList] = useState<HomeworkWithCount[]>([]);
-  const [classes, setClasses] = useState<{ id: string; name: string }[]>([]);
+  const [classNames, setClassNames] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -91,14 +91,14 @@ export function HomeworkDirectoryView() {
           campusId,
           search: debouncedSearch || undefined,
           status: statusFilter === "ALL" ? undefined : statusFilter,
-          classUuid: classFilter === "ALL" ? undefined : classFilter,
           type: typeFilter === "ALL" ? undefined : typeFilter,
           limit: 100,
         }),
         fetchClasses({ campusId, limit: 100 }).catch(() => []),
       ]);
       setHomeworkList(hw.items);
-      setClasses(cls.map((c) => ({ id: c.id, name: c.name })));
+      // Group section-rows by class name so "Class 10" appears once.
+      setClassNames([...new Set(cls.map((c) => c.name))].sort());
     } catch (e: any) {
       setError(e?.message || "Failed to load homework. Please retry.");
     } finally {
@@ -131,7 +131,10 @@ export function HomeworkDirectoryView() {
     defaultValues: { title: "", description: "", dueDate: "", homeworkType: "HW", status: "ACTIVE", priority: "MEDIUM" },
   });
 
-  const filteredList = useMemo(() => homeworkList, [homeworkList]);
+  const filteredList = useMemo(
+    () => (classFilter === "ALL" ? homeworkList : homeworkList.filter((hw) => hw.className === classFilter)),
+    [homeworkList, classFilter]
+  );
 
   const openEdit = (hw: HomeworkWithCount) => {
     setEditing(hw);
@@ -225,9 +228,9 @@ export function HomeworkDirectoryView() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="ALL">All Classes</SelectItem>
-              {classes.map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.name}
+              {classNames.map((name) => (
+                <SelectItem key={name} value={name}>
+                  {name}
                 </SelectItem>
               ))}
             </SelectContent>

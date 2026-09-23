@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useERP } from "@/components/providers/erp-provider";
 import { createHomeworkApi, fetchHomework } from "@/lib/api/homework";
 import { fetchClasses } from "@/lib/api/classes";
@@ -34,7 +34,8 @@ import { toast } from "sonner";
 const homeworkSchema = z.object({
   title: z.string().min(1, "Task title is required"),
   description: z.string().optional(),
-  classId: z.string().min(1, "Class is required"),
+  className: z.string().min(1, "Class is required"),
+  section: z.string().optional(),
   dueDate: z.string().min(1, "Due date is required"),
   homeworkType: z.enum(["CW", "HW", "ASSIGNMENT", "PROJECT"]),
   priority: z.enum(["LOW", "MEDIUM", "HIGH"]).optional(),
@@ -42,7 +43,7 @@ const homeworkSchema = z.object({
 
 type HomeworkFormValues = z.infer<typeof homeworkSchema>;
 
-interface ClassOption {
+interface ClassRow {
   id: string;
   name: string;
   section: string;
@@ -56,8 +57,10 @@ export function HomeworkHeader({ onHomeworkAdded }: { onHomeworkAdded?: () => vo
   const campusId = activeBranchId === "all" ? null : activeBranchId;
 
   const [taskCount, setTaskCount] = useState(0);
-  const [classes, setClasses] = useState<ClassOption[]>([]);
+  const [classRows, setClassRows] = useState<ClassRow[]>([]);
   const [classesLoading, setClassesLoading] = useState(false);
+  const [className, setClassName] = useState("");
+  const [section, setSection] = useState("");
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [attachFile, setAttachFile] = useState<File | null>(null);
@@ -75,17 +78,32 @@ export function HomeworkHeader({ onHomeworkAdded }: { onHomeworkAdded?: () => vo
     defaultValues: {
       title: "",
       description: "",
-      classId: "",
+      className: "",
+      section: "",
       dueDate: "",
       homeworkType: "HW",
       priority: "MEDIUM",
     },
   });
 
-  const classId = watch("classId");
   const homeworkType = watch("homeworkType");
 
-  const selectedClass = classes.find((c) => c.id === classId);
+  // Group section-rows by class name so "Class 10" appears once.
+  const classGroups = useMemo(() => {
+    const map = new Map<string, ClassRow[]>();
+    for (const r of classRows) {
+      const list = map.get(r.name) ?? [];
+      list.push(r);
+      map.set(r.name, list);
+    }
+    return [...map.entries()].map(([name, rows]) => ({
+      name,
+      sections: [...new Set(rows.map((r) => r.section).filter(Boolean))],
+      rows,
+    }));
+  }, [classRows]);
+  const selectedGroup = classGroups.find((g) => g.name === className);
+  const selectedRow = selectedGroup?.rows.find((r) => r.section === section) ?? selectedGroup?.rows[0];
 
   const refreshCount = useCallback(async () => {
     try {
@@ -105,13 +123,13 @@ export function HomeworkHeader({ onHomeworkAdded }: { onHomeworkAdded?: () => vo
     }
   }, [refreshCount]);
 
-  // Load classes when the dialog opens.
+  // Load classes when the dialog opens (one row per class + section).
   useEffect(() => {
     if (!dialogOpen) return;
     setClassesLoading(true);
     fetchClasses({ campusId, limit: 100 })
       .then((cls) =>
-        setClasses(
+        setClassRows(
           cls.map((c) => ({
             id: c.id,
             name: c.name,
@@ -134,6 +152,8 @@ export function HomeworkHeader({ onHomeworkAdded }: { onHomeworkAdded?: () => vo
   const closeDialog = () => {
     setDialogOpen(false);
     setAttachFile(null);
+    setClassName("");
+    setSection("");
     setAttachPreview((prev) => {
       if (prev) URL.revokeObjectURL(prev);
       return null;
@@ -142,14 +162,18 @@ export function HomeworkHeader({ onHomeworkAdded }: { onHomeworkAdded?: () => vo
   };
 
   const handleCreateHomework = async (data: HomeworkFormValues) => {
+    if (!selectedRow) {
+      toast.error("Please select a class");
+      return;
+    }
     try {
       await createHomeworkApi(
         {
           title: data.title,
           description: data.description || "",
           campusUuid: campusId ?? undefined,
-          classUuid: data.classId,
-          section: selectedClass?.section || undefined,
+          classUuid: selectedRow.id,
+          section: selectedRow.section || undefined,
           dueDate: new Date(data.dueDate).toISOString(),
           maxMarks: 100,
           homeworkType: data.homeworkType as HomeworkType,
@@ -251,25 +275,57 @@ export function HomeworkHeader({ onHomeworkAdded }: { onHomeworkAdded?: () => vo
 
             <div className="rounded-xl border border-border/60 bg-muted/20 p-3 space-y-3">
               <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Assign to</p>
-              <div>
-                <label className="text-xs font-medium text-foreground mb-1 block">Class (Section)</label>
-                <Select value={classId} onValueChange={(val) => setValue("classId", val)}>
-                  <SelectTrigger className={errors.classId ? "border-rose-500" : ""}>
-                    <SelectValue placeholder={classesLoading ? "Loading classes..." : "Select Class"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {classes.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.name}{c.section ? ` (Sec ${c.section})` : ""}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {errors.classId && <p className="text-[11px] text-rose-500 mt-1">{errors.classId.message}</p>}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-foreground mb-1 block">Class</label>
+                  <Select
+                    value={className}
+                    onValueChange={(val) => {
+                      setClassName(val);
+                      setValue("className", val);
+                      setSection("");
+                      setValue("section", "");
+                    }}
+                  >
+                    <SelectTrigger className={errors.className ? "border-rose-500" : ""}>
+                      <SelectValue placeholder={classesLoading ? "Loading classes..." : "Select Class"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {classGroups.map((g) => (
+                        <SelectItem key={g.name} value={g.name}>
+                          {g.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {errors.className && <p className="text-[11px] text-rose-500 mt-1">{errors.className.message}</p>}
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-foreground mb-1 block">Section</label>
+                  <Select
+                    value={section}
+                    onValueChange={(val) => {
+                      setSection(val);
+                      setValue("section", val);
+                    }}
+                    disabled={!selectedGroup}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={!selectedGroup ? "Pick class first" : "Select Section"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(selectedGroup?.sections ?? []).map((s) => (
+                        <SelectItem key={s} value={s}>
+                          Section {s}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-              {selectedClass && (
+              {selectedRow && (
                 <p className="text-[11px] text-muted-foreground">
-                  Assigning to <strong className="text-foreground">{selectedClass.name}{selectedClass.section ? ` (Sec ${selectedClass.section})` : ""}</strong>
+                  Assigning to <strong className="text-foreground">{selectedRow.name}{selectedRow.section ? ` (Sec ${selectedRow.section})` : ""}</strong>
                 </p>
               )}
             </div>
