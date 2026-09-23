@@ -78,6 +78,7 @@ declare module "axios" {
     __retryCount?: number;
     __isRetryAfterRefresh?: boolean;
     _skipAuth?: boolean;
+    _skipRetry?: boolean;
   }
 }
 
@@ -235,6 +236,10 @@ apiClient.interceptors.response.use(
     }
 
     // 2) Transient failures → exponential backoff, capped at MAX_ATTEMPTS total
+    // Do not retry if caller opted out (e.g. POST /admissions would create duplicates)
+    if ((config as any)._skipRetry || (config as any).__skipRetry) {
+      return Promise.reject(toApiError(error));
+    }
     const shouldRetry =
       retryCount < MAX_ATTEMPTS - 1 && // e.g. MAX_ATTEMPTS=3 → allow 0,1 → at most 3 requests
       (isRetryableStatus(status) || error.code === "ECONNABORTED" || !error.response);

@@ -70,7 +70,8 @@ export function StudentFormDialog({
 
   useEffect(() => {
     if (!open) return;
-    void fetchClasses({ campusId: activeBranchId }).then(setClasses);
+    // Use active branch for initial load; will be re-fetched when createBranchId changes to admission's campus
+    void fetchClasses({ campusId: activeBranchId !== "all" ? activeBranchId : undefined }).then(setClasses);
     if (!isEdit) {
       // Server-side: APPROVED + not yet enrolled only — already-students never repeat.
       void fetchApprovedDropdown({ campusId: activeBranchId !== "all" ? activeBranchId : undefined })
@@ -78,6 +79,9 @@ export function StudentFormDialog({
         .catch(() => setAdmissions([]));
     }
   }, [open, activeBranchId, isEdit]);
+
+  // This effect was incorrectly placed before watch declarations - moved below [see next effect]
+  // (kept as comment for reference)
 
   // Approved dropdown is already filtered server-side; keep client guard too.
   const enrollableAdmissions = useMemo(() => {
@@ -144,17 +148,31 @@ export function StudentFormDialog({
       });
     } else {
       // Reset create: keep first approved admission selected by default for speed
+      // FIX: match class to selected admission's gradeApplied instead of always classes[0]
       const firstAdmission = enrollableAdmissions[0];
-      const firstClass = classes[0];
+      const grade = String(firstAdmission?.gradeApplied || "").trim();
+      const exact = classes.find((c) => c.name === grade);
+      const fuzzy = classes.find((c) => c.name.toLowerCase().includes(grade.toLowerCase()) || grade.toLowerCase().includes(c.name.toLowerCase()));
+      const preferred = exact || fuzzy || classes[0];
       resetCreate({
         admissionId: firstAdmission?.uuid || "",
         branchId: firstAdmission?.campus?.uuid || (activeBranchId !== "all" ? activeBranchId : branches[0]?.id || ""),
-        classId: firstClass?.id || "",
-        sectionId: firstClass?.sections[0]?.id || "",
+        classId: preferred?.id || "",
+        sectionId: preferred?.sections[0]?.id || "",
         rollNo: "",
       });
     }
   }, [open, isEdit, studentToEdit, enrollableAdmissions, classes, branches, activeBranchId, resetCreate, resetEdit]);
+
+  // FIX: when admission's campus changes, refetch classes for that campus (dropdown bug)
+  useEffect(() => {
+    if (isEdit || !open) return;
+    if (createBranchId && createBranchId !== activeBranchId) {
+      void fetchClasses({ campusId: createBranchId }).then((filtered) => {
+        if (filtered.length > 0) setClasses(filtered);
+      });
+    }
+  }, [createBranchId, activeBranchId, open, isEdit]);
 
   // When admission changes, auto-fill campus to its branch
   useEffect(() => {

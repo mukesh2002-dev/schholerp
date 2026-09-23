@@ -193,11 +193,14 @@ export default function StudentDetailPage() {
         </div>
       </div>
 
-      {/* 360-Degree Tabbed Dossier */}
+      {/* 360-Degree Tabbed Dossier — per rules.md §3, student dossier must surface full admission 8-section data */}
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid grid-cols-3 sm:grid-cols-6 w-full max-w-4xl h-10 p-1 bg-muted/60">
+        <TabsList className="grid grid-cols-3 sm:grid-cols-7 w-full max-w-5xl h-10 p-1 bg-muted/60">
           <TabsTrigger value="overview" className="text-xs font-semibold">
             Overview
+          </TabsTrigger>
+          <TabsTrigger value="admission" className="text-xs font-semibold">
+            Admission Dossier
           </TabsTrigger>
           <TabsTrigger value="academic" className="text-xs font-semibold">
             Academic History
@@ -216,80 +219,180 @@ export default function StudentDetailPage() {
           </TabsTrigger>
         </TabsList>
 
-        {/* Tab 1: Overview */}
+        {/* Tab 1: Overview — per request: 1.Student Details, 2.Parents Details, 3.Contact & Address */}
         <TabsContent value="overview" className="space-y-6 mt-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Personal Details */}
+          {(() => {
+            const a: any = (student as any).admissionApplication || {};
+            const hasAdmission = !!a.uuid;
+            return (
+          <div className="space-y-6">
+            {/* 1. Student Details */}
             <Card className="border-border/80 shadow-xs">
-              <CardHeader>
-                <CardTitle className="text-base font-bold flex items-center gap-2">
-                  <GraduationCap className="h-4 w-4 text-primary" />
-                  Personal Information
-                </CardTitle>
-              </CardHeader>
+              <CardHeader><CardTitle className="text-base font-bold flex items-center gap-2"><GraduationCap className="h-4 w-4 text-primary" />1. Student Details</CardTitle></CardHeader>
               <CardContent className="space-y-3 text-xs">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="p-3 rounded-xl bg-muted/30 border border-border/60">
-                    <span className="text-muted-foreground block">Date of Birth</span>
-                    <span className="font-bold text-foreground text-sm">{formatDate(student.dateOfBirth)}</span>
-                  </div>
-                  <div className="p-3 rounded-xl bg-muted/30 border border-border/60">
-                    <span className="text-muted-foreground block">Gender</span>
-                    <span className="font-bold text-foreground text-sm">{student.gender}</span>
-                  </div>
-                  <div className="p-3 rounded-xl bg-muted/30 border border-border/60">
-                    <span className="text-muted-foreground block">Blood Group</span>
-                    <span className="font-bold text-foreground text-sm">{student.bloodGroup}</span>
-                  </div>
-                  <div className="p-3 rounded-xl bg-muted/30 border border-border/60">
-                    <span className="text-muted-foreground block">Admission Date</span>
-                    <span className="font-bold text-foreground text-sm">{formatDate(student.admissionDate)}</span>
-                  </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <div className="p-3 rounded-xl bg-muted/40 border"><span className="text-muted-foreground block">Full Name</span><span className="font-bold">{student.fullName}</span></div>
+                  <div className="p-3 rounded-xl bg-muted/40 border"><span className="text-muted-foreground block">DOB / Gender</span><span className="font-bold">{formatDate(student.dateOfBirth)} • {student.gender}</span></div>
+                  <div className="p-3 rounded-xl bg-muted/40 border"><span className="text-muted-foreground block">Blood Group</span><span className="font-bold">{(a.bloodGroup || student.bloodGroup) || "—"}</span></div>
+                  <div className="p-3 rounded-xl bg-muted/40 border"><span className="text-muted-foreground block">Nationality</span><span className="font-bold">{a.nationality || "—"}</span></div>
+                  <div className="p-3 rounded-xl bg-muted/40 border"><span className="text-muted-foreground block">Religion / Category</span><span className="font-bold">{(a.religion || (student as any).religion) || "—"} / {(a.category || (student as any).category) || "—"}</span></div>
+                  <div className="p-3 rounded-xl bg-muted/40 border"><span className="text-muted-foreground block">Mother Tongue</span><span className="font-bold">{(a.motherTongue || (student as any).motherTongue) || "—"}</span></div>
+                  <div className="p-3 rounded-xl bg-muted/40 border"><span className="text-muted-foreground block">Aadhaar</span><span className="font-mono font-bold">{(a.aadhaarNumber || (student as any).aadhaarNumber) || "—"}</span></div>
+                  <div className="p-3 rounded-xl bg-muted/40 border"><span className="text-muted-foreground block">Class / Academic Year</span><span className="font-bold">{student.className} • {a.academicYear || "—"}</span></div>
+                  <div className="p-3 rounded-xl bg-muted/40 border"><span className="text-muted-foreground block">Admission Date</span><span className="font-bold">{formatDate(student.admissionDate)}</span></div>
                 </div>
-
-                <div className="flex items-center gap-2 p-3 rounded-xl bg-card border border-border/60 text-muted-foreground">
-                  <MapPin className="h-4 w-4 text-primary shrink-0" />
-                  <span>
-                    {student.address}, {student.city}, {student.state}
-                  </span>
-                </div>
+                {!hasAdmission && <p className="text-[11px] text-amber-600 bg-amber-50 border border-amber-200 rounded-lg p-2">Legacy student — admission-time extended fields not available. Data shown from student master only.</p>}
               </CardContent>
             </Card>
 
-            {/* Guardian & Emergency Details */}
+            {/* 2. Parents Details */}
             <Card className="border-border/80 shadow-xs">
-              <CardHeader>
-                <CardTitle className="text-base font-bold flex items-center gap-2">
-                  <ShieldCheck className="h-4 w-4 text-primary" />
-                  Guardian & Emergency Contact
-                </CardTitle>
-              </CardHeader>
+              <CardHeader><CardTitle className="text-base font-bold flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-primary" />2. Parents Details</CardTitle></CardHeader>
               <CardContent className="space-y-3 text-xs">
-                <div className="p-3 rounded-xl bg-muted/30 border border-border/60 space-y-1">
-                  <span className="text-muted-foreground block">Primary Parent / Guardian</span>
-                  <span className="font-bold text-foreground text-sm">{student.guardian.name}</span>
-                  <span className="text-muted-foreground block">
-                    {student.guardian.relation} • {student.guardian.occupation}
-                  </span>
-                </div>
+                {hasAdmission ? (
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="p-3 rounded-xl bg-blue-50/50 border space-y-1"><span className="text-muted-foreground block">Father</span><span className="font-bold block">{a.fatherName || "—"}</span><span className="block">{[a.fatherQualification, a.fatherOccupation].filter(Boolean).join(" • ") || "—"}</span><span className="block font-mono">{[a.fatherMobile, a.fatherEmail].filter(Boolean).join(" • ") || "—"}</span><span className="block text-muted-foreground">{[a.fatherOrganization, a.fatherAnnualIncome].filter(Boolean).join(" • ")}</span></div>
+                      <div className="p-3 rounded-xl bg-pink-50/50 border space-y-1"><span className="text-muted-foreground block">Mother</span><span className="font-bold block">{a.motherName || "—"}</span><span className="block">{[a.motherQualification, a.motherOccupation].filter(Boolean).join(" • ") || "—"}</span><span className="block font-mono">{[a.motherMobile, a.motherEmail].filter(Boolean).join(" • ") || "—"}</span><span className="block text-muted-foreground">{[a.motherOrganization, a.motherAnnualIncome].filter(Boolean).join(" • ")}</span></div>
+                    </div>
+                    {a.guardianName && <div className="p-3 rounded-xl bg-amber-50 border"><span className="text-muted-foreground block">Guardian (if any)</span><span className="font-bold">{a.guardianName} ({a.guardianRelation || ""})</span> <span className="font-mono ml-2">{[a.guardianContact, a.guardianEmail].filter(Boolean).join(" • ")}</span></div>}
+                    <div className="p-3 rounded-xl bg-muted/30 border space-y-1"><span className="text-muted-foreground block">Primary Guardian (legacy)</span><span className="font-bold">{student.guardian.name} ({student.guardian.relation})</span><span className="block font-mono">{[student.guardian.email, student.guardian.phone].filter(Boolean).join(" • ") || "—"}</span><span className="block text-muted-foreground">{student.guardian.occupation || "—"}</span></div>
+                  </>
+                ) : (
+                  <div className="p-3 rounded-xl bg-muted/30 border space-y-1"><span className="text-muted-foreground block">Primary Guardian</span><span className="font-bold text-sm">{student.guardian.name}</span><span className="text-muted-foreground block">{student.guardian.relation} • {student.guardian.occupation || "—"}</span><span className="block font-mono">{[student.guardian.email, student.guardian.phone].filter(Boolean).join(" • ")}</span><span className="text-rose-600 font-medium block">Emergency: {student.guardian.emergencyContact || "—"}</span></div>
+                )}
+              </CardContent>
+            </Card>
 
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between p-2 rounded-lg bg-card border border-border/60">
-                    <span className="text-muted-foreground">Guardian Email:</span>
-                    <span className="font-semibold text-foreground font-mono">{student.guardian.email}</span>
-                  </div>
-                  <div className="flex items-center justify-between p-2 rounded-lg bg-card border border-border/60">
-                    <span className="text-muted-foreground">Primary Phone:</span>
-                    <span className="font-semibold text-foreground font-mono">{student.guardian.phone}</span>
-                  </div>
-                  <div className="flex items-center justify-between p-2 rounded-lg bg-rose-500/10 border border-rose-500/20">
-                    <span className="text-rose-600 font-medium">Emergency Line:</span>
-                    <span className="font-bold text-rose-600 font-mono">{student.guardian.emergencyContact}</span>
-                  </div>
-                </div>
+            {/* 3. Contact & Address */}
+            <Card className="border-border/80 shadow-xs">
+              <CardHeader><CardTitle className="text-base font-bold flex items-center gap-2"><MapPin className="h-4 w-4 text-primary" />3. Contact & Address</CardTitle></CardHeader>
+              <CardContent className="space-y-3 text-xs">
+                {hasAdmission ? (
+                  <>
+                    <div className="p-3 rounded-xl bg-muted/40 border"><span className="text-muted-foreground block">Present Address</span><span className="font-medium">{[a.presentHouseNo, a.presentStreet, a.presentArea, a.city || a.presentDistrict, a.state, a.postalCode].filter(Boolean).join(", ") || student.address || "—"}</span></div>
+                    <div className="p-3 rounded-xl bg-muted/40 border"><span className="text-muted-foreground block">Permanent Address {a.permanentSameAsPresent ? "(Same as Present)" : ""}</span><span className="font-medium">{a.permanentSameAsPresent ? "Same as Present" : [a.permanentHouseNo, a.permanentStreet, a.permanentArea, a.permanentCity, a.permanentDistrict, a.permanentState, a.permanentPostalCode].filter(Boolean).join(", ") || "—"}</span></div>
+                    <div className="p-3 rounded-xl bg-muted/40 border"><span className="text-muted-foreground block">Emergency Contact</span><span className="font-bold">{a.emergencyContactName || student.guardian.emergencyContact || "—"} • {a.emergencyContactPhone || ""} {a.emergencyContactRelation ? `(${a.emergencyContactRelation})` : ""}</span></div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="p-3 rounded-xl bg-card border"><span className="text-muted-foreground block">Guardian Email</span><span className="font-mono font-semibold">{student.guardian.email || a.parentEmail || "—"}</span></div>
+                      <div className="p-3 rounded-xl bg-card border"><span className="text-muted-foreground block">Primary Phone</span><span className="font-mono font-semibold">{student.guardian.phone || a.parentPhone || "—"}</span></div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-2 p-3 rounded-xl bg-card border text-muted-foreground"><MapPin className="h-4 w-4 text-primary shrink-0" /><span>{[student.address, student.city, student.state].filter(Boolean).join(", ") || "—"}</span></div>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between p-2 rounded-lg bg-card border"><span className="text-muted-foreground">Guardian Email:</span><span className="font-semibold font-mono">{student.guardian.email || "—"}</span></div>
+                      <div className="flex items-center justify-between p-2 rounded-lg bg-card border"><span className="text-muted-foreground">Primary Phone:</span><span className="font-semibold font-mono">{student.guardian.phone || "—"}</span></div>
+                      <div className="flex items-center justify-between p-2 rounded-lg bg-rose-500/10 border border-rose-500/20"><span className="text-rose-600 font-medium">Emergency Line:</span><span className="font-bold text-rose-600 font-mono">{student.guardian.emergencyContact || "—"}</span></div>
+                    </div>
+                  </>
+                )}
               </CardContent>
             </Card>
           </div>
+            );
+          })()}
+          {/* Admission source link when available */}
+          {(student as any).admissionApplication && (
+            <Card className="border-blue-200 bg-blue-50/40">
+              <CardContent className="p-3 flex items-center justify-between">
+                <span className="text-xs font-medium text-blue-900">Source: Admission dossier { (student as any).admissionApplication.applicationNumber || ""} ({ (student as any).admissionApplication.status || ""})</span>
+                <Button asChild variant="outline" size="sm" className="h-7 text-xs"><Link href={`/admissions/${(student as any).admissionApplication.uuid}`}>Open Admission Dossier</Link></Button>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* NEW Tab: Full Admission Dossier (8 sections) - per rules.md all admission-time data must be visible */}
+        <TabsContent value="admission" className="space-y-6 mt-4">
+          {!(student as any).admissionApplication ? (
+            <Card className="border-dashed p-8 text-center space-y-3">
+              <div className="mx-auto h-12 w-12 rounded-2xl bg-muted flex items-center justify-center"><FileText className="h-6 w-6 text-muted-foreground" /></div>
+              <h3 className="font-semibold text-sm">No Admission Dossier Linked</h3>
+              <p className="text-xs text-muted-foreground max-w-md mx-auto">This student was not created via admissions (legacy/seeded). Full 8-section data is only available for students enrolled through <em>Admissions → Approve & Enroll</em>.</p>
+            </Card>
+          ) : (
+            (() => {
+              const a: any = (student as any).admissionApplication;
+              return (
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                  <div className="lg:col-span-7 space-y-6">
+                    <Card className="border-border/80 shadow-xs">
+                      <CardHeader><CardTitle className="text-base font-bold flex items-center gap-2"><GraduationCap className="h-4 w-4 text-primary" />1. Student Details</CardTitle></CardHeader>
+                      <CardContent className="space-y-3 text-xs">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                          <div className="p-3 rounded-xl bg-muted/40 border"><span className="text-muted-foreground block">Full Name</span><span className="font-bold">{a.firstName} {a.middleName || ""} {a.lastName || ""}</span></div>
+                          <div className="p-3 rounded-xl bg-muted/40 border"><span className="text-muted-foreground block">DOB / Gender</span><span className="font-bold">{formatDate(a.dob)} • {a.gender}</span></div>
+                          <div className="p-3 rounded-xl bg-muted/40 border"><span className="text-muted-foreground block">Blood Group</span><span className="font-bold">{a.bloodGroup || "—"}</span></div>
+                          <div className="p-3 rounded-xl bg-muted/40 border"><span className="text-muted-foreground block">Nationality</span><span className="font-bold">{a.nationality || "—"}</span></div>
+                          <div className="p-3 rounded-xl bg-muted/40 border"><span className="text-muted-foreground block">Religion / Category</span><span className="font-bold">{a.religion || "—"} / {a.category || "—"}</span></div>
+                          <div className="p-3 rounded-xl bg-muted/40 border"><span className="text-muted-foreground block">Mother Tongue</span><span className="font-bold">{a.motherTongue || "—"}</span></div>
+                          <div className="p-3 rounded-xl bg-muted/40 border"><span className="text-muted-foreground block">Aadhaar</span><span className="font-mono font-bold">{a.aadhaarNumber || "—"}</span></div>
+                          <div className="p-3 rounded-xl bg-muted/40 border"><span className="text-muted-foreground block">Grade / Year</span><span className="font-bold">{a.gradeApplied} • {a.academicYear}</span></div>
+                          <div className="p-3 rounded-xl bg-muted/40 border"><span className="text-muted-foreground block">RTE Quota</span><span className="font-bold">{a.rteQuota ? "Yes" : "No"}</span></div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                    <Card className="border-border/80 shadow-xs">
+                      <CardHeader><CardTitle className="text-base font-bold flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-primary" />2. Parents Details</CardTitle></CardHeader>
+                      <CardContent className="space-y-3 text-xs">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div className="p-3 rounded-xl bg-blue-50/50 border space-y-1"><span className="text-muted-foreground block">Father</span><span className="font-bold block">{a.fatherName || "—"}</span><span className="block">{a.fatherQualification || ""} {a.fatherOccupation || ""}</span><span className="block font-mono">{a.fatherMobile || ""} {a.fatherEmail || ""}</span><span className="block">{a.fatherOrganization || ""} {a.fatherAnnualIncome || ""}</span></div>
+                          <div className="p-3 rounded-xl bg-pink-50/50 border space-y-1"><span className="text-muted-foreground block">Mother</span><span className="font-bold block">{a.motherName || "—"}</span><span className="block">{a.motherQualification || ""} {a.motherOccupation || ""}</span><span className="block font-mono">{a.motherMobile || ""} {a.motherEmail || ""}</span><span className="block">{a.motherOrganization || ""} {a.motherAnnualIncome || ""}</span></div>
+                        </div>
+                        {a.guardianName && <div className="p-3 rounded-xl bg-amber-50 border"><span className="text-muted-foreground block">Guardian</span><span className="font-bold">{a.guardianName} ({a.guardianRelation || ""})</span> <span className="font-mono">{a.guardianContact || ""} {a.guardianEmail || ""}</span></div>}
+                        <div className="p-3 rounded-xl bg-muted/30 border space-y-1"><span className="text-muted-foreground block">Legacy Primary Guardian</span><span className="font-bold">{a.parentName} ({a.parentRelationship})</span><span className="block font-mono">{a.parentEmail} • {a.parentPhone}</span></div>
+                      </CardContent>
+                    </Card>
+                    <Card className="border-border/80 shadow-xs">
+                      <CardHeader><CardTitle className="text-base font-bold flex items-center gap-2"><MapPin className="h-4 w-4 text-primary" />3. Contact & Address</CardTitle></CardHeader>
+                      <CardContent className="space-y-3 text-xs">
+                        <div className="p-3 rounded-xl bg-muted/40 border"><span className="text-muted-foreground block">Present Address</span><span className="font-medium">{[a.presentHouseNo, a.presentStreet, a.presentArea, a.city, a.presentDistrict, a.state, a.postalCode].filter(Boolean).join(", ") || a.address || "—"}</span></div>
+                        <div className="p-3 rounded-xl bg-muted/40 border"><span className="text-muted-foreground block">Permanent Address {a.permanentSameAsPresent ? "(Same as Present)" : ""}</span><span className="font-medium">{a.permanentSameAsPresent ? "Same as Present" : [a.permanentHouseNo, a.permanentStreet, a.permanentArea, a.permanentCity, a.permanentDistrict, a.permanentState, a.permanentPostalCode].filter(Boolean).join(", ") || "—"}</span></div>
+                        <div className="p-3 rounded-xl bg-muted/40 border"><span className="text-muted-foreground block">Emergency Contact</span><span className="font-bold">{a.emergencyContactName || "—"} • {a.emergencyContactPhone || ""} {a.emergencyContactRelation ? `(${a.emergencyContactRelation})` : ""}</span></div>
+                      </CardContent>
+                    </Card>
+                    <Card className="border-border/80 shadow-xs">
+                      <CardHeader><CardTitle className="text-base font-bold flex items-center gap-2"><FileText className="h-4 w-4 text-primary" />4. Previous Academic</CardTitle></CardHeader>
+                      <CardContent className="space-y-2 text-xs">
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="p-3 rounded-xl bg-muted/40 border"><span className="text-muted-foreground block">Previous School</span><span className="font-bold">{a.previousSchool || "—"} {a.previousSchoolLocation ? `(${a.previousSchoolLocation})` : ""}</span></div>
+                          <div className="p-3 rounded-xl bg-muted/40 border"><span className="text-muted-foreground block">Board</span><span className="font-bold">{a.board || "—"}</span></div>
+                          <div className="p-3 rounded-xl bg-muted/40 border"><span className="text-muted-foreground block">Last Class Attended/Passed</span><span className="font-bold">{a.lastClassAttended || "—"} / {a.lastClassPassed || "—"}</span></div>
+                          <div className="p-3 rounded-xl bg-muted/40 border"><span className="text-muted-foreground block">Percentage / Medium</span><span className="font-bold">{a.percentageGrade || "—"} • {a.mediumOfInstruction || "—"}</span></div>
+                        </div>
+                        <div className="p-3 rounded-xl bg-muted/40 border"><span className="text-muted-foreground block">Reason for Leaving</span><span>{a.reasonForLeaving || "—"}</span></div>
+                      </CardContent>
+                    </Card>
+                    <Card className="border-border/80 shadow-xs">
+                      <CardHeader><CardTitle className="text-base font-bold flex items-center gap-2"><Building2 className="h-4 w-4 text-primary" />5. School Services</CardTitle></CardHeader>
+                      <CardContent className="space-y-2 text-xs">
+                        <div className="p-3 rounded-xl bg-muted/40 border"><span className="text-muted-foreground block">Transport Required</span><span className="font-bold">{a.transportRequired ? `Yes — ${a.busStop || ""} ${a.pickupRoute ? `(${a.pickupRoute})` : ""}` : "No"}</span></div>
+                        <div className="p-3 rounded-xl bg-muted/40 border"><span className="text-muted-foreground block">Sibling</span><span className="font-bold">{a.siblingName ? `${a.siblingName} (${a.siblingClass || ""} ${a.siblingAdmissionNo || ""}) ${a.siblingCategory || ""}` : "—"}</span></div>
+                        <div className="p-3 rounded-xl bg-muted/40 border"><span className="text-muted-foreground block">Health</span><span>{a.allergies ? `Allergies: ${a.allergies}` : "Allergies: —"} • {a.chronicIllness ? `Chronic: ${a.chronicIllness}` : ""} {a.specialNeeds ? `• Special Needs: ${a.specialNeedsDetails || "Yes"}` : ""}</span></div>
+                        <div className="p-3 rounded-xl bg-muted/40 border"><span className="text-muted-foreground block">Declaration</span><span>{a.declarationAccepted ? `Accepted at ${a.declarationPlace || ""} on ${formatDate(a.declarationDate || "")}` : "—"} {a.signatureUrl ? "• Signature uploaded" : ""}</span>{a.signatureUrl && <a href={a.signatureUrl} target="_blank" rel="noreferrer" className="text-primary underline block">View Signature</a>}</div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                  <div className="lg:col-span-5 space-y-6">
+                    <Card className="border-border/80 shadow-xs">
+                      <CardHeader><CardTitle className="text-base font-bold flex items-center gap-2"><FileText className="h-4 w-4 text-primary" />Documents (from Admission)</CardTitle><CardDescription className="text-xs">Verified status from admission dossier</CardDescription></CardHeader>
+                      <CardContent className="space-y-3">
+                        {(a.documents || []).length === 0 ? <p className="text-xs text-muted-foreground">No documents attached at admission time.</p> : a.documents.map((doc: any) => (
+                          <div key={doc.uuid || doc.id} className={`flex items-center justify-between p-3 rounded-xl border ${doc.verified ? "bg-emerald-500/10 border-emerald-500/30" : "bg-card border-border/70"}`}>
+                            <div className="min-w-0"><span className="text-xs font-semibold block truncate">{doc.name}</span><span className="text-[10px] text-muted-foreground">{doc.submitted ? "Attached" : "Missing"} • {doc.verified ? "Verified" : "Pending"}</span>{doc.fileUrl && <a href={doc.fileUrl} target="_blank" rel="noreferrer" className="text-[10px] text-primary hover:underline block truncate">View on Cloudinary</a>}</div>
+                            <Badge variant={doc.verified ? "success" as any : "outline"} className="text-[10px]">{doc.verified ? "Verified" : "Pending"}</Badge>
+                          </div>
+                        ))}
+                      </CardContent>
+                    </Card>
+                    {a.avatar && <Card className="border-border/80"><CardContent className="p-4 flex items-center gap-3"><img src={a.avatar} alt="avatar" className="h-16 w-16 rounded-xl object-cover ring-1 ring-border" /><div><p className="text-xs font-semibold">Admission Photo</p><p className="text-[11px] text-muted-foreground">Cloudinary</p><a href={a.avatar} target="_blank" rel="noreferrer" className="text-xs text-primary underline">View</a></div></CardContent></Card>}
+                  </div>
+                </div>
+              );
+            })()
+          )}
         </TabsContent>
 
         {/* Tab 2: Academic History */}
@@ -302,7 +405,12 @@ export default function StudentDetailPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {student.academicHistory.map((rec, index) => (
+              {student.academicHistory.length === 0 ? (
+                <div className="p-8 text-center space-y-2 border border-dashed rounded-xl">
+                  <p className="text-sm font-semibold text-foreground">No academic history yet</p>
+                  <p className="text-xs text-muted-foreground">No class completed — percentage/GPA will appear after exams are conducted and results published.</p>
+                </div>
+              ) : student.academicHistory.map((rec, index) => (
                 <div
                   key={index}
                   className="p-4 rounded-xl border border-border/70 bg-card space-y-2 hover:border-primary/40 transition-colors"
@@ -311,11 +419,11 @@ export default function StudentDetailPage() {
                     <div>
                       <h4 className="text-sm font-bold text-foreground">{rec.term}</h4>
                       <span className="text-xs text-muted-foreground">
-                        Class Rank #{rec.rank} • Overall Score: {rec.percentage}%
+                        {rec.percentage > 0 ? <>Class Rank #{rec.rank} • Overall Score: {rec.percentage}%</> : <>No score yet</>}
                       </span>
                     </div>
-                    <Badge variant="success" className="text-xs font-mono font-bold">
-                      GPA: {rec.gpa} ({rec.grade})
+                    <Badge variant={rec.percentage > 0 ? "success" : "outline"} className="text-xs font-mono font-bold">
+                      {rec.percentage > 0 ? `GPA: ${rec.gpa} (${rec.grade})` : "—"}
                     </Badge>
                   </div>
                   <p className="text-xs text-muted-foreground leading-relaxed pt-1 border-t border-border/40">

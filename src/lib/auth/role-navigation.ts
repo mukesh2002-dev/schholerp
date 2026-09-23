@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
   LayoutDashboard,
@@ -46,7 +46,7 @@ export interface RoleNavSubItem {
   icon?: React.ElementType;
   badge?: string;
   allowedRoles?: StaffRole[];
-  /** Backend module key — when set, the item is hidden unless the backend
+  /** Backend module key â€” when set, the item is hidden unless the backend
    *  grants this module to the user's role (dynamic sidebar from /auth/me). */
   moduleKey?: string;
 }
@@ -60,7 +60,7 @@ export interface RoleNavItem {
   allowedRoles?: StaffRole[];
   /** Backend feature flag key - if set, item is hidden when flag is disabled (ADMIN dynamic toggle). */
   featureKey?: string;
-  /** Backend module key — when set, the item is hidden unless the backend
+  /** Backend module key â€” when set, the item is hidden unless the backend
    *  grants this module to the user's role (dynamic sidebar from /auth/me). */
   moduleKey?: string;
   children?: RoleNavSubItem[];
@@ -113,15 +113,17 @@ export const ROLE_NAV_GROUPS: RoleNavGroup[] = [
         moduleKey: "students",
       },
       {
-        title: "Classes & Sections",
-        href: "/classes",
-        icon: BookOpen,
+        title: "Academic Structure",
+        href: "/academics",
+        icon: Layers,
+        badge: "Classes â†’ Topics",
         allowedRoles: LEADERSHIP,
         featureKey: "academics",
         moduleKey: "academics",
         children: [
-          { title: "All Classes", href: "/classes", icon: BookOpen, moduleKey: "academics" },
-          { title: "Subjects & Topics", href: "/subjects", icon: Layers, moduleKey: "academics" },
+          { title: "Structure Overview", href: "/academics", icon: Layers, moduleKey: "academics" },
+          { title: "Classes & Sections", href: "/classes", icon: Layers, moduleKey: "academics" },
+          { title: "Subjects & Topics", href: "/subjects", icon: BookMarked, moduleKey: "academics" },
         ],
       },
       {
@@ -276,7 +278,7 @@ export const ROLE_NAV_GROUPS: RoleNavGroup[] = [
  *    provided, items with a `moduleKey` are only shown if the backend granted
  *    that module to the user's role. Without a sidebar (offline/demo) the
  *    role gate alone decides.
- *  - Unknown roles are NOT promoted to ADMIN — they get no navigation. */
+ *  - Unknown roles are NOT promoted to ADMIN â€” they get no navigation. */
 export function getNavForRole(
   role: Role | StaffRole | undefined,
   opts?: { isFeatureEnabled?: (key: string) => boolean; allowedModules?: string[] }
@@ -315,7 +317,7 @@ export function getNavForRole(
   })).filter((group) => group.items.length > 0);
 }
 
-/** First route a role is allowed to visit — used after login redirects. */
+/** First route a role is allowed to visit â€” used after login redirects. */
 export function getLandingPageForRole(
   role: Role | StaffRole | undefined,
   opts?: { isFeatureEnabled?: (key: string) => boolean; allowedModules?: string[] }
@@ -324,7 +326,7 @@ export function getLandingPageForRole(
   return nav[0]?.items[0]?.href ?? "/";
 }
 
-/** Guard helper — is `role` allowed to visit `pathname`? */
+/** Guard helper â€” is `role` allowed to visit `pathname`? */
 export function canRoleAccessPath(
   role: Role | StaffRole | undefined,
   pathname: string,
@@ -337,8 +339,9 @@ export function canRoleAccessPath(
     group.items.some((item) => {
       const base = item.href.split("?")[0];
       if (base === "/" ? cleanPath === "/" : cleanPath === base || cleanPath.startsWith(base + "/")) return true;
-      if (item.children) return item.children.some((c) => cleanPath === c.href.split("?")[0]);
+      if (item.children) return item.children.some((c) => { const cb = c.href.split("?")[0]; return cleanPath === cb || cleanPath.startsWith(cb + "/"); });
       return false;
     })
   );
 }
+

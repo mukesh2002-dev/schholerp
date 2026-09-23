@@ -1,160 +1,135 @@
 "use client";
 
-import React, { useEffect, useRef } from "react";
-import { useERP } from "@/components/providers/erp-provider";
-import { ClassRoom, Subject } from "@/types";
+import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import * as z from "zod";
+import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Layers } from "lucide-react";
-import { toast } from "sonner";
-import { fetchClasses, createSubjectApi, updateSubjectApi } from "@/lib/api/classes";
-import { fetchStaffDirectory } from "@/lib/api/hr";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { createSubjectApi, updateSubjectApi } from "@/lib/api/classes";
+import { useERP } from "@/components/providers/erp-provider";
 import { ApiError } from "@/lib/api/client";
+import { Layers } from "lucide-react";
+
+const subjectSchema = z.object({
+  name: z.string().min(1, "Subject name is required (e.g. Mathematics)"),
+  code: z.string().min(1, "Subject code is required (e.g. MATH-10)"),
+  subjectType: z.enum(["THEORY", "PRACTICAL", "BOTH"]).default("THEORY"),
+  maxMarks: z.coerce.number().min(1).default(100),
+  passingMarks: z.coerce.number().min(0).default(33),
+  description: z.string().optional(),
+});
+
+type SubjectFormValues = z.infer<typeof subjectSchema>;
 
 interface SubjectFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSuccess?: () => void;
   initialClassId?: string;
-  editingSubject?: (Subject & { classId: string }) | null;
+  editingSubject?: any | null;
+  onSuccess?: () => void;
 }
 
-interface TeacherOption {
-  id: string;
-  fullName: string;
-  department: string;
-}
-
-const schema = z.object({
-  classId: z.string().min(1, "Select class"),
-  name: z.string().min(2, "Subject name required"),
-  code: z.string().min(2, "Code required"),
-  teacherId: z.string().min(1, "Select teacher"),
-  weeklyPeriods: z.coerce.number().min(1).max(60),
-  credits: z.coerce.number().min(0).max(20).optional(),
-  description: z.string().optional(),
-});
-
-type Values = z.infer<typeof schema>;
-
-export function SubjectFormDialog({ open, onOpenChange, onSuccess, initialClassId, editingSubject }: SubjectFormDialogProps) {
+export function SubjectFormDialog({
+  open,
+  onOpenChange,
+  editingSubject,
+  onSuccess,
+}: SubjectFormDialogProps) {
   const { activeBranchId } = useERP();
-  const [classes, setClasses] = React.useState<ClassRoom[]>([]);
-  const [teachers, setTeachers] = React.useState<TeacherOption[]>([]);
-  const [loading, setLoading] = React.useState(false);
-  const [submitting, setSubmitting] = React.useState(false);
+  const isEditing = !!editingSubject;
+  const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    if (!open) return;
-    let cancelled = false;
-    setLoading(true);
-    (async () => {
-      try {
-        const cls = await fetchClasses({ campusId: activeBranchId });
-        if (!cancelled) setClasses(cls);
-      } catch {
-        // keep empty list — form stays usable with no preselect
-      }
-      try {
-        const dir = await fetchStaffDirectory({ campusId: activeBranchId, role: "teacher" });
-        if (!cancelled) {
-          setTeachers(
-            dir.data.map((u) => ({
-              id: u.uuid,
-              fullName: u.name,
-              department: "Teaching Staff",
-            }))
-          );
-        }
-      } catch {
-        // offline: teacher dropdown will just be empty
-      }
-      if (!cancelled) setLoading(false);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [open, activeBranchId]);
-
-  const { register, handleSubmit, setValue, watch, reset, formState: { errors } } = useForm<Values>({
-    resolver: zodResolver(schema),
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    reset,
+    formState: { errors },
+  } = useForm<SubjectFormValues>({
+    resolver: zodResolver(subjectSchema),
     defaultValues: {
-      classId: initialClassId || classes[0]?.id || "",
       name: "",
       code: "",
-      teacherId: "",
-      weeklyPeriods: 4,
-      credits: 4,
+      subjectType: "THEORY",
+      maxMarks: 100,
+      passingMarks: 33,
       description: "",
     },
   });
 
-  const classId = watch("classId");
-  const teacherId = watch("teacherId");
-
-  // Keep the latest values readable from the reset effect without putting the
-  // arrays in its deps (that caused "Maximum update depth exceeded" loops).
-  const classesRef = useRef(classes);
-  classesRef.current = classes;
-  const teachersRef = useRef(teachers);
-  teachersRef.current = teachers;
+  const subjectType = watch("subjectType");
 
   useEffect(() => {
-    if (!open) return;
-    if (editingSubject) {
-      reset({
-        classId: editingSubject.classId,
-        name: editingSubject.name,
-        code: editingSubject.code,
-        teacherId: editingSubject.teacherId,
-        weeklyPeriods: editingSubject.weeklyPeriods,
-        credits: editingSubject.credits ?? 4,
-        description: editingSubject.description || "",
-      });
-    } else {
-      reset({
-        classId: initialClassId || classesRef.current[0]?.id || "",
-        name: "",
-        code: "",
-        teacherId: teachersRef.current[0]?.id || "",
-        weeklyPeriods: 4,
-        credits: 4,
-        description: "",
-      });
+    if (open) {
+      if (editingSubject) {
+        reset({
+          name: editingSubject.name || "",
+          code: editingSubject.code || "",
+          subjectType: (editingSubject.subjectType || editingSubject.type || "THEORY") as any,
+          maxMarks: editingSubject.maxMarks || 100,
+          passingMarks: editingSubject.passingMarks || 33,
+          description: editingSubject.description || "",
+        });
+      } else {
+        reset({
+          name: "",
+          code: "",
+          subjectType: "THEORY",
+          maxMarks: 100,
+          passingMarks: 33,
+          description: "",
+        });
+      }
     }
-  }, [open, editingSubject, initialClassId, reset]);
+  }, [open, editingSubject, reset]);
 
-  const onSubmit = async (data: Values) => {
+  const onSubmit = async (data: SubjectFormValues) => {
     setSubmitting(true);
     try {
-      const payload = {
+      const payload: Record<string, unknown> = {
         name: data.name.trim(),
         code: data.code.trim().toUpperCase(),
-        teacherId: data.teacherId,
-        weeklyPeriods: Number(data.weeklyPeriods),
-        credits: data.credits ? Number(data.credits) : undefined,
+        subjectType: data.subjectType,
+        maxMarks: Number(data.maxMarks),
+        passingMarks: Number(data.passingMarks),
         description: data.description?.trim() || null,
+        campusId: activeBranchId !== "all" ? activeBranchId : undefined,
       };
-      if (editingSubject) {
-        await updateSubjectApi(editingSubject.id, payload);
-        toast.success(`Subject "${data.name}" updated`);
+
+      if (isEditing && editingSubject) {
+        await updateSubjectApi(editingSubject.id || editingSubject.uuid, payload);
+        toast.success(`Subject "${data.name}" updated successfully`);
       } else {
-        await createSubjectApi({ ...payload, classId: data.classId, campusId: activeBranchId }, activeBranchId);
-        const className = classes.find((c) => c.id === data.classId)?.name ?? "this class";
-        toast.success(`Subject "${data.name}" added to ${className}`);
+        await createSubjectApi(payload, activeBranchId);
+        toast.success(`Subject "${data.name}" created in Subject Master`);
       }
+
       onOpenChange(false);
       onSuccess?.();
       window.dispatchEvent(new Event("subjects:refresh"));
       window.dispatchEvent(new Event("classes:refresh"));
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Failed to save subject. Try again.");
+      const msg = err instanceof ApiError ? err.message : "Failed to save subject";
+      toast.error(msg);
     } finally {
       setSubmitting(false);
     }
@@ -162,62 +137,90 @@ export function SubjectFormDialog({ open, onOpenChange, onSuccess, initialClassI
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-md p-6">
         <DialogHeader>
           <div className="flex items-center gap-2">
-            <div className="h-10 w-10 rounded-xl bg-violet-500/10 text-violet-600 flex items-center justify-center">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-500/10 text-purple-600">
               <Layers className="h-5 w-5" />
             </div>
             <div>
-              <DialogTitle>{editingSubject ? "Edit Subject" : "Add Subject"}</DialogTitle>
-              <DialogDescription>Class-wise subject — editable. Topics managed separately.</DialogDescription>
+              <DialogTitle className="text-xl font-bold">
+                {isEditing ? "Edit Subject Master" : "Add Subject Master"}
+              </DialogTitle>
+              <DialogDescription>
+                Reusable subject definition across multiple classes and sections.
+              </DialogDescription>
             </div>
           </div>
         </DialogHeader>
+
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-2">
           <div>
-            <label className="text-xs font-medium mb-1 block">Class *</label>
-            <Select value={classId} onValueChange={(v) => setValue("classId", v)} disabled={!!editingSubject || loading}>
-              <SelectTrigger className={errors.classId ? "border-rose-500" : ""}><SelectValue placeholder="Select class" /></SelectTrigger>
-              <SelectContent>
-                {loading && <SelectItem value="" disabled>Loading classes…</SelectItem>}
-                {classes.map((c) => <SelectItem key={c.id} value={c.id}>{c.name} — {c.branchName} ({c.subjects.length} subs)</SelectItem>)}
-              </SelectContent>
-            </Select>
-            {errors.classId && <p className="text-[11px] text-rose-500">{errors.classId.message}</p>}
-            {editingSubject && <p className="text-[11px] text-muted-foreground">Class cannot be changed while editing — delete & re-add to move.</p>}
+            <label className="text-xs font-medium text-foreground mb-1 block">
+              Subject Name <span className="text-rose-500">*</span>
+            </label>
+            <Input
+              {...register("name")}
+              placeholder="e.g. Mathematics, Science, English"
+              className={errors.name ? "border-rose-500" : ""}
+            />
+            {errors.name && <p className="text-[11px] text-rose-500 mt-1">{errors.name.message}</p>}
           </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-medium mb-1 block">Subject Name *</label>
-              <Input {...register("name")} placeholder="e.g. Mathematics" className={errors.name ? "border-rose-500" : ""} />
-              {errors.name && <p className="text-[11px] text-rose-500">{errors.name.message}</p>}
+              <label className="text-xs font-medium text-foreground mb-1 block">
+                Subject Code <span className="text-rose-500">*</span>
+              </label>
+              <Input
+                {...register("code")}
+                placeholder="e.g. MATH-10"
+                className={errors.code ? "border-rose-500" : ""}
+              />
+              {errors.code && <p className="text-[11px] text-rose-500 mt-1">{errors.code.message}</p>}
             </div>
             <div>
-              <label className="text-xs font-medium mb-1 block">Code *</label>
-              <Input {...register("code")} placeholder="MATH-10" className={errors.code ? "border-rose-500" : ""} />
-              {errors.code && <p className="text-[11px] text-rose-500">{errors.code.message}</p>}
+              <label className="text-xs font-medium text-foreground mb-1 block">Subject Type</label>
+              <Select value={subjectType} onValueChange={(val: any) => setValue("subjectType", val)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="THEORY">Theory</SelectItem>
+                  <SelectItem value="PRACTICAL">Practical</SelectItem>
+                  <SelectItem value="BOTH">Both (Theory & Lab)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-medium text-foreground mb-1 block">Max Marks</label>
+              <Input type="number" {...register("maxMarks", { valueAsNumber: true })} />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-foreground mb-1 block">Passing Marks</label>
+              <Input type="number" {...register("passingMarks", { valueAsNumber: true })} />
+            </div>
+          </div>
+
           <div>
-            <label className="text-xs font-medium mb-1 block">Teacher *</label>
-            <Select value={teacherId} onValueChange={(v) => setValue("teacherId", v)}>
-              <SelectTrigger className={errors.teacherId ? "border-rose-500" : ""}><SelectValue placeholder="Select teacher" /></SelectTrigger>
-              <SelectContent>
-                {loading && <SelectItem value="" disabled>Loading teachers…</SelectItem>}
-                {teachers.map((t) => <SelectItem key={t.id} value={t.id}>{t.fullName} — {t.department}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            {errors.teacherId && <p className="text-[11px] text-rose-500">{errors.teacherId.message}</p>}
+            <label className="text-xs font-medium text-foreground mb-1 block">Description (Optional)</label>
+            <Textarea
+              {...register("description")}
+              placeholder="Curriculum overview, prescribed textbook, syllabus details..."
+              rows={2}
+            />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div><label className="text-xs font-medium mb-1 block">Weekly Periods</label><Input type="number" {...register("weeklyPeriods")} /></div>
-            <div><label className="text-xs font-medium mb-1 block">Credits</label><Input type="number" {...register("credits")} /></div>
-          </div>
-          <div><label className="text-xs font-medium mb-1 block">Description</label><Textarea {...register("description")} rows={2} placeholder="Optional — syllabus brief" /></div>
+
           <DialogFooter className="gap-2 pt-2">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button type="submit" disabled={submitting} variant="gradient">{submitting ? "Saving..." : editingSubject ? "Update Subject" : "Add Subject"}</Button>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={submitting} variant="gradient">
+              {submitting ? "Saving..." : isEditing ? "Update Subject" : "Create Subject"}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

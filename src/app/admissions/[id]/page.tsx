@@ -88,11 +88,12 @@ export default function AdmissionDetailPage() {
     if (!applicationId) return;
     setLoading(true);
     try {
-      const [appData, clsData] = await Promise.all([
-        fetchAdmissionById(applicationId),
-        fetchClasses(),
-      ]);
+      const appData = await fetchAdmissionById(applicationId);
       setApplication(appData);
+      // Fetch classes scoped to the applicant's campus - not all campuses (dropdown bug fix)
+      // Fallback to active branch if application not yet loaded.
+      const campusForClasses = (appData as any)?.branchId || undefined;
+      const clsData = await fetchClasses({ campusId: campusForClasses });
       setClasses(clsData);
     } catch {
       setApplication(null);
@@ -119,14 +120,20 @@ export default function AdmissionDetailPage() {
   const selectedSectionId = watch("sectionId");
 
   // Fresh defaults every time the enroll modal opens.
+  // FIX: auto-select class that matches gradeApplied (e.g. "Class 1") instead of always classes[0]
+  // This was the "sahi data nhi aata" bug - modal showed wrong class for applicant.
   React.useEffect(() => {
-    if (enrollModalOpen) {
-      reset({
-        classId: classes[0]?.id || "",
-        sectionId: classes[0]?.sections[0]?.id || "",
-      });
-    }
-  }, [enrollModalOpen, reset, classes]);
+    if (!enrollModalOpen || !application) return;
+    if (classes.length === 0) return;
+    const grade = String((application as any).gradeApplied || "").trim();
+    const exact = classes.find((c) => c.name === grade);
+    const fuzzy = classes.find((c) => c.name.toLowerCase().includes(grade.toLowerCase()) || grade.toLowerCase().includes(c.name.toLowerCase()));
+    const preferred = exact || fuzzy || classes[0];
+    reset({
+      classId: preferred?.id || "",
+      sectionId: preferred?.sections[0]?.id || "",
+    });
+  }, [enrollModalOpen, reset, classes, application]);
 
   if (loading) {
     return (
@@ -195,12 +202,16 @@ export default function AdmissionDetailPage() {
     try {
       // Single approve → enroll call: lean student + enrollment are created and
       // enrolledStudentId is linked, so this admission never repeats in lists.
+      // Backend accepts both classId and classUuid — send classUuid alias for compatibility
       const sectionName =
         targetClass?.sections.find((s) => s.id === values.sectionId)?.name ?? values.sectionId;
+      // Strip synthetic suffix "Section " if backend expects just "A"
+      const cleanSection = sectionName.replace(/^Section\s+/i, "").trim() || sectionName;
       const result = await approveAdmissionApi(application.id, {
         classId: values.classId,
-        section: sectionName,
-      });
+        classUuid: values.classId,
+        section: cleanSection,
+      } as any);
       setEnrollModalOpen(false);
       toast.success("Student enrolled", { description: `${application.applicantFullName} • ${result.student.admissionNo}` });
       await loadAdmission();
@@ -324,131 +335,79 @@ export default function AdmissionDetailPage() {
         </div>
       </div>
 
-      {/* Grid: Candidate Profile & Document Verification */}
+      {/* Grid: Full Dossier per rules.md §1-3 — every field from 8-section form */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Column: Candidate & Previous Schooling */}
         <div className="lg:col-span-7 space-y-6">
-          {/* Candidate Personal Details */}
+          {/* 1. Student Details */}
           <Card className="border-border/80 shadow-xs">
-            <CardHeader>
-              <CardTitle className="text-base font-bold flex items-center gap-2">
-                <GraduationCap className="h-4 w-4 text-primary" />
-                Applicant Background & Academic Dossier
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4 text-xs">
+            <CardHeader><CardTitle className="text-base font-bold flex items-center gap-2"><GraduationCap className="h-4 w-4 text-primary" />1. Student Details</CardTitle></CardHeader>
+            <CardContent className="space-y-3 text-xs">
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                <div className="p-3 rounded-xl bg-muted/40 border border-border/60">
-                  <span className="text-muted-foreground block mb-0.5">Date of Birth</span>
-                  <span className="font-bold text-foreground text-sm">{formatDate(application.dateOfBirth)}</span>
-                </div>
-                <div className="p-3 rounded-xl bg-muted/40 border border-border/60">
-                  <span className="text-muted-foreground block mb-0.5">Gender</span>
-                  <span className="font-bold text-foreground text-sm">{application.gender}</span>
-                </div>
-                <div className="p-3 rounded-xl bg-muted/40 border border-border/60">
-                  <span className="text-muted-foreground block mb-0.5">Entrance Exam</span>
-                  <span className="font-bold text-emerald-600 dark:text-emerald-400 text-sm">
-                    {application.entranceTestScore ? `${application.entranceTestScore}%` : "Pending"}
-                  </span>
-                </div>
-              </div>
-
-              <div className="space-y-2 pt-2 border-t border-border/60">
-                <div className="flex items-center justify-between p-2 rounded-lg bg-card border border-border/60">
-                  <span className="text-muted-foreground">Previous School Attended:</span>
-                  <span className="font-semibold text-foreground">{application.previousSchool || "—"}</span>
-                </div>
-                <div className="flex items-center justify-between p-2 rounded-lg bg-card border border-border/60">
-                  <span className="text-muted-foreground">Previous Class & Percentage:</span>
-                    <span className="font-semibold text-foreground font-mono">
-                      {application.previousGrade || "—"} • {application.previousGpa || "—"}
-                  </span>
-                </div>
-              </div>
-
-              {/* Counselor Notes / Interview Remarks */}
-              <div className="p-4 rounded-xl bg-secondary/60 border border-border/60 space-y-1 mt-2">
-                <span className="font-bold text-foreground block">Interview Notes & Committee Remarks:</span>
-                <p className="text-muted-foreground leading-relaxed">
-                  {application.interviewFeedback ||
-                    "Candidate performed well in quantitative entrance evaluation. Recommended for Advanced Honors section."}
-                </p>
+                <div className="p-3 rounded-xl bg-muted/40 border"><span className="text-muted-foreground block">Full Name</span><span className="font-bold">{application.applicantFullName}{application.middleName ? ` (${application.middleName})` : ""}</span></div>
+                <div className="p-3 rounded-xl bg-muted/40 border"><span className="text-muted-foreground block">DOB / Gender</span><span className="font-bold">{formatDate(application.dateOfBirth)} • {application.gender}</span></div>
+                <div className="p-3 rounded-xl bg-muted/40 border"><span className="text-muted-foreground block">Blood Group</span><span className="font-bold">{(application as any).bloodGroup || "—"}</span></div>
+                <div className="p-3 rounded-xl bg-muted/40 border"><span className="text-muted-foreground block">Nationality</span><span className="font-bold">{(application as any).nationality || "—"}</span></div>
+                <div className="p-3 rounded-xl bg-muted/40 border"><span className="text-muted-foreground block">Religion / Category</span><span className="font-bold">{application.religion || "—"} / {application.category || "—"}</span></div>
+                <div className="p-3 rounded-xl bg-muted/40 border"><span className="text-muted-foreground block">Mother Tongue</span><span className="font-bold">{application.motherTongue || "—"}</span></div>
+                <div className="p-3 rounded-xl bg-muted/40 border"><span className="text-muted-foreground block">Aadhaar</span><span className="font-mono font-bold">{application.aadhaarNumber || "—"}</span></div>
+                <div className="p-3 rounded-xl bg-muted/40 border"><span className="text-muted-foreground block">Grade / Year</span><span className="font-bold">{application.gradeApplied} • {application.academicYear}</span></div>
+                <div className="p-3 rounded-xl bg-muted/40 border"><span className="text-muted-foreground block">RTE Quota</span><span className="font-bold">{application.rteQuota ? "Yes" : "No"}</span></div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Admission Details — every field filled during input */}
+          {/* 2. Parents */}
           <Card className="border-border/80 shadow-xs">
-            <CardHeader>
-              <CardTitle className="text-base font-bold flex items-center gap-2">
-                <FileText className="h-4 w-4 text-primary" />
-                Admission Details
-              </CardTitle>
-              <CardDescription>Exactly as filled during application input.</CardDescription>
-            </CardHeader>
-            <CardContent className="text-xs">
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                <div className="p-3 rounded-xl bg-muted/40 border border-border/60">
-                  <span className="text-muted-foreground block mb-0.5">Grade Applied</span>
-                  <span className="font-bold text-foreground text-sm">{application.gradeApplied || "—"}</span>
-                </div>
-                <div className="p-3 rounded-xl bg-muted/40 border border-border/60">
-                  <span className="text-muted-foreground block mb-0.5">Category</span>
-                  <span className="font-bold text-foreground text-sm">{application.category || "—"}</span>
-                </div>
-                <div className="p-3 rounded-xl bg-muted/40 border border-border/60">
-                  <span className="text-muted-foreground block mb-0.5">Board</span>
-                  <span className="font-bold text-foreground text-sm">{application.board || "—"}</span>
-                </div>
-                <div className="p-3 rounded-xl bg-muted/40 border border-border/60">
-                  <span className="text-muted-foreground block mb-0.5">Previous GPA</span>
-                  <span className="font-bold text-foreground text-sm">{application.previousGpa || "—"}</span>
-                </div>
-                <div className="p-3 rounded-xl bg-muted/40 border border-border/60">
-                  <span className="text-muted-foreground block mb-0.5">RTE Quota</span>
-                  <span className="font-bold text-foreground text-sm">{application.rteQuota ? "Yes" : "No"}</span>
-                </div>
-                <div className="p-3 rounded-xl bg-muted/40 border border-border/60">
-                  <span className="text-muted-foreground block mb-0.5">Interview Date</span>
-                  <span className="font-bold text-foreground text-sm">{application.interviewDate ? formatDate(application.interviewDate) : "—"}</span>
-                </div>
-              </div>
-              <div className="mt-3 p-3 rounded-xl bg-muted/40 border border-border/60 flex items-center justify-between gap-2">
-                <span className="text-muted-foreground">Aadhaar Number</span>
-                <span className="font-semibold text-foreground font-mono">{application.aadhaarNumber || "—"}</span>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Parent & Guardian Contact Card */}
-          <Card className="border-border/80 shadow-xs">
-            <CardHeader>
-              <CardTitle className="text-base font-bold flex items-center gap-2">
-                <ShieldCheck className="h-4 w-4 text-primary" />
-                Parent & Guardian Contact Information
-              </CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle className="text-base font-bold flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-primary" />2. Parents Details</CardTitle></CardHeader>
             <CardContent className="space-y-3 text-xs">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="p-3 rounded-xl bg-muted/30 border border-border/60 space-y-1">
-                  <span className="text-muted-foreground block">Primary Guardian</span>
-                  <span className="font-bold text-foreground text-sm">{application.parentName}</span>
-                  <span className="text-muted-foreground block">{application.parentRelationship}</span>
-                </div>
-                <div className="p-3 rounded-xl bg-muted/30 border border-border/60 space-y-1">
-                  <span className="text-muted-foreground block">Email & Phone</span>
-                  <span className="font-semibold text-foreground block font-mono">{application.parentEmail}</span>
-                  <span className="text-muted-foreground block font-mono">{application.parentPhone}</span>
-                </div>
+                <div className="p-3 rounded-xl bg-blue-50/50 border space-y-1"><span className="text-muted-foreground block">Father</span><span className="font-bold block">{(application as any).fatherName || "—"}</span><span className="block">{(application as any).fatherQualification || ""} {(application as any).fatherOccupation || ""}</span><span className="block font-mono">{(application as any).fatherMobile || ""} {(application as any).fatherEmail || ""}</span><span className="block">{(application as any).fatherOrganization || ""} {(application as any).fatherAnnualIncome || ""}</span></div>
+                <div className="p-3 rounded-xl bg-pink-50/50 border space-y-1"><span className="text-muted-foreground block">Mother</span><span className="font-bold block">{(application as any).motherName || "—"}</span><span className="block">{(application as any).motherQualification || ""} {(application as any).motherOccupation || ""}</span><span className="block font-mono">{(application as any).motherMobile || ""} {(application as any).motherEmail || ""}</span><span className="block">{(application as any).motherOrganization || ""} {(application as any).motherAnnualIncome || ""}</span></div>
               </div>
+              {((application as any).guardianName) && (
+                <div className="p-3 rounded-xl bg-amber-50 border"><span className="text-muted-foreground block">Guardian</span><span className="font-bold">{(application as any).guardianName} ({(application as any).guardianRelation || ""})</span> <span className="font-mono">{(application as any).guardianContact || ""} {(application as any).guardianEmail || ""}</span></div>
+              )}
+              <div className="p-3 rounded-xl bg-muted/30 border space-y-1">
+                <span className="text-muted-foreground block">Legacy Primary Guardian (backward compat)</span>
+                <span className="font-bold">{application.parentName} ({application.parentRelationship})</span>
+                <span className="block font-mono">{application.parentEmail} • {application.parentPhone}</span>
+              </div>
+            </CardContent>
+          </Card>
 
-              <div className="flex items-center gap-2 p-2 rounded-lg bg-card border border-border/60 text-muted-foreground">
-                <MapPin className="h-4 w-4 text-primary shrink-0" />
-                <span>
-                  {application.address}, {application.city}, {application.state} {application.postalCode}
-                </span>
+          {/* 3. Address */}
+          <Card className="border-border/80 shadow-xs">
+            <CardHeader><CardTitle className="text-base font-bold flex items-center gap-2"><MapPin className="h-4 w-4 text-primary" />3. Contact & Address</CardTitle></CardHeader>
+            <CardContent className="space-y-3 text-xs">
+              <div className="p-3 rounded-xl bg-muted/40 border"><span className="text-muted-foreground block">Present Address</span><span className="font-medium">{[(application as any).presentHouseNo, (application as any).presentStreet, (application as any).presentArea, application.city, (application as any).presentDistrict, application.state, application.postalCode].filter(Boolean).join(", ") || application.address || "—"}</span></div>
+              <div className="p-3 rounded-xl bg-muted/40 border"><span className="text-muted-foreground block">Permanent Address { (application as any).permanentSameAsPresent ? "(Same as Present)" : ""}</span><span className="font-medium">{(application as any).permanentSameAsPresent ? "Same as Present" : [(application as any).permanentHouseNo, (application as any).permanentStreet, (application as any).permanentArea, (application as any).permanentCity, (application as any).permanentDistrict, (application as any).permanentState, (application as any).permanentPostalCode].filter(Boolean).join(", ") || "—"}</span></div>
+              <div className="p-3 rounded-xl bg-muted/40 border"><span className="text-muted-foreground block">Emergency Contact</span><span className="font-bold">{(application as any).emergencyContactName || "—"} • {(application as any).emergencyContactPhone || ""} {(application as any).emergencyContactRelation ? `(${(application as any).emergencyContactRelation})` : ""}</span></div>
+            </CardContent>
+          </Card>
+
+          {/* 4. Previous Academic */}
+          <Card className="border-border/80 shadow-xs">
+            <CardHeader><CardTitle className="text-base font-bold flex items-center gap-2"><FileText className="h-4 w-4 text-primary" />4. Previous Academic</CardTitle></CardHeader>
+            <CardContent className="space-y-2 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 rounded-xl bg-muted/40 border"><span className="text-muted-foreground block">Previous School</span><span className="font-bold">{application.previousSchool || "—"} {(application as any).previousSchoolLocation ? `(${(application as any).previousSchoolLocation})` : ""}</span></div>
+                <div className="p-3 rounded-xl bg-muted/40 border"><span className="text-muted-foreground block">Board</span><span className="font-bold">{application.board || "—"}</span></div>
+                <div className="p-3 rounded-xl bg-muted/40 border"><span className="text-muted-foreground block">Last Class Attended/Passed</span><span className="font-bold">{(application as any).lastClassAttended || "—"} / {(application as any).lastClassPassed || "—"}</span></div>
+                <div className="p-3 rounded-xl bg-muted/40 border"><span className="text-muted-foreground block">Percentage / Medium</span><span className="font-bold">{(application as any).percentageGrade || "—"} • {(application as any).mediumOfInstruction || "—"}</span></div>
               </div>
+              <div className="p-3 rounded-xl bg-muted/40 border"><span className="text-muted-foreground block">Reason for Leaving</span><span>{(application as any).reasonForLeaving || "—"}</span></div>
+              <div className="p-3 rounded-xl bg-muted/40 border"><span className="text-muted-foreground block">Previous Grade/GPA (legacy)</span><span>{application.previousGrade || "—"} • {application.previousGpa || "—"}</span></div>
+            </CardContent>
+          </Card>
+
+          {/* 5. Services */}
+          <Card className="border-border/80 shadow-xs">
+            <CardHeader><CardTitle className="text-base font-bold flex items-center gap-2"><Building2 className="h-4 w-4 text-primary" />5. School Services</CardTitle></CardHeader>
+            <CardContent className="space-y-2 text-xs">
+              <div className="p-3 rounded-xl bg-muted/40 border"><span className="text-muted-foreground block">Transport Required</span><span className="font-bold">{(application as any).transportRequired ? `Yes — ${(application as any).busStop || ""} ${(application as any).pickupRoute ? `(${(application as any).pickupRoute})` : ""}` : "No"}</span></div>
+              <div className="p-3 rounded-xl bg-muted/40 border"><span className="text-muted-foreground block">Sibling</span><span className="font-bold">{(application as any).siblingName ? `${(application as any).siblingName} (${(application as any).siblingClass || ""} ${(application as any).siblingAdmissionNo || ""}) ${(application as any).siblingCategory || ""}` : "—"}</span></div>
+              <div className="p-3 rounded-xl bg-muted/40 border"><span className="text-muted-foreground block">Health (if any)</span><span>{(application as any).allergies ? `Allergies: ${(application as any).allergies}` : "Allergies: —"} • {(application as any).chronicIllness ? `Chronic: ${(application as any).chronicIllness}` : ""} {(application as any).specialNeeds ? `• Special Needs: ${(application as any).specialNeedsDetails || "Yes"}` : ""}</span></div>
+              <div className="p-3 rounded-xl bg-muted/40 border"><span className="text-muted-foreground block">Declaration</span><span>{(application as any).declarationAccepted ? `Accepted at ${(application as any).declarationPlace || ""} on ${formatDate((application as any).declarationDate || "")}` : "—"} {(application as any).signatureUrl ? "• Signature uploaded" : ""}</span>{(application as any).signatureUrl && <a href={(application as any).signatureUrl} target="_blank" rel="noreferrer" className="text-primary underline block">View Signature</a>}</div>
             </CardContent>
           </Card>
         </div>
@@ -556,13 +515,25 @@ export default function AdmissionDetailPage() {
                 <SelectTrigger>
                   <SelectValue placeholder="Select Class" />
                 </SelectTrigger>
-                <SelectContent>
+                {/* <SelectContent>
                   {classes.map((c) => (
                     <SelectItem key={c.id} value={c.id}>
                       {c.name} ({c.branchName})
                     </SelectItem>
                   ))}
-                </SelectContent>
+                </SelectContent> */}
+                <SelectContent
+  position="popper"
+  side="bottom"
+  sideOffset={4}
+  avoidCollisions={false}
+>
+  {classes.map((c) => (
+    <SelectItem key={c.id} value={c.id}>
+      {c.name} ({c.branchName})
+    </SelectItem>
+  ))}
+</SelectContent>
               </Select>
               {errors.classId && <p className="text-xs text-destructive mt-1">{errors.classId.message}</p>}
             </div>
@@ -576,13 +547,28 @@ export default function AdmissionDetailPage() {
                 <SelectTrigger>
                   <SelectValue placeholder="Select Section" />
                 </SelectTrigger>
-                <SelectContent>
+                {/* <SelectContent>
                   {targetClass?.sections.map((s) => (
                     <SelectItem key={s.id} value={s.id}>
-                      {s.name} (Teacher: {s.classTeacherName})
+                      {s.name}{s.classTeacherName && s.classTeacherName !== "—" ? ` — ${s.classTeacherName}` : ""}
                     </SelectItem>
                   ))}
-                </SelectContent>
+                </SelectContent> */}
+                <SelectContent
+  position="popper"
+  side="bottom"
+  sideOffset={4}
+  avoidCollisions={false}
+>
+  {targetClass?.sections.map((s) => (
+    <SelectItem key={s.id} value={s.id}>
+      {s.name}
+      {s.classTeacherName && s.classTeacherName !== "—"
+        ? ` — ${s.classTeacherName}`
+        : ""}
+    </SelectItem>
+  ))}
+</SelectContent>
               </Select>
               {errors.sectionId && <p className="text-xs text-destructive mt-1">{errors.sectionId.message}</p>}
             </div>
