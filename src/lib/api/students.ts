@@ -189,3 +189,14 @@ export async function fetchStudentById(id: string): Promise<Student | null> {
   } catch {}
   return null;
 }
+
+export async function bulkImportStudentsApi(rows: any[], campusId?: string | null) {
+  const res = await apiFetch<{
+    success: boolean;
+    total: number;
+    imported: number;
+    failed: number;
+    errors: { row: number; name: string; error: string }[];
+  }>('/students/bulk-import', { method: 'POST', body: JSON.stringify({ rows, campusId }) }, { campusId: campusId ?? undefined });
+  return (res as any);
+}

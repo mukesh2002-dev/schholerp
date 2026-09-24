@@ -181,3 +181,14 @@ export async function fetchDocumentExpiryReport(campusId?: string | null) {
   const res = await apiFetch<{ data: { expiring: any[]; expired: any[] } }>(`/staff/reports/expiry`, {}, { campusId: campusId ?? undefined });
   return (res as any).data;
 }
+
+export async function bulkImportStaffApi(rows: any[], campusId?: string | null) {
+  const res = await apiFetch<{
+    success: boolean;
+    total: number;
+    imported: number;
+    failed: number;
+    errors: { row: number; name: string; error: string }[];
+  }>('/staff/bulk-import', { method: 'POST', body: JSON.stringify({ rows, campusId }) }, { campusId: campusId ?? undefined });
+  return (res as any);
+}

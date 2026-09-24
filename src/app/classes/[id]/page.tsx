@@ -25,6 +25,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@
 import { EmptyState } from "@/components/ui/empty-state";
 import { toast } from "sonner";
 import {
+  UserCheck,
   ArrowLeft,
   GraduationCap,
   DoorClosed,
@@ -487,7 +488,14 @@ export default function ClassDetailPage() {
                       <div className="flex items-center justify-between">
                         <span>Class Teacher:</span>
                         <span className="font-medium text-foreground">
-                          {sec.classTeacher?.name || "Unassigned"}
+                          {sec.classTeacher?.name ? (
+                            <span className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded text-xs">
+                              <UserCheck className="h-3.5 w-3.5 shrink-0" />
+                              <span>{sec.classTeacher.name}</span>
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground italic">Unassigned</span>
+                          )}
                         </span>
                       </div>
                       <div className="flex items-center justify-between">

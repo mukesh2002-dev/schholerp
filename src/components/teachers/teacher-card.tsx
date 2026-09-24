@@ -17,6 +17,8 @@ import {
   Edit2,
   Building2,
   Award,
+  Layers,
+  GraduationCap,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -29,6 +31,7 @@ import { AppImage } from "@/components/ui/app-image";
 interface TeacherCardProps {
   teacher: Teacher;
   onEdit: (teacher: Teacher) => void;
+  onAssign?: (teacher: Teacher) => void;
 }
 
 function statusVariant(status: string) {
@@ -44,10 +47,11 @@ function statusVariant(status: string) {
   }
 }
 
-export const TeacherCard = React.memo(function TeacherCard({ teacher, onEdit }: TeacherCardProps) {
+export const TeacherCard = React.memo(function TeacherCard({ teacher, onEdit, onAssign }: TeacherCardProps) {
+  const hasAssignments = teacher.assignedClasses && teacher.assignedClasses.length > 0;
 
   return (
-    <Card className="group relative overflow-hidden border-border/80 hover:border-primary/40 transition-all duration-200 hover:shadow-md bg-card">
+    <Card className="group relative overflow-hidden border-border/80 hover:border-primary/50 transition-all duration-200 hover:shadow-lg bg-card">
       <CardContent className="p-5 space-y-4">
         {/* Header: Avatar, Name, Designation & Action Menu */}
         <div className="flex items-start justify-between gap-3">
@@ -56,12 +60,12 @@ export const TeacherCard = React.memo(function TeacherCard({ teacher, onEdit }: 
               <AppImage
                 src={teacher.avatar}
                 alt={teacher.fullName}
-                className="h-12 w-12 rounded-xl ring-1 ring-border shadow-2xs"
+                className="h-12 w-12 rounded-xl ring-1 ring-border shadow-2xs object-cover"
               />
               <span className="absolute -bottom-1 -right-1 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-card" />
             </div>
             <div className="min-w-0 space-y-0.5">
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 flex-wrap">
                 <span className="text-[10px] font-mono font-bold text-muted-foreground">{teacher.employeeId}</span>
                 <Badge variant={statusVariant(teacher.status) as any} className="text-[9px] py-0 px-1">
                   {teacher.status}
@@ -83,16 +87,22 @@ export const TeacherCard = React.memo(function TeacherCard({ teacher, onEdit }: 
                 <MoreVertical className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-36">
+            <DropdownMenuContent align="end" className="w-40">
               <DropdownMenuItem asChild className="cursor-pointer">
                 <Link href={`/teachers/${teacher.id}`} className="flex items-center gap-2">
                   <ExternalLink className="h-4 w-4" />
-                  <span>View Dossier</span>
+                  <span>View Profile</span>
                 </Link>
               </DropdownMenuItem>
+              {onAssign && (
+                <DropdownMenuItem onClick={() => onAssign(teacher)} className="flex items-center gap-2 cursor-pointer">
+                  <Layers className="h-4 w-4 text-primary" />
+                  <span>Assign Classes</span>
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem onClick={() => onEdit(teacher)} className="flex items-center gap-2 cursor-pointer">
                 <Edit2 className="h-4 w-4 text-amber-500" />
-                <span>Edit Faculty</span>
+                <span>Edit Details</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -111,38 +121,62 @@ export const TeacherCard = React.memo(function TeacherCard({ teacher, onEdit }: 
         </div>
 
         {/* Subjects Taught Chips */}
-        <div className="flex flex-wrap gap-1">
-          {teacher.subjectsTaught.slice(0, 2).map((sub) => (
-            <span
-              key={sub}
-              className="text-[10px] px-2 py-0.5 rounded-md bg-secondary text-secondary-foreground font-medium truncate max-w-[140px]"
-            >
-              {sub}
-            </span>
-          ))}
-          {teacher.subjectsTaught.length > 2 && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded-md text-muted-foreground bg-muted">
-              +{teacher.subjectsTaught.length - 2} more
-            </span>
-          )}
+        <div className="space-y-1">
+          <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">
+            Subjects Taught
+          </span>
+          <div className="flex flex-wrap gap-1">
+            {teacher.subjectsTaught.slice(0, 3).map((sub) => (
+              <span
+                key={sub}
+                className="text-[10px] px-2 py-0.5 rounded-md bg-secondary text-secondary-foreground font-medium truncate max-w-[140px]"
+              >
+                {sub}
+              </span>
+            ))}
+            {teacher.subjectsTaught.length > 3 && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded-md text-muted-foreground bg-muted">
+                +{teacher.subjectsTaught.length - 3} more
+              </span>
+            )}
+          </div>
         </div>
 
-        {/* Attendance & Class Load */}
+        {/* Assigned Classes Quick Summary */}
         <div className="grid grid-cols-2 gap-2 text-center text-xs pt-1 border-t border-border/50">
           <div className="p-1.5 rounded-lg bg-background border border-border/60">
-            <span className="text-[10px] text-muted-foreground block">Attendance</span>
-            <span className="font-bold text-emerald-600 dark:text-emerald-400">{teacher.attendanceRate}%</span>
+            <span className="text-[10px] text-muted-foreground block">Assigned Load</span>
+            <span className="font-bold text-foreground">
+              {teacher.assignedClasses.length} {teacher.assignedClasses.length === 1 ? "Section" : "Sections"}
+            </span>
           </div>
           <div className="p-1.5 rounded-lg bg-background border border-border/60">
-            <span className="text-[10px] text-muted-foreground block">Assigned Classes</span>
-            <span className="font-bold text-foreground">{teacher.assignedClasses.length} Sections</span>
+            <span className="text-[10px] text-muted-foreground block">Attendance Rate</span>
+            <span className="font-bold text-emerald-600 dark:text-emerald-400">{teacher.attendanceRate > 0 ? `${teacher.attendanceRate}%` : "--"}</span>
           </div>
         </div>
 
-        {/* View Profile Action */}
-        <div className="pt-1">
-          <Button asChild variant="outline" size="sm" className="w-full text-xs h-8">
-            <Link href={`/teachers/${teacher.id}`}>Faculty Profile →</Link>
+        {/* Actions: Assign Classes & Profile Buttons */}
+        <div className="grid grid-cols-2 gap-2 pt-1">
+          {onAssign && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="text-xs h-8 gap-1 border-primary/30 text-primary hover:bg-primary/10"
+              onClick={() => onAssign(teacher)}
+            >
+              <Layers className="h-3.5 w-3.5" />
+              <span>Assign</span>
+            </Button>
+          )}
+          <Button
+            asChild
+            variant="default"
+            size="sm"
+            className={`text-xs h-8 ${!onAssign ? "col-span-2" : ""}`}
+          >
+            <Link href={`/teachers/${teacher.id}`}>View Profile</Link>
           </Button>
         </div>
       </CardContent>

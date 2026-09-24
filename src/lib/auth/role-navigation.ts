@@ -113,6 +113,14 @@ export const ROLE_NAV_GROUPS: RoleNavGroup[] = [
         moduleKey: "students",
       },
       {
+        title: "Teachers",
+        href: "/teachers",
+        icon: Users,
+        badge: "Faculty",
+        allowedRoles: [...PEOPLE, "TEACHER"],
+        moduleKey: "staff",
+      },
+      {
         title: "Academics",
         href: "/academics",
         icon: Layers,
@@ -127,13 +135,6 @@ export const ROLE_NAV_GROUPS: RoleNavGroup[] = [
           { title: "Topics", href: "/academics?tab=topics", icon: ClipboardList, moduleKey: "academics" },
           { title: "Assign Subjects", href: "/academics?tab=mappings", icon: GraduationCap, moduleKey: "academics" },
         ],
-      },
-      {
-        title: "Faculty / Teachers",
-        href: "/teachers",
-        icon: Users,
-        allowedRoles: PEOPLE,
-        moduleKey: "staff",
       },
       {
         title: "Timetable",
