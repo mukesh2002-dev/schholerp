@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useERP } from "@/components/providers/erp-provider";
 import { ClassRoom } from "@/types";
 import { useForm } from "react-hook-form";
@@ -27,6 +27,7 @@ import {
 import { BookOpen } from "lucide-react";
 import { toast } from "sonner";
 import { createClassApi, updateClassApi } from "@/lib/api/classes";
+import { apiFetch } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/client";
 
 interface ClassFormDialogProps {
@@ -41,9 +42,10 @@ const classSchema = z.object({
   gradeLevel: z.coerce.number().min(1).max(20),
   category: z.string().min(1),
   branchId: z.string().min(1),
+  academicYearId: z.string().optional(),
   capacity: z.coerce.number().min(1, "Capacity must be greater than 0"),
   description: z.string().optional(),
-  sectionName: z.string().min(1),
+  sectionName: z.string().min(1, "Initial section name is required"),
 });
 
 type ClassFormValues = z.infer<typeof classSchema>;
@@ -51,7 +53,8 @@ type ClassFormValues = z.infer<typeof classSchema>;
 export function ClassFormDialog({ open, onOpenChange, onSuccess, editingClass }: ClassFormDialogProps) {
   const { branches, activeBranchId } = useERP();
   const isEditing = !!editingClass;
-  const [submitting, setSubmitting] = React.useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [academicYears, setAcademicYears] = useState<Array<{ id: string; name: string }>>([]);
 
   const {
     register,
@@ -67,6 +70,7 @@ export function ClassFormDialog({ open, onOpenChange, onSuccess, editingClass }:
       gradeLevel: 10,
       category: "High School",
       branchId: activeBranchId !== "all" ? activeBranchId : branches[0]?.id || "",
+      academicYearId: "NONE",
       capacity: 120,
       description: "",
       sectionName: "A",
@@ -75,6 +79,18 @@ export function ClassFormDialog({ open, onOpenChange, onSuccess, editingClass }:
 
   const category = watch("category");
   const branchId = watch("branchId");
+  const academicYearId = watch("academicYearId");
+
+  useEffect(() => {
+    if (!open) return;
+    apiFetch<{ data: any[] }>("/academics/academic-years")
+      .then((res) => {
+        if (Array.isArray(res?.data)) {
+          setAcademicYears(res.data.map((y) => ({ id: y.uuid || y.id, name: y.name })));
+        }
+      })
+      .catch(() => {});
+  }, [open]);
 
   useEffect(() => {
     if (open) {
@@ -84,9 +100,10 @@ export function ClassFormDialog({ open, onOpenChange, onSuccess, editingClass }:
           gradeLevel: editingClass.gradeLevel,
           category: editingClass.category,
           branchId: editingClass.branchId,
+          academicYearId: (editingClass as any).academicYearId || "NONE",
           capacity: editingClass.capacity,
           description: editingClass.description || "",
-          sectionName: editingClass.sections[0]?.name.replace("Section ", "").trim() || "A",
+          sectionName: editingClass.sections[0]?.name?.replace(/^Section\s+/i, "") || "A",
         });
       } else {
         reset({
@@ -94,6 +111,7 @@ export function ClassFormDialog({ open, onOpenChange, onSuccess, editingClass }:
           gradeLevel: 10,
           category: "High School",
           branchId: activeBranchId !== "all" ? activeBranchId : branches[0]?.id || "",
+          academicYearId: "NONE",
           capacity: 120,
           description: "",
           sectionName: "A",
@@ -105,23 +123,27 @@ export function ClassFormDialog({ open, onOpenChange, onSuccess, editingClass }:
   const onSubmit = async (data: ClassFormValues) => {
     setSubmitting(true);
     try {
-      const basePayload = {
+      const basePayload: Record<string, unknown> = {
         name: data.name.trim(),
         section: data.sectionName.trim(),
         gradeLevel: Number(data.gradeLevel),
         category: data.category,
         capacity: Number(data.capacity),
         description: data.description?.trim() || null,
+        academicYearId: data.academicYearId && data.academicYearId !== "NONE" ? data.academicYearId : null,
       };
+
       if (isEditing && editingClass) {
         await updateClassApi(editingClass.id, basePayload);
-        toast.success(`Class "${data.name}" updated`);
+        toast.success(`Class "${data.name}" updated successfully`);
       } else {
         await createClassApi({ ...basePayload, campusId: data.branchId }, data.branchId);
-        toast.success(`Class "${data.name}" created`);
+        toast.success(`Class "${data.name}" created successfully`);
       }
+
       onOpenChange(false);
       onSuccess?.();
+      window.dispatchEvent(new Event("classes:refresh"));
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : "Failed to save class. Try again.";
       toast.error(msg);
@@ -132,16 +154,18 @@ export function ClassFormDialog({ open, onOpenChange, onSuccess, editingClass }:
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md p-6">
+      <DialogContent className="max-w-md p-6 max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
               <BookOpen className="h-5 w-5" />
             </div>
             <div>
-              <DialogTitle className="text-xl font-bold">{isEditing ? "Edit Academic Class" : "Add Academic Class / Grade"}</DialogTitle>
+              <DialogTitle className="text-xl font-bold">
+                {isEditing ? "Edit Academic Class" : "Add Academic Class / Grade"}
+              </DialogTitle>
               <DialogDescription>
-                {isEditing ? "Update grade level, capacity and section details." : "Define a new grade level, capacity quota, and initial section."}
+                {isEditing ? "Update grade level, capacity and academic details." : "Define a new grade level, capacity quota, and initial section."}
               </DialogDescription>
             </div>
           </div>
@@ -215,10 +239,30 @@ export function ClassFormDialog({ open, onOpenChange, onSuccess, editingClass }:
             </div>
           </div>
 
-          <div>
-            <label className="text-xs font-medium text-foreground mb-1 block">Section Name</label>
-            <Input {...register("sectionName")} placeholder="A / B / C" className="h-9" />
-            {errors.sectionName && <p className="text-[11px] text-rose-500 mt-1">{errors.sectionName.message}</p>}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-medium text-foreground mb-1 block">Academic Year</label>
+              <Select value={academicYearId || "NONE"} onValueChange={(val) => setValue("academicYearId", val)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Academic Year" />
+                </SelectTrigger>
+                <SelectContent className="max-h-[50vh]">
+                  <SelectItem value="NONE">Default / None</SelectItem>
+                  {academicYears.map((ay) => (
+                    <SelectItem key={ay.id} value={ay.id}>
+                      {ay.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {!isEditing && (
+              <div>
+                <label className="text-xs font-medium text-foreground mb-1 block">Initial Section</label>
+                <Input {...register("sectionName")} placeholder="A" className="h-9" />
+                {errors.sectionName && <p className="text-[11px] text-rose-500 mt-1">{errors.sectionName.message}</p>}
+              </div>
+            )}
           </div>
 
           <div>

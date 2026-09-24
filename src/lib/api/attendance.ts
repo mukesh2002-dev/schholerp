@@ -162,3 +162,13 @@ export async function fetchStaffAttendance(params: { campusId?: string | null; d
   const res = await apiFetch<{ data: BackendStaffAttendance[] }>(`/attendance/staff${q}`, {}, { campusId: params.campusId ?? undefined });
   return Array.isArray(res.data) ? res.data : [];
 }
+
+export async function markStudentAttendanceApi(payload: { campusId?: string | null; classId: string; date: string; records: { studentId: string; status: string; remarks?: string | null }[] }): Promise<{ count: number; date: string }> {
+  const res = await apiFetch<{ data: { count: number; date: string } }>(`/attendance/students`, { method: "POST", body: JSON.stringify({ ...payload, records: payload.records.map((r) => ({ ...r, status: String(r.status).toLowerCase() })) }) }, { campusId: payload.campusId ?? undefined });
+  return res.data;
+}
+
+export async function recordStaffAttendanceApi(payload: { campusId?: string | null; userId?: string; date?: string; status?: string; remarks?: string | null }): Promise<BackendStaffAttendance> {
+  const res = await apiFetch<{ data: BackendStaffAttendance }>(`/attendance/staff`, { method: "POST", body: JSON.stringify(payload) }, { campusId: payload.campusId ?? undefined });
+  return res.data;
+}

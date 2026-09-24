@@ -21,6 +21,10 @@ export interface ApiFetchOptions {
   retryOnUnauthorized?: boolean;
   /** Skip the timeout / abort controller (default false). */
   noTimeout?: boolean;
+  /** Per-request timeout in ms (overrides API_TIMEOUT_MS, e.g. 60000 for file uploads). */
+  timeoutMs?: number;
+  /** Skip auto-retry on timeout/5xx (important for non-idempotent POST like admissions to avoid duplicates). */
+  skipRetry?: boolean;
   /** Campus scope header for multi-tenant isolation (X-Campus-Id). */
   campusId?: string | null;
 }
@@ -48,7 +52,7 @@ export async function apiFetch<T>(
   init: RequestInit = {},
   options: ApiFetchOptions = {}
 ): Promise<T> {
-  const { auth = true, noTimeout = false, campusId } = options;
+  const { auth = true, noTimeout = false, timeoutMs, skipRetry, campusId } = options;
 
   const method = (init.method ?? "GET").toUpperCase();
   const rawHeaders = new Headers(init.headers as HeadersInit);
@@ -76,16 +80,19 @@ export async function apiFetch<T>(
           })();
 
   // Build per-request config; `_skipAuth` and `_campusId` are read by interceptors
+  // timeoutMs overrides noTimeout/default — needed for large file uploads (admissions)
+  const resolvedTimeout = noTimeout ? 0 : (timeoutMs ?? undefined);
   const cfg = {
     url: path,
     method,
     headers,
     data,
-    timeout: noTimeout ? 0 : undefined,
+    timeout: resolvedTimeout,
     // custom fields read by interceptors — typed via declaration merging
     _skipAuth: !auth,
     _campusId: campusId ?? null,
-  } as InternalAxiosRequestConfig & { _skipAuth?: boolean; _campusId?: string | null };
+    _skipRetry: skipRetry ?? false,
+  } as InternalAxiosRequestConfig & { _skipAuth?: boolean; _campusId?: string | null; _skipRetry?: boolean };
 
   // Pre-set campus header if caller provided one — interceptor will keep it
   if (campusId && campusId !== "all") {

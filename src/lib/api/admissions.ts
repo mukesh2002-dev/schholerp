@@ -7,6 +7,7 @@ export interface BackendAdmission {
   uuid: string;
   applicationNumber: string;
   firstName?: string | null;
+  middleName?: string | null;
   lastName?: string | null;
   gender?: string | null;
   dob?: string | null;
@@ -38,6 +39,67 @@ export interface BackendAdmission {
   enrolledStudentId?: string | null;
   createdAt?: string;
   updatedAt?: string;
+  // Extended 8-section fields
+  bloodGroup?: string | null;
+  nationality?: string | null;
+  religion?: string | null;
+  motherTongue?: string | null;
+  fatherName?: string | null;
+  fatherQualification?: string | null;
+  fatherOccupation?: string | null;
+  fatherOrganization?: string | null;
+  fatherAnnualIncome?: string | null;
+  fatherMobile?: string | null;
+  fatherEmail?: string | null;
+  fatherAadhaar?: string | null;
+  motherName?: string | null;
+  motherQualification?: string | null;
+  motherOccupation?: string | null;
+  motherOrganization?: string | null;
+  motherAnnualIncome?: string | null;
+  motherMobile?: string | null;
+  motherEmail?: string | null;
+  motherAadhaar?: string | null;
+  guardianName?: string | null;
+  guardianRelation?: string | null;
+  guardianContact?: string | null;
+  guardianEmail?: string | null;
+  presentHouseNo?: string | null;
+  presentStreet?: string | null;
+  presentArea?: string | null;
+  presentDistrict?: string | null;
+  permanentSameAsPresent?: boolean | null;
+  permanentHouseNo?: string | null;
+  permanentStreet?: string | null;
+  permanentArea?: string | null;
+  permanentCity?: string | null;
+  permanentDistrict?: string | null;
+  permanentState?: string | null;
+  permanentPostalCode?: string | null;
+  emergencyContactName?: string | null;
+  emergencyContactPhone?: string | null;
+  emergencyContactRelation?: string | null;
+  previousSchoolLocation?: string | null;
+  lastClassAttended?: string | null;
+  lastClassPassed?: string | null;
+  percentageGrade?: string | null;
+  mediumOfInstruction?: string | null;
+  reasonForLeaving?: string | null;
+  allergies?: string | null;
+  chronicIllness?: string | null;
+  specialNeeds?: boolean | null;
+  specialNeedsDetails?: string | null;
+  transportRequired?: boolean | null;
+  busStop?: string | null;
+  pickupRoute?: string | null;
+  siblingName?: string | null;
+  siblingClass?: string | null;
+  siblingAdmissionNo?: string | null;
+  siblingCategory?: string | null;
+  declarationAccepted?: boolean | null;
+  declarationDate?: string | null;
+  declarationPlace?: string | null;
+  signatureUrl?: string | null;
   [key: string]: unknown;
 }
 
@@ -55,6 +117,7 @@ export interface ApprovedDropdownItem {
 export interface AdmissionFiles {
   avatar?: File | null;
   documents?: Array<{ file: File; name: string }>;
+  signature?: File | null;
 }
 
 function cap(s?: string | null): string {
@@ -64,13 +127,16 @@ function cap(s?: string | null): string {
 
 export function mapBackendAdmission(a: BackendAdmission): AdmissionApplication {
   const firstName = a.firstName ?? "";
+  const middleName = a.middleName ?? "";
   const lastName = a.lastName ?? "";
+  const full = `${firstName} ${middleName} ${lastName}`.replace(/\s+/g, " ").trim();
   return {
     id: a.uuid,
     applicationNumber: a.applicationNumber ?? "",
     applicantFirstName: firstName,
     applicantLastName: lastName,
-    applicantFullName: `${firstName} ${lastName}`.trim() || "—",
+    applicantFullName: full || "—",
+    middleName: middleName || undefined,
     avatar: a.avatar ?? `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(firstName || "A")}`,
     dateOfBirth: a.dob ?? "",
     gender: (cap(a.gender) === "Other" ? "Other" : cap(a.gender)) as "Male" | "Female" | "Other",
@@ -94,8 +160,8 @@ export function mapBackendAdmission(a: BackendAdmission): AdmissionApplication {
     aadhaarNumber: a.aadhaarNumber ?? undefined,
     apaarId: undefined,
     category: a.category ?? undefined,
-    religion: undefined,
-    motherTongue: undefined,
+    religion: a.religion ?? undefined,
+    motherTongue: a.motherTongue ?? undefined,
     board: a.board ?? undefined,
     rteQuota: a.rteQuota ?? undefined,
     entranceTestScore: a.entranceTestScore ?? undefined,
@@ -115,6 +181,64 @@ export function mapBackendAdmission(a: BackendAdmission): AdmissionApplication {
     enrolledStudentId: a.enrolledStudentId ?? undefined,
     createdAt: a.createdAt ?? "",
     updatedAt: a.updatedAt ?? "",
+    bloodGroup: a.bloodGroup ?? undefined,
+    nationality: a.nationality ?? undefined,
+    fatherName: a.fatherName ?? undefined,
+    fatherQualification: a.fatherQualification ?? undefined,
+    fatherOccupation: a.fatherOccupation ?? undefined,
+    fatherOrganization: a.fatherOrganization ?? undefined,
+    fatherAnnualIncome: a.fatherAnnualIncome ?? undefined,
+    fatherMobile: a.fatherMobile ?? undefined,
+    fatherEmail: a.fatherEmail ?? undefined,
+    fatherAadhaar: a.fatherAadhaar ?? undefined,
+    motherName: a.motherName ?? undefined,
+    motherQualification: a.motherQualification ?? undefined,
+    motherOccupation: a.motherOccupation ?? undefined,
+    motherOrganization: a.motherOrganization ?? undefined,
+    motherAnnualIncome: a.motherAnnualIncome ?? undefined,
+    motherMobile: a.motherMobile ?? undefined,
+    motherEmail: a.motherEmail ?? undefined,
+    motherAadhaar: a.motherAadhaar ?? undefined,
+    guardianName: a.guardianName ?? undefined,
+    guardianRelation: a.guardianRelation ?? undefined,
+    guardianContact: a.guardianContact ?? undefined,
+    guardianEmail: a.guardianEmail ?? undefined,
+    presentHouseNo: a.presentHouseNo ?? undefined,
+    presentStreet: a.presentStreet ?? undefined,
+    presentArea: a.presentArea ?? undefined,
+    presentDistrict: a.presentDistrict ?? undefined,
+    permanentSameAsPresent: a.permanentSameAsPresent ?? undefined,
+    permanentHouseNo: a.permanentHouseNo ?? undefined,
+    permanentStreet: a.permanentStreet ?? undefined,
+    permanentArea: a.permanentArea ?? undefined,
+    permanentCity: a.permanentCity ?? undefined,
+    permanentDistrict: a.permanentDistrict ?? undefined,
+    permanentState: a.permanentState ?? undefined,
+    permanentPostalCode: a.permanentPostalCode ?? undefined,
+    emergencyContactName: a.emergencyContactName ?? undefined,
+    emergencyContactPhone: a.emergencyContactPhone ?? undefined,
+    emergencyContactRelation: a.emergencyContactRelation ?? undefined,
+    previousSchoolLocation: a.previousSchoolLocation ?? undefined,
+    lastClassAttended: a.lastClassAttended ?? undefined,
+    lastClassPassed: a.lastClassPassed ?? undefined,
+    percentageGrade: a.percentageGrade ?? undefined,
+    mediumOfInstruction: a.mediumOfInstruction ?? undefined,
+    reasonForLeaving: a.reasonForLeaving ?? undefined,
+    allergies: a.allergies ?? undefined,
+    chronicIllness: a.chronicIllness ?? undefined,
+    specialNeeds: a.specialNeeds ?? undefined,
+    specialNeedsDetails: a.specialNeedsDetails ?? undefined,
+    transportRequired: a.transportRequired ?? undefined,
+    busStop: a.busStop ?? undefined,
+    pickupRoute: a.pickupRoute ?? undefined,
+    siblingName: a.siblingName ?? undefined,
+    siblingClass: a.siblingClass ?? undefined,
+    siblingAdmissionNo: a.siblingAdmissionNo ?? undefined,
+    siblingCategory: a.siblingCategory ?? undefined,
+    declarationAccepted: a.declarationAccepted ?? undefined,
+    declarationDate: a.declarationDate ?? undefined,
+    declarationPlace: a.declarationPlace ?? undefined,
+    signatureUrl: a.signatureUrl ?? undefined,
   };
 }
 
@@ -147,24 +271,29 @@ export async function createAdmissionApi(
 ): Promise<AdmissionApplication> {
   // With files (photo / documents) send multipart so the backend streams them
   // to Cloudinary and persists the URLs; otherwise plain JSON.
-  if (files && (files.avatar || (files.documents && files.documents.length > 0))) {
+  if (files && (files.avatar || files.signature || (files.documents && files.documents.length > 0))) {
     const form = new FormData();
     for (const [k, v] of Object.entries(payload)) {
       if (v !== undefined && v !== null && v !== "") form.append(k, String(v));
     }
     if (files.avatar) form.append("avatar", files.avatar);
+    if (files.signature) form.append("signature", files.signature);
     for (const d of files.documents ?? []) {
       form.append("documentNames[]", d.name || d.file.name);
       form.append("documents", d.file);
     }
+    // Backend now creates record instantly and uploads to Cloudinary in background,
+    // but we still allow up to 60s for the multipart to reach the server (large docs / slow network).
+    // 30s is enough for the DB-only path; 60s safety for legacy blocking behavior.
+    // skipRetry: POST is not idempotent — retry on timeout would create duplicate applications.
     const res = await apiFetch<{ data: BackendAdmission }>(
       `/admissions`,
       { method: "POST", body: form as unknown as BodyInit },
-      { campusId: campusId ?? undefined }
+      { campusId: campusId ?? undefined, timeoutMs: 60_000, skipRetry: true }
     );
     return mapBackendAdmission(res.data);
   }
-  const res = await apiFetch<{ data: BackendAdmission }>(`/admissions`, { method: "POST", body: JSON.stringify(payload) }, { campusId: campusId ?? undefined });
+  const res = await apiFetch<{ data: BackendAdmission }>(`/admissions`, { method: "POST", body: JSON.stringify(payload) }, { campusId: campusId ?? undefined, timeoutMs: 30_000, skipRetry: true });
   return mapBackendAdmission(res.data);
 }
 

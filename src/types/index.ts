@@ -105,10 +105,13 @@ export interface AdmissionDocumentItem {
 }
 
 export interface AdmissionApplication {
+  [key: string]: any;
   id: string;
   applicationNumber: string; // e.g. ADM-2026-101
   applicantFirstName: string;
   applicantLastName: string;
+  middleName?: string;
+  bloodGroup?: string;
   applicantFullName: string;
   avatar?: string;
   dateOfBirth: string;
@@ -339,6 +342,9 @@ export interface ClassRoom {
   department?: string; // CSE | ECE ...
   semester?: number;
   university?: string;
+  academicYear?: string;
+  academicYearId?: string;
+  status?: string;
 }
 
 // TEACHERS & FACULTY

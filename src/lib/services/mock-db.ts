@@ -653,6 +653,7 @@ class MockDatabaseService {
     const newId = `adm-${Date.now().toString(36)}`;
     const count = admissions.length + 101;
     const newAdmission: AdmissionApplication = {
+      ...admissionData as any,
       ...admissionData,
       id: newId,
       applicationNumber: admissionData.applicationNumber || `ADM-2026-${count}`,

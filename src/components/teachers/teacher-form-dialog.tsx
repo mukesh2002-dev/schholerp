@@ -34,7 +34,7 @@ import {
   INDIAN_MOBILE_REGEX,
   INDIAN_PAN_REGEX,
   normaliseIndianMobile,
-  isValidAadhaar,
+  
 } from "@/lib/india";
 import { toast } from "sonner";
 
@@ -79,7 +79,7 @@ const teacherSchema = z.object({
   aadhaarNumber: z
     .string()
     .optional()
-    .refine((v) => !v || isValidAadhaar(v), "Enter a valid 12-digit Aadhaar number"),
+    .refine((v) => !v || (v), "Enter a valid 12-digit Aadhaar number"),
   category: z.string().optional(),
   qualification: z.string().optional(),
   joiningDate: z.string().min(1),

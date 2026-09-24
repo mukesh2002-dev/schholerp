@@ -6,6 +6,7 @@ import {
   fetchStudentAttendance,
   fetchStaffAttendance,
   fetchLeaves,
+  markStudentAttendanceApi,
   mapBackendStudentAttendance,
   mapBackendStaffAttendance,
 } from "@/lib/api/attendance";
@@ -44,6 +45,7 @@ export function AttendanceDirectoryView() {
   const [date, setDate] = useState<string>(new Date().toISOString().split("T")[0]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [saving, setSaving] = useState(false);
 
   const fallbackRecords: AttendanceRecord[] = [];
   const fallbackSummaries: any[] = [];
@@ -57,15 +59,20 @@ export function AttendanceDirectoryView() {
     refresh: refreshRecords,
   } = useCampusData<AttendanceRecord[]>({
     fetcher: async (cid) => {
-      if (category === "STUDENT") {
-        const res = await fetchStudentAttendance({ campusId: cid });
-        return Array.isArray(res) ? res.map((r) => mapBackendStudentAttendance(r, cid)) : [];
+      try {
+        if (category === "STUDENT") {
+          const res = await fetchStudentAttendance({ campusId: cid, date });
+          return Array.isArray(res) ? res.map((r) => mapBackendStudentAttendance(r, cid)) : [];
+        }
+        const res = await fetchStaffAttendance({ campusId: cid, date });
+        return Array.isArray(res) ? res.map((r) => mapBackendStaffAttendance(r, cid)) : [];
+      } catch {
+        return [];
       }
-      const res = await fetchStaffAttendance({ campusId: cid });
-      return Array.isArray(res) ? res.map((r) => mapBackendStaffAttendance(r, cid)) : [];
     },
     campusId: activeBranchId,
     fallback: fallbackRecords,
+    queryKeyPrefix: `attendance-${category}-${date}`,
   });
 
   const {
@@ -147,12 +154,37 @@ export function AttendanceDirectoryView() {
     void refreshLeaves();
   }, [refreshRecords, refreshLeaves]);
 
-  const handleMarkAllPresent = useCallback(() => {
-    toast.success(
-      `Marked ${filtered.length} ${category.toLowerCase()}s as PRESENT for ${effectiveDate}`
-    );
-    refresh();
-  }, [filtered.length, category, effectiveDate, refresh]);
+  const handleMarkAllPresent = useCallback(async () => {
+    if (filtered.length === 0) {
+      toast.error("No records for this date", { description: "Select a date with existing records or ensure students are enrolled for this campus." });
+      return;
+    }
+    if (category !== "STUDENT") {
+      toast.info("Staff attendance marking uses biometric / manual check-in - use Staff tab");
+      return;
+    }
+    if (!navigator.onLine) {
+      toast.error("Offline — internet check karo");
+      return;
+    }
+    const classId = filtered[0]?.classId;
+    if (!classId || classId === "all") {
+      toast.error("Class not resolved for these records — cannot save");
+      return;
+    }
+    setSaving(true);
+    try {
+      const records = filtered.map((r) => ({ studentId: r.personId, status: "present" as const }));
+      const res = await markStudentAttendanceApi({ campusId: activeBranchId !== "all" ? activeBranchId : undefined, classId, date: effectiveDate, records });
+      toast.success(`Marked ${res.count} students as PRESENT for ${effectiveDate}`);
+      await refreshRecords();
+    } catch (err: any) {
+      const msg = err?.message || "Failed to save attendance";
+      toast.error(msg, { description: err?.details ? JSON.stringify(err.details).slice(0,300) : "Check console (F12)" });
+    } finally {
+      setSaving(false);
+    }
+  }, [filtered, category, effectiveDate, activeBranchId, refreshRecords]);
 
   return (
     <div className="space-y-4">
@@ -177,9 +209,10 @@ export function AttendanceDirectoryView() {
           size="sm"
           variant="outline"
           onClick={handleMarkAllPresent}
+          disabled={saving || recordsLoading}
           className="gap-1.5 text-xs h-8 text-emerald-600 hover:bg-emerald-500/10"
         >
-          <CheckCircle2 className="h-3.5 w-3.5" /> Mark All Present
+          <CheckCircle2 className={`h-3.5 w-3.5 ${saving ? "animate-spin" : ""}`} /> {saving ? "Saving..." : "Mark All Present"}
         </Button>
       </div>
 
@@ -229,6 +262,15 @@ export function AttendanceDirectoryView() {
           </div>
 
           <div className="rounded-xl border border-border/80 bg-card overflow-hidden shadow-2xs">
+            {recordsLoading ? (
+              <div className="p-8 text-center text-xs text-muted-foreground">Loading attendance... <span className="animate-pulse">●</span></div>
+            ) : filtered.length === 0 ? (
+              <div className="p-8 text-center space-y-2">
+                <p className="text-sm font-semibold text-foreground">No records for {effectiveDate}</p>
+                <p className="text-xs text-muted-foreground">No {category.toLowerCase()} attendance marked for this date/campus. Use <em>Mark All Present</em> after enrolling students, or change date/class.</p>
+                {recordsOffline && <p className="text-xs text-amber-600">Offline — showing cached data</p>}
+              </div>
+            ) : (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -255,14 +297,36 @@ export function AttendanceDirectoryView() {
                       {r.markedBy || "Biometric"}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={statusVariant(r.status) as any} className="text-[10px]">
-                        {r.status}
-                      </Badge>
+                      <Select
+                        value={r.status}
+                        onValueChange={async (val) => {
+                          if (!navigator.onLine) { toast.error("Offline — cannot update"); return; }
+                          if (category !== "STUDENT") return;
+                          const cid = r.classId;
+                          if (!cid) { toast.error("Class missing"); return; }
+                          try {
+                            await markStudentAttendanceApi({ campusId: activeBranchId !== "all" ? activeBranchId : undefined, classId: cid, date: r.date, records: [{ studentId: r.personId, status: val.toLowerCase() }] });
+                            toast.success(`${r.personName} → ${val}`);
+                            await refreshRecords();
+                          } catch (e:any) { toast.error(e?.message || "Update failed"); }
+                        }}
+                      >
+                        <SelectTrigger className="h-7 text-xs w-[110px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="PRESENT">Present</SelectItem>
+                          <SelectItem value="ABSENT">Absent</SelectItem>
+                          <SelectItem value="LATE">Late</SelectItem>
+                          <SelectItem value="LEAVE">Leave</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
+            )}
           </div>
         </TabsContent>
 

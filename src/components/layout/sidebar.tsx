@@ -78,6 +78,7 @@ export function Sidebar({ collapsed = false, onToggle, onNavigate }: SidebarProp
   React.useEffect(() => {
     if (pathname.startsWith("/exams")) setExpanded((prev) => ({ ...prev, "Exams & Results": true }));
     if (pathname.startsWith("/classes") || pathname.startsWith("/subjects")) setExpanded((prev) => ({ ...prev, "Classes & Sections": true }));
+    if (pathname.startsWith("/staff")) setExpanded((prev) => ({ ...prev, "School Staff": true }));
   }, [pathname]);
 
   React.useEffect(() => {

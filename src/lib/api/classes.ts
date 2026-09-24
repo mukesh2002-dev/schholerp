@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { apiFetch } from "./client";
 import type { ClassRoom, Subject, SubjectTopic, Section } from "@/types";
 
@@ -17,17 +17,35 @@ export interface BackendSubject {
   credits?: number | null;
   description?: string | null;
   topics?: unknown[] | null;
+  subjectType?: string | null;
+  maxMarks?: number | null;
+  passingMarks?: number | null;
+  theoryMarks?: number | null;
+  practicalMarks?: number | null;
   isActive?: boolean;
-  _count?: { examSchedules?: number; markEntries?: number; homeworks?: number; timetableSlots?: number };
+  _count?: { chapters?: number; classSubjects?: number; examSchedules?: number; markEntries?: number; homeworks?: number; timetableSlots?: number };
+}
+
+export interface BackendSectionItem {
+  id?: string;
+  uuid: string;
+  name: string;
+  roomNumber?: string | null;
+  capacity?: number | null;
+  status?: string;
+  classTeacherId?: string | null;
+  classTeacher?: { uuid: string; name: string } | null;
+  studentCount?: number;
 }
 
 export interface BackendClass {
+  id?: string;
   uuid: string;
   name: string;
   section?: string | null;
   campusId?: string;
   campus?: { uuid: string; name: string; code?: string | null } | null;
-  academicYear?: { name: string } | null;
+  academicYear?: { uuid?: string; name: string } | null;
   academicYearId?: string | null;
   gradeLevel?: number | null;
   category?: string | null;
@@ -38,9 +56,11 @@ export interface BackendClass {
   semester?: number | null;
   university?: string | null;
   isActive?: boolean;
+  sections?: BackendSectionItem[];
   subjects?: BackendSubject[];
+  classSubjects?: any[];
   students?: unknown[];
-  _count?: { students?: number; subjects?: number; enrollments?: number };
+  _count?: { students?: number; subjects?: number; enrollments?: number; sections?: number; classSubjects?: number };
 }
 
 export type MappedSubject = Subject & {
@@ -51,6 +71,13 @@ export type MappedSubject = Subject & {
   uuid: string;
   class: { uuid: string; name: string };
   teacher: { uuid: string; name: string };
+  subjectType?: string;
+  maxMarks?: number;
+  passingMarks?: number;
+  theoryMarks?: number;
+  practicalMarks?: number;
+  status?: string;
+  chaptersCount?: number;
 };
 
 export function mapBackendSubject(
@@ -72,37 +99,90 @@ export function mapBackendSubject(
     topics: (Array.isArray(s.topics) ? s.topics : []) as SubjectTopic[],
     description: s.description ?? undefined,
     classId,
-    className: classCtx?.className ?? s.class?.name ?? "Unknown Class",
+    className: classCtx?.className ?? s.class?.name ?? "Subject Master",
     branchId: classCtx?.branchId ?? s.campus?.uuid ?? "all",
     branchName: classCtx?.branchName ?? s.campus?.name ?? "Campus",
-    // Back-compat aliases for consumers that read the raw backend shape
-    // (e.g. timetable grid): class.{uuid,name} and teacher.{uuid,name}.
-    class: { uuid: classId, name: classCtx?.className ?? s.class?.name ?? "Unknown Class" },
+    class: { uuid: classId, name: classCtx?.className ?? s.class?.name ?? "Subject Master" },
     teacher: { uuid: teacherId, name: teacherName },
+    subjectType: s.subjectType ?? "COMPULSORY",
+    maxMarks: s.maxMarks ?? 100,
+    passingMarks: s.passingMarks ?? 33,
+    theoryMarks: s.theoryMarks ?? undefined,
+    practicalMarks: s.practicalMarks ?? undefined,
+    status: s.isActive !== false ? "ACTIVE" : "INACTIVE",
+    chaptersCount: s._count?.chapters ?? 0,
   };
 }
 
 export function mapBackendClass(c: BackendClass): ClassRoom {
-  const subjects = Array.isArray(c.subjects)
-    ? c.subjects.map((s) =>
-        mapBackendSubject(s, {
-          classId: c.uuid,
-          className: c.name,
-          branchId: c.campus?.uuid ?? "all",
-          branchName: c.campus?.name ?? "Campus",
-        })
-      )
-    : [];
-  const sectionName = c.section ? `Section ${c.section}` : "Section A";
-  const section: Section = {
-    id: `${c.uuid}-sec`,
-    name: sectionName,
-    roomNumber: "—",
-    classTeacherId: "",
-    classTeacherName: "—",
-    studentCount: c._count?.students ?? 0,
-    capacity: c.capacity ?? 40,
-  };
+  // If c.classSubjects exists and has items, map from classSubjects; else fallback to c.subjects
+  let subjects: MappedSubject[] = [];
+  if (Array.isArray(c.classSubjects) && c.classSubjects.length > 0) {
+    subjects = c.classSubjects.map((cs: any) => {
+      const s = cs.subject || {};
+      const teacherName = cs.teacher?.name || "Unassigned";
+      const teacherId = cs.teacher?.uuid || "";
+      return {
+        id: s.uuid || cs.uuid,
+        uuid: s.uuid || cs.uuid,
+        name: s.name || "Subject",
+        code: s.code || "",
+        teacherId,
+        teacherName,
+        weeklyPeriods: 4,
+        credits: 4,
+        topics: [],
+        description: s.description || undefined,
+        classId: c.uuid,
+        className: c.name,
+        branchId: c.campus?.uuid || "all",
+        branchName: c.campus?.name || "Campus",
+        class: { uuid: c.uuid, name: c.name },
+        teacher: { uuid: teacherId, name: teacherName },
+        subjectType: s.subjectType || "COMPULSORY",
+        maxMarks: cs.maxMarks ?? s.maxMarks ?? 100,
+        passingMarks: cs.passingMarks ?? s.passingMarks ?? 33,
+        status: cs.status || "ACTIVE",
+      } as any;
+    });
+  } else if (Array.isArray(c.subjects)) {
+    subjects = c.subjects.map((s) =>
+      mapBackendSubject(s, {
+        classId: c.uuid,
+        className: c.name,
+        branchId: c.campus?.uuid ?? "all",
+        branchName: c.campus?.name ?? "Campus",
+      })
+    );
+  }
+
+  // Map real sections from backend if present
+  let sections: Section[] = [];
+  if (Array.isArray(c.sections) && c.sections.length > 0) {
+    sections = c.sections.map((sec) => ({
+      id: sec.uuid,
+      name: sec.name.toLowerCase().startsWith("section") ? sec.name : `Section ${sec.name}`,
+      roomNumber: sec.roomNumber || "—",
+      classTeacherId: sec.classTeacherId || sec.classTeacher?.uuid || "",
+      classTeacherName: sec.classTeacher?.name || "—",
+      studentCount: sec.studentCount || 0,
+      capacity: sec.capacity || c.capacity || 40,
+    }));
+  } else {
+    const sectionName = c.section ? (c.section.toLowerCase().startsWith("section") ? c.section : `Section ${c.section}`) : "Section A";
+    sections = [
+      {
+        id: `${c.uuid}-sec`,
+        name: sectionName,
+        roomNumber: "—",
+        classTeacherId: "",
+        classTeacherName: "—",
+        studentCount: c._count?.students ?? 0,
+        capacity: c.capacity ?? 40,
+      },
+    ];
+  }
+
   return {
     id: c.uuid,
     name: c.name ?? "Unnamed Class",
@@ -110,7 +190,7 @@ export function mapBackendClass(c: BackendClass): ClassRoom {
     category: (c.category as ClassRoom["category"]) ?? "High School",
     branchId: c.campus?.uuid ?? "all",
     branchName: c.campus?.name ?? "Campus",
-    sections: [section],
+    sections,
     subjects,
     totalStudents: c._count?.students ?? 0,
     capacity: c.capacity ?? 40,
@@ -119,6 +199,9 @@ export function mapBackendClass(c: BackendClass): ClassRoom {
     department: c.department ?? undefined,
     semester: c.semester ?? undefined,
     university: c.university ?? undefined,
+    academicYear: c.academicYear?.name || undefined,
+    academicYearId: c.academicYearId || c.academicYear?.uuid || undefined,
+    status: c.isActive !== false ? "Active" : "Inactive",
   };
 }
 
@@ -131,7 +214,7 @@ function qs(params: Record<string, string | number | boolean | null | undefined>
   return s ? `?${s}` : "";
 }
 
-// ── Classes ────────────────────────────────────────────────────────────
+// ── Classes ─────────────────────────────────────────────────────────────────
 export async function fetchClasses(
   params: {
     campusId?: string | null;
@@ -143,6 +226,7 @@ export async function fetchClasses(
     limit?: number;
   } = {}
 ): Promise<ClassRoom[]> {
+  const effectiveCampus = params.campusId && params.campusId !== "all" ? params.campusId : undefined;
   const res = await apiFetch<{ data: BackendClass[]; meta?: { total: number } }>(
     `/academics/classes${qs({
       search: params.search,
@@ -153,7 +237,7 @@ export async function fetchClasses(
       limit: params.limit,
     })}`,
     {},
-    { campusId: params.campusId ?? undefined }
+    { campusId: effectiveCampus }
   );
   return Array.isArray(res.data) ? res.data.filter(Boolean).map(mapBackendClass) : [];
 }
@@ -167,10 +251,11 @@ export async function createClassApi(
   payload: Record<string, unknown>,
   campusId?: string | null
 ): Promise<ClassRoom> {
+  const effectiveCampus = campusId && campusId !== "all" ? campusId : undefined;
   const res = await apiFetch<{ data: BackendClass }>(
     `/academics/classes`,
     { method: "POST", body: JSON.stringify(payload) },
-    { campusId: campusId ?? undefined }
+    { campusId: effectiveCampus }
   );
   return mapBackendClass(res.data);
 }
@@ -187,7 +272,7 @@ export async function deleteClassApi(uuid: string): Promise<void> {
   await apiFetch(`/academics/classes/${uuid}`, { method: "DELETE" });
 }
 
-// ── Subjects ───────────────────────────────────────────────────────────
+// ── Subjects (Subject Master) ───────────────────────────────────────────────
 export async function fetchSubjects(
   params: {
     campusId?: string | null;
@@ -196,18 +281,23 @@ export async function fetchSubjects(
     isActive?: boolean;
     page?: number;
     limit?: number;
+    distinct?: boolean | string;
+    masterOnly?: boolean;
   } = {}
 ): Promise<MappedSubject[]> {
+  const effectiveCampus = params.campusId && params.campusId !== "all" ? params.campusId : undefined;
   const res = await apiFetch<{ data: BackendSubject[]; meta?: { total: number } }>(
     `/academics/subjects${qs({
       classId: params.classId,
       search: params.search,
       isActive: params.isActive,
       page: params.page,
-      limit: params.limit,
+      limit: params.limit ?? 500,
+      distinct: params.distinct,
+      masterOnly: params.masterOnly,
     })}`,
     {},
-    { campusId: params.campusId ?? undefined }
+    { campusId: effectiveCampus }
   );
   return Array.isArray(res.data) ? res.data.filter(Boolean).map((s) => mapBackendSubject(s)) : [];
 }
@@ -221,10 +311,11 @@ export async function createSubjectApi(
   payload: Record<string, unknown>,
   campusId?: string | null
 ): Promise<BackendSubject> {
+  const effectiveCampus = campusId && campusId !== "all" ? campusId : undefined;
   const res = await apiFetch<{ data: BackendSubject }>(
     `/academics/subjects`,
     { method: "POST", body: JSON.stringify(payload) },
-    { campusId: campusId ?? undefined }
+    { campusId: effectiveCampus }
   );
   return res.data;
 }
@@ -239,4 +330,26 @@ export async function updateSubjectApi(uuid: string, payload: Record<string, unk
 
 export async function deleteSubjectApi(uuid: string): Promise<void> {
   await apiFetch(`/academics/subjects/${uuid}`, { method: "DELETE" });
+}
+
+// ── Academic Stats (Real dynamic DB counters) ──────────────────────────────
+export interface AcademicStats {
+  classes: number;
+  sections: number;
+  subjects: number;
+  chapters: number;
+  topics: number;
+  students: number;
+  classSubjects: number;
+}
+
+export async function fetchAcademicStats(campusId?: string | null): Promise<AcademicStats> {
+  const effectiveCampus = campusId && campusId !== "all" ? campusId : undefined;
+  const qs = effectiveCampus ? `?campusId=${effectiveCampus}` : "";
+  const res = await apiFetch<{ data: AcademicStats }>(
+    `/academics/stats${qs}`,
+    {},
+    { campusId: effectiveCampus }
+  );
+  return res.data;
 }

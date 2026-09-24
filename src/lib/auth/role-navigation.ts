@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
   LayoutDashboard,
@@ -46,7 +46,7 @@ export interface RoleNavSubItem {
   icon?: React.ElementType;
   badge?: string;
   allowedRoles?: StaffRole[];
-  /** Backend module key — when set, the item is hidden unless the backend
+  /** Backend module key â€” when set, the item is hidden unless the backend
    *  grants this module to the user's role (dynamic sidebar from /auth/me). */
   moduleKey?: string;
 }
@@ -60,7 +60,7 @@ export interface RoleNavItem {
   allowedRoles?: StaffRole[];
   /** Backend feature flag key - if set, item is hidden when flag is disabled (ADMIN dynamic toggle). */
   featureKey?: string;
-  /** Backend module key — when set, the item is hidden unless the backend
+  /** Backend module key â€” when set, the item is hidden unless the backend
    *  grants this module to the user's role (dynamic sidebar from /auth/me). */
   moduleKey?: string;
   children?: RoleNavSubItem[];
@@ -113,15 +113,19 @@ export const ROLE_NAV_GROUPS: RoleNavGroup[] = [
         moduleKey: "students",
       },
       {
-        title: "Classes & Sections",
-        href: "/classes",
-        icon: BookOpen,
+        title: "Academics",
+        href: "/academics",
+        icon: Layers,
         allowedRoles: LEADERSHIP,
         featureKey: "academics",
         moduleKey: "academics",
         children: [
-          { title: "All Classes", href: "/classes", icon: BookOpen, moduleKey: "academics" },
-          { title: "Subjects & Topics", href: "/subjects", icon: Layers, moduleKey: "academics" },
+          { title: "Overview", href: "/academics", icon: LayoutDashboard, moduleKey: "academics" },
+          { title: "Classes & Sections", href: "/academics?tab=classes", icon: Layers, moduleKey: "academics" },
+          { title: "Subject Master", href: "/academics?tab=subjects", icon: BookMarked, moduleKey: "academics" },
+          { title: "Chapters", href: "/academics?tab=chapters", icon: BookOpen, moduleKey: "academics" },
+          { title: "Topics", href: "/academics?tab=topics", icon: ClipboardList, moduleKey: "academics" },
+          { title: "Assign Subjects", href: "/academics?tab=mappings", icon: GraduationCap, moduleKey: "academics" },
         ],
       },
       {
@@ -176,10 +180,32 @@ export const ROLE_NAV_GROUPS: RoleNavGroup[] = [
     ],
   },
   {
-    group: "HR & Support Staff",
+    group: "Staff Management",
     items: [
-      { title: "HR / Staff Directory", href: "/hr", icon: Briefcase, badge: "HR", allowedRoles: PEOPLE, moduleKey: "staff" },
+      {
+        title: "School Staff",
+        href: "/staff",
+        icon: Briefcase,
+        badge: "HR",
+        allowedRoles: PEOPLE,
+        moduleKey: "staff",
+        children: [
+          { title: "Dashboard", href: "/staff", icon: LayoutDashboard, moduleKey: "staff" },
+          { title: "All Staff", href: "/staff?tab=list", icon: Users, moduleKey: "staff" },
+          { title: "Add Staff", href: "/staff?tab=add", icon: UserPlus, moduleKey: "staff" },
+          { title: "Attendance", href: "/staff?tab=attendance", icon: Fingerprint, moduleKey: "staff" },
+          { title: "Leave", href: "/staff?tab=leave", icon: Calendar, moduleKey: "staff" },
+          { title: "Payroll", href: "/staff?tab=payroll", icon: Receipt, moduleKey: "staff" },
+          { title: "Documents", href: "/staff?tab=documents", icon: FileSpreadsheet, moduleKey: "staff" },
+          { title: "Performance", href: "/staff?tab=performance", icon: Award, moduleKey: "staff" },
+          { title: "Reports", href: "/staff?tab=reports", icon: BarChart3, moduleKey: "staff" },
+        ],
+      },
     ],
+  },
+  {
+    group: "HR & Support Staff",
+    items: [{ title: "HR / Staff Directory", href: "/hr", icon: Briefcase, badge: "HR", allowedRoles: PEOPLE, moduleKey: "staff" }],
   },
   {
     group: "Finance & Operations",
@@ -276,7 +302,7 @@ export const ROLE_NAV_GROUPS: RoleNavGroup[] = [
  *    provided, items with a `moduleKey` are only shown if the backend granted
  *    that module to the user's role. Without a sidebar (offline/demo) the
  *    role gate alone decides.
- *  - Unknown roles are NOT promoted to ADMIN — they get no navigation. */
+ *  - Unknown roles are NOT promoted to ADMIN â€” they get no navigation. */
 export function getNavForRole(
   role: Role | StaffRole | undefined,
   opts?: { isFeatureEnabled?: (key: string) => boolean; allowedModules?: string[] }
@@ -315,7 +341,7 @@ export function getNavForRole(
   })).filter((group) => group.items.length > 0);
 }
 
-/** First route a role is allowed to visit — used after login redirects. */
+/** First route a role is allowed to visit â€” used after login redirects. */
 export function getLandingPageForRole(
   role: Role | StaffRole | undefined,
   opts?: { isFeatureEnabled?: (key: string) => boolean; allowedModules?: string[] }
@@ -333,12 +359,32 @@ export function canRoleAccessPath(
   if (!pathname || pathname === "/login") return true;
   const nav = getNavForRole(role, opts);
   const cleanPath = pathname.split("?")[0];
+
+  const ROUTE_ALIASES: Record<string, string[]> = {
+    "/academics": ["/classes", "/subjects", "/academics"],
+    "/students": ["/admissions"],
+    "/admissions": ["/students"],
+    "/teachers": ["/staff", "/teachers"],
+    "/hr": ["/staff", "/hr"],
+    "/staff": ["/staff", "/teachers", "/hr"],
+  };
+
+  const matchesPath = (base: string) => {
+    if (base === "/") return cleanPath === "/";
+    if (cleanPath === base || cleanPath.startsWith(base + "/")) return true;
+    const aliases = ROUTE_ALIASES[base];
+    if (aliases && aliases.some((a) => cleanPath === a || cleanPath.startsWith(a + "/"))) return true;
+    return false;
+  };
+
   return nav.some((group) =>
     group.items.some((item) => {
       const base = item.href.split("?")[0];
-      if (base === "/" ? cleanPath === "/" : cleanPath === base || cleanPath.startsWith(base + "/")) return true;
-      if (item.children) return item.children.some((c) => cleanPath === c.href.split("?")[0]);
+      if (matchesPath(base)) return true;
+      if (item.children) return item.children.some((c) => matchesPath(c.href.split("?")[0]));
       return false;
     })
   );
 }
+
+
