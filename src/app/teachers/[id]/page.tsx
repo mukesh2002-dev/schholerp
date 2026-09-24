@@ -1,17 +1,53 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useERP } from "@/components/providers/erp-provider";
-import { fetchTeacherById } from "@/lib/api/teachers";
+import {
+  fetchTeacherById,
+  fetchTeacherAssignments,
+  removeTeacherAssignment,
+} from "@/lib/api/teachers";
 import { Teacher } from "@/types";
 import { Breadcrumbs } from "@/components/layout/breadcrumbs";
 import { TeacherFormDialog } from "@/components/teachers/teacher-form-dialog";
+import { TeacherAssignDialog } from "@/components/teachers/teacher-assign-dialog";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, Users, BookOpen, Calendar, Phone, Mail, Building2, CheckCircle2, Clock, DollarSign, ArrowLeft, Edit2, Award, Layers, CalendarDays, FileText, ShieldCheck, Upload } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { toast } from "sonner";
+import {
+  Loader2,
+  Users,
+  BookOpen,
+  Calendar,
+  Phone,
+  Mail,
+  Building2,
+  CheckCircle2,
+  Clock,
+  DollarSign,
+  ArrowLeft,
+  Edit2,
+  Award,
+  Layers,
+  CalendarDays,
+  FileText,
+  ShieldCheck,
+  Plus,
+  Trash2,
+  ExternalLink,
+} from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
 export default function TeacherDetailPage() {
@@ -21,26 +57,58 @@ export default function TeacherDetailPage() {
   const [teacher, setTeacher] = useState<Teacher | null>(null);
   const [loading, setLoading] = useState(true);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+
+  const [assignments, setAssignments] = useState<{
+    classAssignments: any[];
+    subjectAssignments: any[];
+  }>({ classAssignments: [], subjectAssignments: [] });
+  const [attendanceRecords, setAttendanceRecords] = useState<any[]>([]);
+  const [attendanceRate, setAttendanceRate] = useState<number | null>(null);
+
+  const loadData = useCallback(async () => {
+    if (!teacherId) return;
+    try {
+      const { fetchStaffAttendance } = await import("@/lib/api/staff");
+      const [t, a, att] = await Promise.all([
+        fetchTeacherById(teacherId),
+        fetchTeacherAssignments(teacherId).catch(() => ({ classAssignments: [], subjectAssignments: [] })),
+        fetchStaffAttendance(teacherId).catch(() => []),
+      ]);
+      setTeacher(t);
+      setAssignments(a);
+      setAttendanceRecords(att || []);
+      if (Array.isArray(att) && att.length > 0) {
+        const presents = att.filter((x: any) => x.status === "present" || x.status === "late").length;
+        setAttendanceRate(Math.round((presents / att.length) * 100));
+      } else {
+        setAttendanceRate(null);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [teacherId]);
 
   useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    void fetchTeacherById(teacherId).then((t) => {
-      if (cancelled) return;
-      setTeacher(t);
-      setLoading(false);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [teacherId]);
+    loadData();
+  }, [loadData]);
+
+  const handleRemoveAssignment = async (uuid: string, type: "class" | "subject") => {
+    try {
+      await removeTeacherAssignment(teacherId, uuid, type);
+      toast.success("Assignment removed successfully");
+      await loadData();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to remove assignment");
+    }
+  };
 
   if (loading) {
     return (
-      <div className="flex min-h-screen w-full items-center justify-center bg-background">
+      <div className="flex min-h-[60vh] w-full items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
-          <p className="text-xs text-muted-foreground">Loading faculty profile…</p>
+          <p className="text-xs text-muted-foreground">Loading faculty profile &amp; workload...</p>
         </div>
       </div>
     );
@@ -48,308 +116,316 @@ export default function TeacherDetailPage() {
 
   if (!teacher) {
     return (
-      <div className="py-16 text-center space-y-4">
-        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-muted mx-auto text-muted-foreground">
-          <Users className="h-8 w-8" />
-        </div>
-        <h2 className="text-xl font-bold text-foreground">Teacher Record Not Found</h2>
-        <p className="text-sm text-muted-foreground max-w-md mx-auto">
-          The requested faculty profile could not be located in the instructor roster.
-        </p>
-        <Button asChild variant="outline">
-          <Link href="/teachers">Back to Faculty Directory</Link>
-        </Button>
+      <div className="space-y-6">
+        <Breadcrumbs />
+        <Card className="p-8 text-center">
+          <p className="text-sm text-muted-foreground">Teacher not found</p>
+          <Button asChild variant="outline" className="mt-4 text-xs">
+            <Link href="/teachers">
+              <ArrowLeft className="h-3.5 w-3.5 mr-1" /> Back to Faculty Directory
+            </Link>
+          </Button>
+        </Card>
       </div>
     );
   }
 
-  const statusVariant = (status: string) => {
-    switch (status) {
-      case "ACTIVE":
-        return "success";
-      case "ON_LEAVE":
-        return "warning";
-      case "PROBATION":
-        return "purple";
-      default:
-        return "secondary";
-    }
-  };
+  const totalAllocations = (assignments.classAssignments?.length || 0) + (assignments.subjectAssignments?.length || 0);
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-300">
-      <Breadcrumbs />
+    <div className="space-y-6 animate-in fade-in duration-300">
+      <div className="flex items-center justify-between gap-4">
+        <Breadcrumbs />
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-xs gap-1 border-primary/30 text-primary hover:bg-primary/10"
+            onClick={() => setAssignDialogOpen(true)}
+          >
+            <Layers className="h-3.5 w-3.5" />
+            <span>Assign Subject / Class</span>
+          </Button>
+          <Button
+            size="sm"
+            variant="default"
+            className="text-xs gap-1"
+            onClick={() => setEditDialogOpen(true)}
+          >
+            <Edit2 className="h-3.5 w-3.5" />
+            <span>Edit Profile</span>
+          </Button>
+        </div>
+      </div>
 
-      {/* Hero Faculty Profile Banner */}
-      <div className="p-6 sm:p-8 rounded-2xl border border-border/80 bg-card shadow-xs space-y-4">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-start gap-4">
-            <div className="relative">
+      {/* Profile Header Banner */}
+      <Card className="overflow-hidden border-border bg-card shadow-xs">
+        <div className="h-24 bg-gradient-to-r from-primary/20 via-indigo-500/20 to-purple-500/20" />
+        <CardContent className="p-6 -mt-12">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+            <div className="flex items-end gap-4">
               <img
                 src={teacher.avatar}
                 alt={teacher.fullName}
-                className="h-20 w-20 rounded-2xl object-cover ring-2 ring-primary/20 shadow-md"
+                className="h-20 w-20 rounded-2xl ring-4 ring-card bg-card object-cover shadow-sm"
               />
-              <span className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full bg-emerald-500 ring-2 ring-card" />
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
+                    {teacher.fullName}
+                  </h1>
+                  <Badge variant="outline" className="font-mono text-xs">
+                    {teacher.employeeId}
+                  </Badge>
+                  <Badge variant={teacher.status === "ACTIVE" ? "success" : "secondary"} className="text-xs">
+                    {teacher.status}
+                  </Badge>
+                </div>
+                <p className="text-xs sm:text-sm text-muted-foreground flex items-center gap-2 flex-wrap">
+                  <span>{teacher.designation}</span>
+                  <span className="text-muted-foreground/50 font-bold">&bull;</span>
+                  <span>{teacher.department}</span>
+                  <span className="text-muted-foreground/50 font-bold">&bull;</span>
+                  <span className="flex items-center gap-1">
+                    <Building2 className="h-3 w-3 text-primary" /> {teacher.branchName}
+                  </span>
+                </p>
+              </div>
             </div>
-            <div className="space-y-1">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-muted text-muted-foreground">
-                  {teacher.employeeId}
-                </span>
-                <Badge variant={statusVariant(teacher.status) as any} className="text-xs">
-                  {teacher.status}
-                </Badge>
-                <span className="text-xs text-muted-foreground font-medium">
-                  Joined {formatDate(teacher.joiningDate)}
-                </span>
-              </div>
-              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
-                {teacher.fullName}
-              </h1>
-              <p className="text-xs sm:text-sm text-muted-foreground font-medium flex items-center gap-1.5">
-                <strong className="text-foreground">{teacher.designation}</strong>
-                <span>•</span>
-                <span>{teacher.department}</span>
-                <span>•</span>
-                <span className="text-primary font-semibold">{teacher.branchName}</span>
-              </p>
+
+            <div className="flex items-center gap-2 self-start sm:self-auto">
+              <Button asChild size="sm" variant="ghost" className="text-xs gap-1 text-muted-foreground">
+                <Link href={`/staff/${teacher.id}`}>
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  <span>View in HR &amp; Payroll</span>
+                </Link>
+              </Button>
             </div>
           </div>
-
-          {/* Action Buttons */}
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setEditDialogOpen(true)}
-              className="gap-1.5"
-            >
-              <Edit2 className="h-4 w-4 text-amber-500" />
-              <span>Edit Faculty Record</span>
-            </Button>
-            <Button variant="ghost" size="sm" asChild>
-              <Link href="/teachers" className="gap-1.5">
-                <ArrowLeft className="h-4 w-4" />
-                <span>Back</span>
-              </Link>
-            </Button>
-          </div>
-        </div>
-
-        {/* Quick Contact Bar */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-4 border-t border-border/60 text-xs text-muted-foreground">
-          <div className="flex items-center gap-2">
-            <Mail className="h-4 w-4 text-primary shrink-0" />
-            <span className="font-mono truncate">{teacher.email}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Phone className="h-4 w-4 text-primary shrink-0" />
-            <span className="font-mono">{teacher.phone}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Award className="h-4 w-4 text-primary shrink-0" />
-            <span className="truncate">{teacher.qualification}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Grid: Teaching Load, Leave Balance & Payroll */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left: Assigned Classes & Timetable Schedule */}
-        <div className="lg:col-span-8 space-y-6">
-          <Card className="border-border/80 shadow-xs">
-            <CardHeader>
-              <CardTitle className="text-base font-bold flex items-center gap-2">
-                <BookOpen className="h-4 w-4 text-primary" />
-                Assigned Teaching Cohorts & Weekly Timetable Load
-              </CardTitle>
-              <CardDescription>
-                Subject sections and classroom periods assigned for current academic term
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {teacher.assignedClasses.map((cls, index) => (
-                  <div
-                    key={index}
-                    className="p-4 rounded-xl border border-border/70 bg-card space-y-2 hover:border-primary/40 transition-colors"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-sm text-foreground">{cls.className}</span>
-                      <Badge variant="secondary" className="text-xs">
-                        {cls.weeklyPeriods} Periods/wk
-                      </Badge>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Section: <strong className="text-foreground">{cls.sectionName}</strong>
-                    </p>
-                    <div className="text-xs font-semibold text-primary pt-1 border-t border-border/40">
-                      Subject: {cls.subjectName}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Subject Badges */}
-              <div className="space-y-2 pt-2 border-t border-border/60">
-                <span className="text-xs font-semibold text-foreground uppercase tracking-wider block">
-                  Certified Subject Domains
-                </span>
-                <div className="flex flex-wrap gap-1.5">
-                  {teacher.subjectsTaught.map((sub, i) => (
-                    <span
-                      key={i}
-                      className="text-xs font-medium px-2.5 py-1 rounded-lg bg-secondary text-secondary-foreground border border-border/60"
-                    >
-                      {sub}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              {teacher.bio && (
-                <div className="p-4 rounded-xl bg-muted/40 border border-border/60 text-xs text-muted-foreground space-y-1">
-                  <span className="font-bold text-foreground block">Professional Biography:</span>
-                  <p className="leading-relaxed">{teacher.bio}</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Right: Attendance, Leave & Salary Summary */}
-        <div className="lg:col-span-4 space-y-6">
-          {/* Leave Summary Card */}
-          <Card className="border-border/80 shadow-xs">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base font-bold flex items-center gap-2">
-                <CalendarDays className="h-4 w-4 text-primary" />
-                Leave Balance Summary
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 text-xs">
-              <div className="grid grid-cols-3 gap-2 text-center">
-                <div className="p-2 rounded-lg bg-muted/40 border border-border/60">
-                  <span className="text-[10px] text-muted-foreground block">Annual Quota</span>
-                  <span className="font-bold text-foreground text-base mt-0.5 block">
-                    {teacher.leaveSummary.totalAllowed}
-                  </span>
-                </div>
-                <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                  <span className="text-[10px] text-amber-600 block">Leaves Taken</span>
-                  <span className="font-bold text-amber-600 text-base mt-0.5 block">
-                    {teacher.leaveSummary.used}
-                  </span>
-                </div>
-                <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-                  <span className="text-[10px] text-emerald-600 block">Balance Days</span>
-                  <span className="font-bold text-emerald-600 text-base mt-0.5 block">
-                    {teacher.leaveSummary.balance}
-                  </span>
-                </div>
-              </div>
-
-              <div className="space-y-1.5 pt-2 border-t border-border/60">
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Casual Leaves Used:</span>
-                  <span className="font-semibold text-foreground">{teacher.leaveSummary.casualLeaves}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Medical Leaves Used:</span>
-                  <span className="font-semibold text-foreground">{teacher.leaveSummary.medicalLeaves}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Biometric Attendance:</span>
-                  <span className="font-bold text-emerald-600">{teacher.attendanceRate}%</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Salary & Payroll Summary Card */}
-          <Card className="border-border/80 shadow-xs">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base font-bold flex items-center gap-2">
-                <DollarSign className="h-4 w-4 text-primary" />
-                Compensation & Payroll
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 text-xs">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between p-2 rounded-lg bg-muted/40 border border-border/60">
-                  <span className="text-muted-foreground">Base Salary:</span>
-                  <span className="font-bold text-foreground font-mono">
-                    {formatCurrency(teacher.salarySummary.baseSalary)} / mo
-                  </span>
-                </div>
-                <div className="flex items-center justify-between p-2 rounded-lg bg-muted/40 border border-border/60">
-                  <span className="text-muted-foreground">Special Allowances:</span>
-                  <span className="font-bold text-foreground font-mono">
-                    {formatCurrency(teacher.salarySummary.allowances)} / mo
-                  </span>
-                </div>
-                <div className="flex items-center justify-between p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-                  <span className="text-emerald-700 dark:text-emerald-300 font-semibold">Gross Monthly:</span>
-                  <span className="font-extrabold text-emerald-600 text-sm font-mono">
-                    {formatCurrency(teacher.salarySummary.grossSalary)}
-                  </span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-
-      {/* Faculty Documents — stored & verified (same as Students) */}
-      <Card className="border-border/80 shadow-xs">
-        <CardHeader>
-          <CardTitle className="text-base font-bold flex items-center gap-2">
-            <FileText className="h-4 w-4 text-primary" />
-            Faculty Documents & Certificates
-          </CardTitle>
-          <CardDescription>
-            Uploaded via Faculty form — stored in Documents module. PDF/JPG/PNG, verified toggle.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {(() => {
-            const docs: any[] = [];
-            if (docs.length === 0) {
-              return (
-                <div className="p-4 rounded-xl border border-dashed text-center text-xs text-muted-foreground">
-                  No documents yet — edit faculty and upload Degree, B.Ed, Aadhaar, PAN etc. (jaise Admissions/Students me kiya). Yehi files yahan aur Documents module me dikhengi.
-                </div>
-              );
-            }
-            return docs.map((doc) => (
-              <div key={doc.id} className="flex items-center justify-between p-3 rounded-xl border border-border/70 bg-card">
-                <div className="flex items-center gap-3 min-w-0">
-                  <FileText className="h-5 w-5 text-primary shrink-0" />
-                  <div className="min-w-0">
-                    <span className="text-xs font-semibold text-foreground block truncate">{doc.name}</span>
-                    <span className="text-[11px] text-muted-foreground">
-                      {doc.fileType} • {doc.fileSize} • {formatDate(doc.uploadDate)} • {doc.category}
-                    </span>
-                  </div>
-                </div>
-                <Badge variant={doc.verificationStatus === "VERIFIED" ? "success" : "outline"} className="text-[10px] shrink-0">
-                  {doc.verificationStatus}
-                </Badge>
-              </div>
-            ));
-          })()}
         </CardContent>
       </Card>
 
-      {/* Edit Teacher Dialog */}
+      {/* Tabs */}
+      <Tabs defaultValue="academic" className="space-y-6">
+        <TabsList className="grid grid-cols-3 sm:w-[420px]">
+          <TabsTrigger value="academic" className="text-xs gap-1">
+            <Layers className="h-3.5 w-3.5" /> Academic Allocations
+          </TabsTrigger>
+          <TabsTrigger value="timetable" className="text-xs gap-1">
+            <CalendarDays className="h-3.5 w-3.5" /> Schedule
+          </TabsTrigger>
+          <TabsTrigger value="info" className="text-xs gap-1">
+            <FileText className="h-3.5 w-3.5" /> Dossier Info
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Tab 1: Academic Allocations */}
+        <TabsContent value="academic" className="space-y-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-base font-bold">Assigned Classes &amp; Subjects</CardTitle>
+                <CardDescription className="text-xs">
+                  Active teaching curriculum assigned to {teacher.fullName} ({totalAllocations} active)
+                </CardDescription>
+              </div>
+              <Button
+                size="sm"
+                className="text-xs gap-1"
+                onClick={() => setAssignDialogOpen(true)}
+              >
+                <Plus className="h-3.5 w-3.5" /> Assign Class/Subject
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {totalAllocations === 0 ? (
+                <div className="p-8 text-center border border-dashed rounded-xl">
+                  <BookOpen className="h-8 w-8 mx-auto text-muted-foreground/40 mb-2" />
+                  <p className="text-sm font-medium">No Classes or Subjects Allocated</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Assign a class or subject to start scheduling timetable periods.
+                  </p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="mt-4 text-xs gap-1"
+                    onClick={() => setAssignDialogOpen(true)}
+                  >
+                    <Plus className="h-3.5 w-3.5" /> Assign Now
+                  </Button>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow className="text-xs bg-muted/40">
+                      <TableHead>Type</TableHead>
+                      <TableHead>Class</TableHead>
+                      <TableHead>Section</TableHead>
+                      <TableHead>Subject</TableHead>
+                      <TableHead className="w-16 text-right">Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody className="text-xs">
+                    {assignments.classAssignments?.map((ca: any) => (
+                      <TableRow key={ca.uuid}>
+                        <TableCell>
+                          <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/30 text-[10px]">
+                            Class In-Charge
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="font-semibold">{ca.class?.name || "All Classes"}</TableCell>
+                        <TableCell>{ca.section || ca.class?.section || "All Sections"}</TableCell>
+                        <TableCell className="text-muted-foreground">Class Mentorship</TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-destructive hover:bg-destructive/10"
+                            onClick={() => handleRemoveAssignment(ca.uuid, "class")}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+
+                    {assignments.subjectAssignments?.map((sa: any) => (
+                      <TableRow key={sa.uuid}>
+                        <TableCell>
+                          <Badge variant="secondary" className="text-[10px]">
+                            Subject Teacher
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="font-semibold">{sa.class?.name}</TableCell>
+                        <TableCell>{sa.section || "All"}</TableCell>
+                        <TableCell className="font-bold text-primary">{sa.subject?.name}</TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-destructive hover:bg-destructive/10"
+                            onClick={() => handleRemoveAssignment(sa.uuid, "subject")}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Tab 2: Timetable Schedule */}
+        <TabsContent value="timetable" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base font-bold">Weekly Routine &amp; Workload</CardTitle>
+              <CardDescription className="text-xs">
+                Weekly schedule generated according to assigned subjects and periods.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+                <div className="p-3 rounded-xl bg-muted/40 border">
+                  <span className="text-[10px] text-muted-foreground block">Weekly Periods</span>
+                  <span className="text-lg font-bold text-foreground">
+                    {Math.max(12, totalAllocations * 5)} Periods
+                  </span>
+                </div>
+                <div className="p-3 rounded-xl bg-muted/40 border">
+                  <span className="text-[10px] text-muted-foreground block">Teaching Sections</span>
+                  <span className="text-lg font-bold text-foreground">{totalAllocations}</span>
+                </div>
+                <div className="p-3 rounded-xl bg-muted/40 border">
+                  <span className="text-[10px] text-muted-foreground block">Attendance Rate</span>
+                  <span className="text-lg font-bold text-emerald-600">{attendanceRate !== null ? `${attendanceRate}%` : "-- (No records)"}</span>
+                </div>
+                <div className="p-3 rounded-xl bg-muted/40 border">
+                  <span className="text-[10px] text-muted-foreground block">Leaves Balance</span>
+                  <span className="text-lg font-bold text-primary">{teacher.leaveSummary.balance} Days</span>
+                </div>
+              </div>
+
+              <div className="p-6 text-center border border-dashed rounded-xl bg-muted/20">
+                <CalendarDays className="h-8 w-8 mx-auto text-primary/60 mb-2" />
+                <p className="text-xs font-semibold">Master Timetable Integrated</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  View and edit detailed slot allocations in the Timetable module.
+                </p>
+                <Button asChild size="sm" variant="outline" className="mt-3 text-xs">
+                  <Link href="/timetable">Open Master Timetable</Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Tab 3: Dossier Information */}
+        <TabsContent value="info" className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm font-bold">Contact &amp; Personal</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-xs">
+                <div className="flex justify-between py-1 border-b">
+                  <span className="text-muted-foreground">Email:</span>
+                  <span className="font-medium">{teacher.email || "Not set"}</span>
+                </div>
+                <div className="flex justify-between py-1 border-b">
+                  <span className="text-muted-foreground">Phone:</span>
+                  <span className="font-medium">{teacher.phone || "Not set"}</span>
+                </div>
+                <div className="flex justify-between py-1 border-b">
+                  <span className="text-muted-foreground">Joining Date:</span>
+                  <span className="font-medium">{formatDate(teacher.joiningDate)}</span>
+                </div>
+                <div className="flex justify-between py-1">
+                  <span className="text-muted-foreground">Experience:</span>
+                  <span className="font-medium">{teacher.experienceYears} Years</span>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm font-bold">Academic Qualifications</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-xs">
+                <div className="flex justify-between py-1 border-b">
+                  <span className="text-muted-foreground">Highest Degree:</span>
+                  <span className="font-medium">{teacher.qualification}</span>
+                </div>
+                <div className="flex justify-between py-1 border-b">
+                  <span className="text-muted-foreground">Department:</span>
+                  <span className="font-medium">{teacher.department}</span>
+                </div>
+                <div className="flex justify-between py-1">
+                  <span className="text-muted-foreground">Designation:</span>
+                  <span className="font-medium">{teacher.designation}</span>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+      </Tabs>
+
+      {/* Dialogs */}
       <TeacherFormDialog
         open={editDialogOpen}
         onOpenChange={setEditDialogOpen}
         teacherToEdit={teacher}
-        onSuccess={() => {
-          void fetchTeacherById(teacherId).then((t) => t && setTeacher(t));
-        }}
+        onSuccess={loadData}
+      />
+
+      <TeacherAssignDialog
+        open={assignDialogOpen}
+        onOpenChange={setAssignDialogOpen}
+        teacher={teacher}
+        onSuccess={loadData}
       />
     </div>
   );

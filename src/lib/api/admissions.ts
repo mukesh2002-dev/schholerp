@@ -352,3 +352,13 @@ export async function fetchApprovedDropdown(params: { campusId?: string | null; 
   );
   return Array.isArray(res.data) ? res.data : [];
 }
+export async function bulkImportAdmissionsApi(rows: any[], campusId?: string | null) {
+  const res = await apiFetch<{
+    success: boolean;
+    total: number;
+    imported: number;
+    failed: number;
+    errors: { row: number; name: string; error: string }[];
+  }>('/admissions/bulk-import', { method: 'POST', body: JSON.stringify({ rows, campusId }) }, { campusId: campusId ?? undefined });
+  return (res as any);
+}

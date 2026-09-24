@@ -8,6 +8,7 @@ import { useCampusData } from "@/lib/hooks/use-campus-data";
 import {
   fetchStaffDashboard,
   fetchStaffList,
+  bulkImportStaffApi,
   createStaffApi,
   deleteStaffApi,
   fetchStaffAttendance,
@@ -26,8 +27,11 @@ import { StatCard } from "@/components/ui/stat-card";
 import { ListPagination } from "@/components/ui/list-pagination";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ExcelCsvImportDialog } from "@/components/common/excel-csv-import-dialog";
 import { toast } from "sonner";
 import {
+  Upload,
+  FileSpreadsheet,
   Users,
   GraduationCap,
   UserCheck,
@@ -131,6 +135,7 @@ function DashboardTab() {
 
 function ListTab() {
   const { activeBranchId } = useERP();
+  const [importOpen, setImportOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [department, setDepartment] = useState("ALL");
   const [staffType, setStaffType] = useState("ALL");
@@ -166,7 +171,20 @@ function ListTab() {
         <Select value={department} onValueChange={(v) => { setDepartment(v); setPage(1); }}><SelectTrigger className="w-[160px] h-9 text-xs"><SelectValue placeholder="Department" /></SelectTrigger><SelectContent><SelectItem value="ALL">All Departments</SelectItem><SelectItem value="Academics">Academics</SelectItem><SelectItem value="Administration">Administration</SelectItem><SelectItem value="Accounts">Accounts</SelectItem><SelectItem value="Library">Library</SelectItem><SelectItem value="Transport">Transport</SelectItem></SelectContent></Select>
         <Select value={staffType} onValueChange={(v) => { setStaffType(v); setPage(1); }}><SelectTrigger className="w-[150px] h-9 text-xs"><SelectValue placeholder="Type" /></SelectTrigger><SelectContent><SelectItem value="ALL">All Types</SelectItem><SelectItem value="TEACHING">Teaching</SelectItem><SelectItem value="NON_TEACHING">Non-Teaching</SelectItem></SelectContent></Select>
         <Select value={status} onValueChange={(v) => { setStatus(v); setPage(1); }}><SelectTrigger className="w-[140px] h-9 text-xs"><SelectValue placeholder="Status" /></SelectTrigger><SelectContent><SelectItem value="ALL">All Status</SelectItem><SelectItem value="ACTIVE">Active</SelectItem><SelectItem value="INACTIVE">Inactive</SelectItem><SelectItem value="RESIGNED">Resigned</SelectItem></SelectContent></Select>
-        <Link href="/staff?tab=add" className="ml-auto"><Button size="sm" className="gap-1.5"><Plus className="h-4 w-4" /> Add Staff</Button></Link>
+        <div className="ml-auto flex items-center gap-2">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="gap-1.5 border-emerald-500/30 text-emerald-600 hover:text-emerald-700 dark:text-emerald-400"
+            onClick={() => setImportOpen(true)}
+          >
+            <FileSpreadsheet className="h-4 w-4" /> Import Excel/CSV
+          </Button>
+          <Link href="/staff?tab=add">
+            <Button size="sm" className="gap-1.5"><Plus className="h-4 w-4" /> Add Staff</Button>
+          </Link>
+        </div>
       </div>
 
       <div className="rounded-xl border bg-card overflow-hidden">
@@ -225,9 +243,51 @@ function AddStaffTab({ editId }: { editId?: string }) {
   const { activeBranchId } = useERP();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [loadingPincode, setLoadingPincode] = useState(false);
+
+  const generateAutoEmpId = () => `EMP-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+
   const [form, setForm] = useState<any>({
-    employeeId: "", firstName: "", lastName: "", department: "Academics", designation: "Teacher", staffType: "TEACHING", joiningDate: new Date().toISOString().slice(0, 10), mobile: "", email: "", gender: "Male", employmentType: "Permanent", workType: "Full Time", employmentStatus: "ACTIVE",
+    employeeId: generateAutoEmpId(),
+    firstName: "",
+    lastName: "",
+    department: "Academics",
+    designation: "Teacher",
+    staffType: "TEACHING",
+    joiningDate: new Date().toISOString().slice(0, 10),
+    mobile: "",
+    email: "",
+    gender: "Male",
+    employmentType: "Permanent",
+    workType: "Full Time",
+    employmentStatus: "ACTIVE",
+    city: "",
+    state: "",
+    pincode: "",
   });
+
+  const handlePincodeChange = async (pin: string) => {
+    handleChange("pincode", pin);
+    const cleaned = pin.trim();
+    if (/^[1-9]\d{5}$/.test(cleaned)) {
+      setLoadingPincode(true);
+      try {
+        const res = await fetch(`https://api.postalpincode.in/pincode/${cleaned}`);
+        const json = await res.json();
+        if (json?.[0]?.Status === "Success" && json[0]?.PostOffice?.[0]) {
+          const po = json[0].PostOffice[0];
+          const dist = po.District || po.Block || po.Name || "";
+          const st = po.State || "";
+          setForm((prev: any) => ({ ...prev, pincode: pin, city: dist, state: st }));
+          toast.info(`📍 Auto-detected location: ${dist}, ${st}`);
+        }
+      } catch {
+        // ignore
+      } finally {
+        setLoadingPincode(false);
+      }
+    }
+  };
 
   const handleChange = (k: string, v: any) => setForm((p: any) => ({ ...p, [k]: v }));
 
@@ -269,7 +329,7 @@ function AddStaffTab({ editId }: { editId?: string }) {
           <div>
             <h4 className="text-sm font-semibold mb-3">Personal Information</h4>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <Input placeholder="Employee ID" value={form.employeeId} onChange={(e) => handleChange("employeeId", e.target.value)} />
+              <div className="flex gap-1.5 items-center"><Input placeholder="Employee ID" value={form.employeeId} onChange={(e) => handleChange("employeeId", e.target.value)} /><Button type="button" variant="outline" size="sm" className="h-9 px-2 text-xs shrink-0" title="Generate New ID" onClick={() => handleChange("employeeId", generateAutoEmpId())}>Auto ID</Button></div>
               <Input placeholder="First Name" value={form.firstName} onChange={(e) => handleChange("firstName", e.target.value)} />
               <Input placeholder="Last Name" value={form.lastName} onChange={(e) => handleChange("lastName", e.target.value)} />
               <Input placeholder="Father Name" value={form.fatherName || ""} onChange={(e) => handleChange("fatherName", e.target.value)} />
@@ -282,7 +342,7 @@ function AddStaffTab({ editId }: { editId?: string }) {
               <Input placeholder="Email" value={form.email} onChange={(e) => handleChange("email", e.target.value)} />
               <Input placeholder="City" value={form.city || ""} onChange={(e) => handleChange("city", e.target.value)} />
               <Input placeholder="State" value={form.state || ""} onChange={(e) => handleChange("state", e.target.value)} />
-              <Input placeholder="Pincode" value={form.pincode || ""} onChange={(e) => handleChange("pincode", e.target.value)} />
+              <div className="relative"><Input placeholder="Pincode (6 digits)" maxLength={6} value={form.pincode || ""} onChange={(e) => handlePincodeChange(e.target.value)} />{loadingPincode && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground absolute right-2.5 top-1/2 -translate-y-1/2" />}</div>
               <Input placeholder="Emergency Contact Name" value={form.emergencyContactName || ""} onChange={(e) => handleChange("emergencyContactName", e.target.value)} />
               <Input placeholder="Emergency Contact Number" value={form.emergencyContactNumber || ""} onChange={(e) => handleChange("emergencyContactNumber", e.target.value)} />
               <Input placeholder="Relationship" value={form.emergencyContactRelationship || ""} onChange={(e) => handleChange("emergencyContactRelationship", e.target.value)} />
@@ -375,15 +435,37 @@ function ReportsTab() {
 }
 
 export default function StaffPage() {
+  const router = useRouter();
+  const { activeBranchId } = useERP();
+  const [globalImportOpen, setGlobalImportOpen] = useState(false);
   const searchParams = useSearchParams();
   const tab = searchParams.get("tab") || "dashboard";
   const editId = searchParams.get("edit") || undefined;
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-2xl font-bold tracking-tight">Staff Management</h1>
-        <p className="text-sm text-muted-foreground">Complete, production-ready staff module — backend + database integrated, responsive, dark mode supported</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Staff Management</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground">Complete, production-ready staff module — backend + database integrated, responsive, dark mode supported</p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <Button
+            type="button"
+            variant="outline"
+            className="gap-2 border-emerald-500/40 text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 font-medium shadow-sm"
+            onClick={() => setGlobalImportOpen(true)}
+          >
+            <FileSpreadsheet className="h-4 w-4 text-emerald-500" />
+            <span>Import Excel/CSV</span>
+          </Button>
+          <Link href="/staff?tab=add">
+            <Button className="gap-2">
+              <Plus className="h-4 w-4" />
+              <span>Add Staff</span>
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <Tabs value={tab} className="space-y-4">
@@ -392,6 +474,7 @@ export default function StaffPage() {
             <TabsTrigger value="dashboard" asChild><Link href="/staff?tab=dashboard" className="gap-1.5 text-xs"><LayoutDashboard className="h-3.5 w-3.5" /> Dashboard</Link></TabsTrigger>
             <TabsTrigger value="list" asChild><Link href="/staff?tab=list" className="gap-1.5 text-xs"><Users className="h-3.5 w-3.5" /> All Staff</Link></TabsTrigger>
             <TabsTrigger value="add" asChild><Link href="/staff?tab=add" className="gap-1.5 text-xs"><Plus className="h-3.5 w-3.5" /> Add Staff</Link></TabsTrigger>
+            <TabsTrigger value="import" asChild><Link href="/staff?tab=import" className="gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-medium"><FileSpreadsheet className="h-3.5 w-3.5 text-emerald-500" /> Import Excel/CSV</Link></TabsTrigger>
             <TabsTrigger value="attendance" asChild><Link href="/staff?tab=attendance" className="gap-1.5 text-xs"><Clock className="h-3.5 w-3.5" /> Attendance</Link></TabsTrigger>
             <TabsTrigger value="leave" asChild><Link href="/staff?tab=leave" className="gap-1.5 text-xs"><Calendar className="h-3.5 w-3.5" /> Leave</Link></TabsTrigger>
             <TabsTrigger value="payroll" asChild><Link href="/staff?tab=payroll" className="gap-1.5 text-xs"><Receipt className="h-3.5 w-3.5" /> Payroll</Link></TabsTrigger>
@@ -420,7 +503,55 @@ export default function StaffPage() {
           <Card><CardHeader><CardTitle className="text-sm">Performance</CardTitle></CardHeader><CardContent className="text-sm text-muted-foreground">Performance reviews & trainings per staff profile. APIs: POST /api/v1/staff/:id/performance</CardContent></Card>
         </TabsContent>
         <TabsContent value="reports"><ReportsTab /></TabsContent>
+        <TabsContent value="import">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <FileSpreadsheet className="h-5 w-5 text-emerald-500" />
+                <span>Bulk Import Staff via Excel or CSV</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Download the official template, populate your teachers &amp; staff details, and upload to create profiles and logins in bulk.
+              </p>
+              <Button
+                type="button"
+                onClick={() => setGlobalImportOpen(true)}
+                className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
+              >
+                <Upload className="h-4 w-4" />
+                <span>Open File Upload Dialog</span>
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
+
+      <ExcelCsvImportDialog
+        open={globalImportOpen}
+        onOpenChange={setGlobalImportOpen}
+        title="Import Staff Members via Excel / CSV"
+        description="Upload your faculty &amp; staff roster. We'll automatically create staff profiles and login accounts."
+        templateFileName="staff_import_template.csv"
+        templateCsvContent={`First Name,Last Name,Department,Designation,Staff Type,Mobile,Email,Gender,Joining Date,City,State,Pincode,Basic Salary,HRA,Allowances,Bank Name,Account Number,IFSC Code
+Vikash,Kumar,Academics,Senior Teacher,TEACHING,9876543210,vikash@example.com,Male,2026-09-01,Madhubani,Bihar,847211,35000,7000,3000,State Bank of India,39482910394,SBIN0001234
+Pooja,Sharma,Administration,Accountant,NON_TEACHING,9876543211,pooja@example.com,Female,2026-09-01,Patna,Bihar,800001,28000,5000,2000,HDFC Bank,50100234910,HDFC0000123`}
+        previewColumns={[
+          { key: "First Name", label: "First Name" },
+          { key: "Last Name", label: "Last Name" },
+          { key: "Department", label: "Department" },
+          { key: "Designation", label: "Designation" },
+          { key: "Mobile", label: "Mobile" },
+          { key: "Staff Type", label: "Type" },
+        ]}
+        onImport={async (rows) => {
+          return await bulkImportStaffApi(rows, activeBranchId);
+        }}
+        onSuccess={() => {
+          router.push("/staff?tab=list");
+        }}
+      />
     </div>
   );
 }
