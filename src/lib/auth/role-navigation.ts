@@ -113,17 +113,19 @@ export const ROLE_NAV_GROUPS: RoleNavGroup[] = [
         moduleKey: "students",
       },
       {
-        title: "Academic Structure",
+        title: "Academics",
         href: "/academics",
         icon: Layers,
-        badge: "Classes â†’ Topics",
         allowedRoles: LEADERSHIP,
         featureKey: "academics",
         moduleKey: "academics",
         children: [
-          { title: "Structure Overview", href: "/academics", icon: Layers, moduleKey: "academics" },
-          { title: "Classes & Sections", href: "/classes", icon: Layers, moduleKey: "academics" },
-          { title: "Subjects & Topics", href: "/subjects", icon: BookMarked, moduleKey: "academics" },
+          { title: "Overview", href: "/academics", icon: LayoutDashboard, moduleKey: "academics" },
+          { title: "Classes & Sections", href: "/academics?tab=classes", icon: Layers, moduleKey: "academics" },
+          { title: "Subject Master", href: "/academics?tab=subjects", icon: BookMarked, moduleKey: "academics" },
+          { title: "Chapters", href: "/academics?tab=chapters", icon: BookOpen, moduleKey: "academics" },
+          { title: "Topics", href: "/academics?tab=topics", icon: ClipboardList, moduleKey: "academics" },
+          { title: "Assign Subjects", href: "/academics?tab=mappings", icon: GraduationCap, moduleKey: "academics" },
         ],
       },
       {
@@ -178,10 +180,32 @@ export const ROLE_NAV_GROUPS: RoleNavGroup[] = [
     ],
   },
   {
-    group: "HR & Support Staff",
+    group: "Staff Management",
     items: [
-      { title: "HR / Staff Directory", href: "/hr", icon: Briefcase, badge: "HR", allowedRoles: PEOPLE, moduleKey: "staff" },
+      {
+        title: "School Staff",
+        href: "/staff",
+        icon: Briefcase,
+        badge: "HR",
+        allowedRoles: PEOPLE,
+        moduleKey: "staff",
+        children: [
+          { title: "Dashboard", href: "/staff", icon: LayoutDashboard, moduleKey: "staff" },
+          { title: "All Staff", href: "/staff?tab=list", icon: Users, moduleKey: "staff" },
+          { title: "Add Staff", href: "/staff?tab=add", icon: UserPlus, moduleKey: "staff" },
+          { title: "Attendance", href: "/staff?tab=attendance", icon: Fingerprint, moduleKey: "staff" },
+          { title: "Leave", href: "/staff?tab=leave", icon: Calendar, moduleKey: "staff" },
+          { title: "Payroll", href: "/staff?tab=payroll", icon: Receipt, moduleKey: "staff" },
+          { title: "Documents", href: "/staff?tab=documents", icon: FileSpreadsheet, moduleKey: "staff" },
+          { title: "Performance", href: "/staff?tab=performance", icon: Award, moduleKey: "staff" },
+          { title: "Reports", href: "/staff?tab=reports", icon: BarChart3, moduleKey: "staff" },
+        ],
+      },
     ],
+  },
+  {
+    group: "HR & Support Staff",
+    items: [{ title: "HR / Staff Directory", href: "/hr", icon: Briefcase, badge: "HR", allowedRoles: PEOPLE, moduleKey: "staff" }],
   },
   {
     group: "Finance & Operations",
@@ -326,7 +350,7 @@ export function getLandingPageForRole(
   return nav[0]?.items[0]?.href ?? "/";
 }
 
-/** Guard helper â€” is `role` allowed to visit `pathname`? */
+/** Guard helper — is `role` allowed to visit `pathname`? */
 export function canRoleAccessPath(
   role: Role | StaffRole | undefined,
   pathname: string,
@@ -335,13 +359,32 @@ export function canRoleAccessPath(
   if (!pathname || pathname === "/login") return true;
   const nav = getNavForRole(role, opts);
   const cleanPath = pathname.split("?")[0];
+
+  const ROUTE_ALIASES: Record<string, string[]> = {
+    "/academics": ["/classes", "/subjects", "/academics"],
+    "/students": ["/admissions"],
+    "/admissions": ["/students"],
+    "/teachers": ["/staff", "/teachers"],
+    "/hr": ["/staff", "/hr"],
+    "/staff": ["/staff", "/teachers", "/hr"],
+  };
+
+  const matchesPath = (base: string) => {
+    if (base === "/") return cleanPath === "/";
+    if (cleanPath === base || cleanPath.startsWith(base + "/")) return true;
+    const aliases = ROUTE_ALIASES[base];
+    if (aliases && aliases.some((a) => cleanPath === a || cleanPath.startsWith(a + "/"))) return true;
+    return false;
+  };
+
   return nav.some((group) =>
     group.items.some((item) => {
       const base = item.href.split("?")[0];
-      if (base === "/" ? cleanPath === "/" : cleanPath === base || cleanPath.startsWith(base + "/")) return true;
-      if (item.children) return item.children.some((c) => { const cb = c.href.split("?")[0]; return cleanPath === cb || cleanPath.startsWith(cb + "/"); });
+      if (matchesPath(base)) return true;
+      if (item.children) return item.children.some((c) => matchesPath(c.href.split("?")[0]));
       return false;
     })
   );
 }
+
 

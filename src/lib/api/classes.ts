@@ -281,6 +281,8 @@ export async function fetchSubjects(
     isActive?: boolean;
     page?: number;
     limit?: number;
+    distinct?: boolean | string;
+    masterOnly?: boolean;
   } = {}
 ): Promise<MappedSubject[]> {
   const effectiveCampus = params.campusId && params.campusId !== "all" ? params.campusId : undefined;
@@ -290,7 +292,9 @@ export async function fetchSubjects(
       search: params.search,
       isActive: params.isActive,
       page: params.page,
-      limit: params.limit,
+      limit: params.limit ?? 500,
+      distinct: params.distinct,
+      masterOnly: params.masterOnly,
     })}`,
     {},
     { campusId: effectiveCampus }

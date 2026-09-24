@@ -94,7 +94,7 @@ export function AssignSubjectDialog({
 
     const effectiveCid = activeBranchId && activeBranchId !== "all" ? activeBranchId : undefined;
     Promise.all([
-      fetchSubjects({ campusId: effectiveCid, limit: 200 }).catch((e) => {
+      fetchSubjects({ campusId: effectiveCid, limit: 500 }).catch((e) => {
         console.error("fetchSubjects error in AssignSubjectDialog:", e);
         return [];
       }),
@@ -102,7 +102,25 @@ export function AssignSubjectDialog({
       apiFetch<{ data: any[] }>("/academics/academic-years").catch(() => ({ data: [] })),
     ]).then(([subs, staffRes, ayRes]) => {
       if (!cancelled) {
-        setSubjects(subs || []);
+        const rawSubs = subs || [];
+        const seen = new Set<string>();
+        const uniqueSubs: any[] = [];
+        // Prioritize master subjects (classId is null or empty) and sort alphabetically
+        const sorted = [...rawSubs].sort((a, b) => {
+          const aMaster = !a.classId || a.classId === "";
+          const bMaster = !b.classId || b.classId === "";
+          if (aMaster && !bMaster) return -1;
+          if (!aMaster && bMaster) return 1;
+          return (a.name || "").localeCompare(b.name || "");
+        });
+        for (const s of sorted) {
+          const key = (s.name || "").trim().toLowerCase();
+          if (!seen.has(key)) {
+            seen.add(key);
+            uniqueSubs.push(s);
+          }
+        }
+        setSubjects(uniqueSubs);
         setTeachers(staffRes?.data ? staffRes.data.map((u: any) => ({ id: u.id || u.uuid, name: u.fullName || u.name })) : []);
         setAcademicYears(ayRes?.data ? ayRes.data.map((y: any) => ({ id: y.uuid || y.id, name: y.name })) : []);
         setLoading(false);

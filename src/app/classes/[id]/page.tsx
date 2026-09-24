@@ -896,6 +896,8 @@ export default function ClassDetailPage() {
       <SubjectFormDialog
         open={newMasterSubjectOpen}
         onOpenChange={setNewMasterSubjectOpen}
+        initialClassId={classInfo?.id}
+        classes={classInfo ? [{ id: classInfo.id, name: classInfo.name }] : []}
         onSuccess={loadData}
       />
 

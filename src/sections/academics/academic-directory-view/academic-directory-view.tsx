@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { useERP } from "@/components/providers/erp-provider";
 import { ClassRoom, Subject } from "@/types";
 import { apiFetch } from "@/lib/api/client";
@@ -33,12 +34,35 @@ import { MappingsTab } from "./tabs/mappings-tab";
 export function AcademicDirectoryView() {
   const { activeBranchId, session } = useERP();
   const canEdit = canMutateAcademics(session.role);
-  const [activeTab, setActiveTab] = useState("classes");
-  const [visitedTabs, setVisitedTabs] = useState<Set<string>>(new Set(["classes"]));
+  const searchParams = useSearchParams();
+  const tabParam = searchParams?.get("tab");
+  const initialTab = tabParam && ["classes", "subjects", "chapters", "topics", "mappings"].includes(tabParam)
+    ? tabParam
+    : "classes";
+
+  const [activeTab, setActiveTab] = useState(initialTab);
+  const [visitedTabs, setVisitedTabs] = useState<Set<string>>(new Set(["classes", initialTab]));
+
+  // Sync tab with URL query parameter
+  useEffect(() => {
+    if (tabParam && ["classes", "subjects", "chapters", "topics", "mappings"].includes(tabParam)) {
+      setActiveTab(tabParam);
+      setVisitedTabs((prev) => new Set([...prev, tabParam]));
+    }
+  }, [tabParam]);
 
   const handleTabChange = (val: string) => {
     setActiveTab(val);
     setVisitedTabs((prev) => new Set([...prev, val]));
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      if (val === "classes") {
+        url.searchParams.delete("tab");
+      } else {
+        url.searchParams.set("tab", val);
+      }
+      window.history.replaceState(null, "", url.toString());
+    }
   };
 
   const [search, setSearch] = useState("");
@@ -105,8 +129,8 @@ export function AcademicDirectoryView() {
     refresh: refreshSubjects,
   } = useCampusData<any[]>({
     fetcher: (cid: string | null) => {
-      if (!visitedTabs.has("subjects")) return Promise.resolve([]);
-      return fetchSubjects({ campusId: cid, limit: 100 } as any).then((r: any) => (Array.isArray(r) ? r : []));
+      if (!visitedTabs.has("subjects") && !visitedTabs.has("topics") && !visitedTabs.has("chapters")) return Promise.resolve([]);
+      return fetchSubjects({ campusId: cid, limit: 500 } as any).then((r: any) => (Array.isArray(r) ? r : []));
     },
     campusId: activeBranchId,
     fallback: [],
@@ -122,18 +146,19 @@ export function AcademicDirectoryView() {
     refresh: refreshChapters,
   } = useCampusData<{ data: BackendChapter[] }>({
     fetcher: async (cid: string | null) => {
-      if (!visitedTabs.has("chapters")) return { data: [], total: 0 };
+      if (!visitedTabs.has("chapters") && !visitedTabs.has("topics")) return { data: [], total: 0 };
       return await fetchChapters({
         search: search || undefined,
+        classId: classFilter !== "ALL" ? classFilter : undefined,
         subjectId: subjectFilter !== "ALL" ? subjectFilter : undefined,
         status: statusFilter !== "ALL" ? statusFilter : undefined,
         campusId: cid,
-        limit: 100,
+        limit: 200,
       });
     },
     campusId: activeBranchId,
     fallback: { data: [] },
-    queryKeyPrefix: `chapters-${subjectFilter}-${statusFilter}-${search}`,
+    queryKeyPrefix: `chapters-${classFilter}-${subjectFilter}-${statusFilter}-${search}`,
   });
 
   const {
@@ -147,15 +172,16 @@ export function AcademicDirectoryView() {
       if (!visitedTabs.has("topics")) return { data: [], total: 0 };
       return await fetchTopics({
         search: search || undefined,
+        classId: classFilter !== "ALL" ? classFilter : undefined,
         chapterId: chapterFilter !== "ALL" ? chapterFilter : undefined,
         subjectId: subjectFilter !== "ALL" && chapterFilter === "ALL" ? subjectFilter : undefined,
         campusId: cid,
-        limit: 100,
+        limit: 200,
       });
     },
     campusId: activeBranchId,
     fallback: { data: [] },
-    queryKeyPrefix: `topics-${chapterFilter}-${subjectFilter}-${search}`,
+    queryKeyPrefix: `topics-${classFilter}-${chapterFilter}-${subjectFilter}-${search}`,
   });
 
   const { data: csRes, refresh: refreshCS } = useCampusData<{ data: any[] }>({
@@ -220,6 +246,18 @@ export function AcademicDirectoryView() {
       return !q || s.name.toLowerCase().includes(q) || String(s.code || "").toLowerCase().includes(q);
     });
   }, [subjects, search]);
+
+  const filteredSubjectsForDropdown = useMemo(() => {
+    if (classFilter === "ALL") return subjects;
+    return subjects.filter((s: any) => {
+      if (s.classId === classFilter) return true;
+      if (s.class?.uuid === classFilter || s.class?.id === classFilter) return true;
+      if (Array.isArray(s.classSubjects)) {
+        return s.classSubjects.some((cs: any) => cs.classId === classFilter || cs.class?.uuid === classFilter);
+      }
+      return false;
+    });
+  }, [subjects, classFilter]);
 
   const handleDeleteClass = async (c: ClassRoom) => {
     if (!confirm(`Are you sure you want to delete class "${c.name}"?`)) return;
@@ -381,7 +419,7 @@ export function AcademicDirectoryView() {
             </SelectTrigger>
             <SelectContent className="max-h-[50vh]">
               <SelectItem value="ALL">All Subjects</SelectItem>
-              {subjects.map((s: any) => (
+              {filteredSubjectsForDropdown.map((s: any) => (
                 <SelectItem key={s.id} value={s.id}>
                   {s.name}
                 </SelectItem>
@@ -485,6 +523,8 @@ export function AcademicDirectoryView() {
           <ChaptersTab
             chapters={chapters}
             subjects={subjects}
+            classes={classes}
+            classFilter={classFilter}
             subjectFilter={subjectFilter}
             canEdit={canEdit}
             onAddChapter={() => {
@@ -516,6 +556,31 @@ export function AcademicDirectoryView() {
               setVisitedTabs((prev) => new Set([...prev, "topics"]));
               setActiveTab("topics");
             }}
+            onAddTopic={(chapterUuid) => {
+              setEditingTopic(null);
+              setTopicForm({
+                chapterId: chapterUuid,
+                title: "",
+                description: "",
+                topicOrder: topics.length + 1,
+                estimatedClasses: 1,
+                status: "ACTIVE",
+              });
+              setTopicOpen(true);
+            }}
+            onEditTopic={(top) => {
+              setEditingTopic(top);
+              setTopicForm({
+                chapterId: top.chapterId,
+                title: top.title,
+                description: top.description || "",
+                topicOrder: top.topicOrder,
+                estimatedClasses: top.estimatedClasses || 1,
+                status: top.status || "ACTIVE",
+              });
+              setTopicOpen(true);
+            }}
+            onDeleteTopic={handleDeleteTopic}
           />
         </TabsContent>
 
@@ -523,12 +588,20 @@ export function AcademicDirectoryView() {
         <TabsContent value="topics" className="space-y-4">
           <TopicsTab
             topics={topics}
+            chapters={chapters}
+            subjects={subjects}
+            classes={classes}
             chapterFilter={chapterFilter}
+            classFilter={classFilter}
+            subjectFilter={subjectFilter}
+            onChapterFilterChange={setChapterFilter}
+            onClassFilterChange={setClassFilter}
+            onSubjectFilterChange={setSubjectFilter}
             canEdit={canEdit}
-            onAddTopic={() => {
+            onAddTopic={(chapUuid?: string) => {
               setEditingTopic(null);
               setTopicForm({
-                chapterId: chapterFilter !== "ALL" ? chapterFilter : chapters[0]?.uuid || "",
+                chapterId: chapUuid || (chapterFilter !== "ALL" ? chapterFilter : chapters[0]?.uuid || ""),
                 title: "",
                 description: "",
                 topicOrder: topics.length + 1,
@@ -579,6 +652,8 @@ export function AcademicDirectoryView() {
         open={subjectOpen}
         onOpenChange={setSubjectOpen}
         editingSubject={editingSubject}
+        classes={classes}
+        initialClassId={classFilter !== "ALL" ? classFilter : undefined}
         onSuccess={() => {
           refreshSubjects();
           window.dispatchEvent(new Event("subjects:refresh"));
@@ -610,11 +685,14 @@ export function AcademicDirectoryView() {
                   <SelectValue placeholder="Select subject" />
                 </SelectTrigger>
                 <SelectContent className="max-h-[50vh]">
-                  {subjects.map((s: any) => (
-                    <SelectItem key={s.id} value={s.id}>
-                      {s.name} {s.code ? `(${s.code})` : ""}
-                    </SelectItem>
-                  ))}
+                  {subjects.map((s: any) => {
+                    const cName = s.className || s.class?.name || (classes.find((c: any) => c.id === s.classId)?.name);
+                    return (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.name} {cName ? `(${cName})` : ""} {s.code ? `[${s.code}]` : ""}
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>

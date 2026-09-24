@@ -23,14 +23,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { createSubjectApi, updateSubjectApi } from "@/lib/api/classes";
+import { createSubjectApi, updateSubjectApi, fetchClasses } from "@/lib/api/classes";
 import { useERP } from "@/components/providers/erp-provider";
 import { ApiError } from "@/lib/api/client";
-import { Layers } from "lucide-react";
+import { Layers, GraduationCap } from "lucide-react";
 
 const subjectSchema = z.object({
   name: z.string().min(1, "Subject name is required (e.g. Mathematics)"),
   code: z.string().min(1, "Subject code is required (e.g. MATH-10)"),
+  classId: z.string().optional(),
   subjectType: z.enum(["THEORY", "PRACTICAL", "BOTH"]).default("THEORY"),
   maxMarks: z.coerce.number().min(1).default(100),
   passingMarks: z.coerce.number().min(0).default(33),
@@ -43,6 +44,7 @@ interface SubjectFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   initialClassId?: string;
+  classes?: Array<{ id?: string; uuid?: string; name: string; section?: string }>;
   editingSubject?: any | null;
   onSuccess?: () => void;
 }
@@ -50,12 +52,15 @@ interface SubjectFormDialogProps {
 export function SubjectFormDialog({
   open,
   onOpenChange,
+  initialClassId,
+  classes: initialClasses,
   editingSubject,
   onSuccess,
 }: SubjectFormDialogProps) {
   const { activeBranchId } = useERP();
   const isEditing = !!editingSubject;
   const [submitting, setSubmitting] = useState(false);
+  const [classList, setClassList] = useState<Array<{ id: string; name: string; section?: string }>>([]);
 
   const {
     register,
@@ -69,6 +74,7 @@ export function SubjectFormDialog({
     defaultValues: {
       name: "",
       code: "",
+      classId: "",
       subjectType: "THEORY",
       maxMarks: 100,
       passingMarks: 33,
@@ -77,13 +83,53 @@ export function SubjectFormDialog({
   });
 
   const subjectType = watch("subjectType");
+  const selectedClassId = watch("classId");
+
+  // Load classes if not provided or to ensure fresh list
+  useEffect(() => {
+    if (!open) return;
+
+    if (initialClasses && initialClasses.length > 0) {
+      setClassList(
+        initialClasses.map((c) => ({
+          id: c.uuid || c.id || "",
+          name: c.name,
+          section: c.section,
+        }))
+      );
+    } else {
+      fetchClasses({ campusId: activeBranchId !== "all" ? activeBranchId : undefined })
+        .then((data) => {
+          if (Array.isArray(data)) {
+            setClassList(
+              data.map((c: any) => ({
+                id: c.uuid || c.id || "",
+                name: c.name,
+                section: c.section,
+              }))
+            );
+          }
+        })
+        .catch(() => {});
+    }
+  }, [open, initialClasses, activeBranchId]);
 
   useEffect(() => {
     if (open) {
       if (editingSubject) {
+        const foundClassId =
+          editingSubject.classId ||
+          editingSubject.class?.uuid ||
+          editingSubject.class?.id ||
+          editingSubject.classSubjects?.[0]?.class?.uuid ||
+          editingSubject.classSubjects?.[0]?.class?.id ||
+          initialClassId ||
+          "";
+
         reset({
           name: editingSubject.name || "",
           code: editingSubject.code || "",
+          classId: foundClassId,
           subjectType: (editingSubject.subjectType || editingSubject.type || "THEORY") as any,
           maxMarks: editingSubject.maxMarks || 100,
           passingMarks: editingSubject.passingMarks || 33,
@@ -93,6 +139,7 @@ export function SubjectFormDialog({
         reset({
           name: "",
           code: "",
+          classId: initialClassId || "",
           subjectType: "THEORY",
           maxMarks: 100,
           passingMarks: 33,
@@ -100,7 +147,7 @@ export function SubjectFormDialog({
         });
       }
     }
-  }, [open, editingSubject, reset]);
+  }, [open, editingSubject, initialClassId, reset]);
 
   const onSubmit = async (data: SubjectFormValues) => {
     setSubmitting(true);
@@ -108,6 +155,7 @@ export function SubjectFormDialog({
       const payload: Record<string, unknown> = {
         name: data.name.trim(),
         code: data.code.trim().toUpperCase(),
+        classId: data.classId && data.classId !== "MASTER" ? data.classId : null,
         subjectType: data.subjectType,
         maxMarks: Number(data.maxMarks),
         passingMarks: Number(data.passingMarks),
@@ -120,13 +168,15 @@ export function SubjectFormDialog({
         toast.success(`Subject "${data.name}" updated successfully`);
       } else {
         await createSubjectApi(payload, activeBranchId);
-        toast.success(`Subject "${data.name}" created in Subject Master`);
+        toast.success(`Subject "${data.name}" created successfully`);
       }
 
       onOpenChange(false);
       onSuccess?.();
       window.dispatchEvent(new Event("subjects:refresh"));
       window.dispatchEvent(new Event("classes:refresh"));
+      window.dispatchEvent(new Event("chapters:refresh"));
+      window.dispatchEvent(new Event("topics:refresh"));
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : "Failed to save subject";
       toast.error(msg);
@@ -145,23 +195,52 @@ export function SubjectFormDialog({
             </div>
             <div>
               <DialogTitle className="text-xl font-bold">
-                {isEditing ? "Edit Subject Master" : "Add Subject Master"}
+                {isEditing ? "Edit Subject" : "Add Subject"}
               </DialogTitle>
               <DialogDescription>
-                Reusable subject definition across multiple classes and sections.
+                Assign curriculum subject to a specific class or maintain as a master template.
               </DialogDescription>
             </div>
           </div>
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-2">
+          {/* Class Selection Field */}
+          <div>
+            <label className="text-xs font-semibold text-foreground mb-1 flex items-center gap-1.5">
+              <GraduationCap className="h-3.5 w-3.5 text-primary" />
+              <span>Target Class (किस क्लास का सब्जेक्ट है)</span>
+            </label>
+            <Select
+              value={selectedClassId || "MASTER"}
+              onValueChange={(val) => setValue("classId", val === "MASTER" ? "" : val)}
+            >
+              <SelectTrigger className="h-9">
+                <SelectValue placeholder="Select Class (or Master Template)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="MASTER" className="font-medium text-muted-foreground">
+                  🌐 Master Template (General / All Classes)
+                </SelectItem>
+                {classList.map((cls) => (
+                  <SelectItem key={cls.id} value={cls.id}>
+                    🎓 {cls.name} {cls.section ? `(${cls.section})` : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-[11px] text-muted-foreground mt-1">
+              Select the class to assign this subject directly to its syllabus.
+            </p>
+          </div>
+
           <div>
             <label className="text-xs font-medium text-foreground mb-1 block">
               Subject Name <span className="text-rose-500">*</span>
             </label>
             <Input
               {...register("name")}
-              placeholder="e.g. Mathematics, Science, English"
+              placeholder="e.g. Mathematics, Science, English, Hindi"
               className={errors.name ? "border-rose-500" : ""}
             />
             {errors.name && <p className="text-[11px] text-rose-500 mt-1">{errors.name.message}</p>}
