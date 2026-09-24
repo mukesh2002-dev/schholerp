@@ -47,6 +47,12 @@ export const demoRolesList: { role: UserSession["role"]; label: string; descript
     description: "Teacher recruitment, staff leaves, worker shifts & biometric logs",
     branchId: "all",
   },
+  {
+    role: "LIBRARIAN",
+    label: "Librarian",
+    description: "Library catalog, book issues, returns & fines",
+    branchId: "all",
+  },
 ];
 
 export const initialAttendanceTrends: AttendanceTrendPoint[] = [

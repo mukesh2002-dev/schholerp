@@ -71,7 +71,7 @@ export interface RoleNavGroup {
   items: RoleNavItem[];
 }
 
-const ALL: StaffRole[] = ["ADMIN", "PRINCIPAL", "ACCOUNTANT", "HR_MANAGER", "TEACHER", "STAFF"];
+const ALL: StaffRole[] = ["ADMIN", "PRINCIPAL", "ACCOUNTANT", "HR_MANAGER", "TEACHER", "LIBRARIAN", "STAFF"];
 const LEADERSHIP: StaffRole[] = ["ADMIN", "PRINCIPAL"];
 const FINANCE: StaffRole[] = ["ADMIN", "ACCOUNTANT"];
 const PEOPLE: StaffRole[] = ["ADMIN", "PRINCIPAL", "HR_MANAGER"];
@@ -175,7 +175,7 @@ export const ROLE_NAV_GROUPS: RoleNavGroup[] = [
         href: "/library",
         icon: Library,
         badge: "8",
-        allowedRoles: LEADERSHIP,
+        allowedRoles: [...LEADERSHIP, "LIBRARIAN"],
       },
     ],
   },
@@ -308,7 +308,7 @@ export function getNavForRole(
   opts?: { isFeatureEnabled?: (key: string) => boolean; allowedModules?: string[] }
 ): RoleNavGroup[] {
   if (!role) return ROLE_NAV_GROUPS;
-  const knownRoles: StaffRole[] = ["ADMIN", "PRINCIPAL", "ACCOUNTANT", "HR_MANAGER", "TEACHER", "STAFF"];
+  const knownRoles: StaffRole[] = ["ADMIN", "PRINCIPAL", "ACCOUNTANT", "HR_MANAGER", "TEACHER", "LIBRARIAN", "STAFF"];
   const staffRole = knownRoles.includes(role as StaffRole) ? (role as StaffRole) : null;
   if (!staffRole) return [];
   const isFeatureEnabled = opts?.isFeatureEnabled ?? (() => true);
@@ -347,6 +347,13 @@ export function getLandingPageForRole(
   opts?: { isFeatureEnabled?: (key: string) => boolean; allowedModules?: string[] }
 ): string {
   const nav = getNavForRole(role, opts);
+  // Librarians land on their workspace, not the generic dashboard.
+  if ((role as string) === "LIBRARIAN") {
+    const hasLibrary = nav.some((group) =>
+      group.items.some((item) => item.href.split("?")[0] === "/library")
+    );
+    if (hasLibrary) return "/library";
+  }
   return nav[0]?.items[0]?.href ?? "/";
 }
 
