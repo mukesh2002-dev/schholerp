@@ -21,6 +21,7 @@ const routeLabels: Record<string, string> = {
   timetable: "Timetable",
   homework: "Homework",
   exams: "Exams & Results",
+  library: "Library",
   announcements: "Announcements",
   messages: "Messages",
   events: "Events Calendar",

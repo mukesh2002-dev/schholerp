@@ -1,7 +1,7 @@
 import { Role } from "@/types";
 
 /** Staff portals that can sign in through this console. */
-export type StaffRole = "ADMIN" | "PRINCIPAL" | "ACCOUNTANT" | "HR_MANAGER" | "TEACHER" | "STAFF";
+export type StaffRole = "ADMIN" | "PRINCIPAL" | "ACCOUNTANT" | "HR_MANAGER" | "TEACHER" | "LIBRARIAN" | "STAFF";
 
 export const STAFF_ROLES: StaffRole[] = [
   "ADMIN",
@@ -9,6 +9,7 @@ export const STAFF_ROLES: StaffRole[] = [
   "ACCOUNTANT",
   "HR_MANAGER",
   "TEACHER",
+  "LIBRARIAN",
   "STAFF",
 ];
 
@@ -47,6 +48,7 @@ export function backendRoleToStaffRole(role: BackendRole | null | undefined): St
     case "teacher":
       return "TEACHER";
     case "librarian":
+      return "LIBRARIAN";
     case "staff":
     case "front_desk":
       return "STAFF";
@@ -97,6 +99,8 @@ export function staffRoleToUiRole(role: StaffRole): Role {
       return "HR_MANAGER";
     case "TEACHER":
       return "TEACHER";
+    case "LIBRARIAN":
+      return "LIBRARIAN";
     case "STAFF":
       return "STAFF";
   }

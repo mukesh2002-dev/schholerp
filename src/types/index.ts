@@ -4,6 +4,7 @@ export type Role =
   | "TEACHER"
   | "ACCOUNTANT"
   | "HR_MANAGER"
+  | "LIBRARIAN"
   | "PARENT"
   | "STUDENT"
   | "STAFF";
