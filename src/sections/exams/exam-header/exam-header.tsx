@@ -9,9 +9,11 @@ import { Button } from "@/components/ui/button";
 import { GraduationCap, Plus } from "lucide-react";
 
 export function ExamHeader({ onNewExam }: { onNewExam?: () => void }) {
-  const { activeBranchId } = useERP();
+  const { activeBranchId, session } = useERP();
   const exams = mockDb.getExams(activeBranchId);
   const schedules = mockDb.getExamSchedules(activeBranchId);
+  // Only HR (+ADMIN) manages exams - principal is view-only.
+  const canCreate = session?.role === "ADMIN" || session?.role === "HR_MANAGER";
 
   return (
     <div className="space-y-4">
@@ -24,14 +26,14 @@ export function ExamHeader({ onNewExam }: { onNewExam?: () => void }) {
               Exams & Results
             </h1>
             <Badge variant="outline" className="text-xs">
-              {exams.length} Exams • {schedules.length} Schedules
+              {exams.length} Exams | {schedules.length} Schedules
             </Badge>
           </div>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1 max-w-2xl">
             Exam setup, datesheet scheduling, bulk marks entry (AB-supported), result processing with tie-aware ranking, printable report cards & analytics.
           </p>
         </div>
-        {onNewExam && (
+        {onNewExam && canCreate && (
           <Button onClick={onNewExam} className="gap-2 shrink-0">
             <Plus className="h-4 w-4" /> New Exam
           </Button>

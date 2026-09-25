@@ -18,6 +18,7 @@ import {
   type ExamMatrixRow,
 } from "@/lib/api/exams";
 import { Breadcrumbs } from "@/components/layout/breadcrumbs";
+import { ApiError } from "@/lib/api/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -55,16 +56,23 @@ const ROW_STATUS: Record<string, { label: string; cls: string }> = {
 
 const GRADE_COLORS = ["#0ea5e9", "#8b5cf6", "#10b981", "#f59e0b", "#f43f5e", "#64748b", "#22d3ee"];
 
+type LoadFailure = { kind: "offline" | "not-found" | "forbidden" | "error"; message: string };
+
 export default function ExamDetailPage() {
   const params = useParams();
   const examUuid = params.id as string;
-  const { activeBranchId } = useERP();
+  const { activeBranchId, session } = useERP();
+  // HR (+ADMIN) manages, teachers enter marks, principal views (+publishes).
+  const role = session?.role;
+  const canManageExam = role === "ADMIN" || role === "HR_MANAGER";
+  const canEnterMarks = canManageExam || role === "TEACHER";
 
   const [exam, setExam] = useState<BackendExam | null>(null);
   const [matrix, setMatrix] = useState<ExamMatrix | null>(null);
+  const [matrixError, setMatrixError] = useState<string | null>(null);
   const [analytics, setAnalytics] = useState<ExamAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
-  const [notFound, setNotFound] = useState(false);
+  const [failure, setFailure] = useState<LoadFailure | null>(null);
   const [enrolling, setEnrolling] = useState(false);
   const [recomputing, setRecomputing] = useState(false);
   const [search, setSearch] = useState("");
@@ -74,20 +82,37 @@ export default function ExamDetailPage() {
   const [entryDraft, setEntryDraft] = useState<Record<string, string>>({});
   const [entrySaving, setEntrySaving] = useState(false);
 
+  const toFailure = (e: any): LoadFailure => {
+    const status = e instanceof ApiError ? e.status : (e as any)?.status;
+    if (status === 0 || (typeof navigator !== "undefined" && !navigator.onLine)) {
+      return { kind: "offline", message: "You're offline. Check your connection and retry." };
+    }
+    if (status === 404) return { kind: "not-found", message: "This exam doesn't exist (or was removed)." };
+    if (status === 401 || status === 403) {
+      return { kind: "forbidden", message: "Your role doesn't have permission to view this exam." };
+    }
+    return { kind: "error", message: e?.message || "Failed to load exam" };
+  };
+
   const load = useCallback(async () => {
     setLoading(true);
+    setFailure(null);
+    setMatrixError(null);
     try {
       const ex = await fetchExamById(examUuid);
       setExam(ex);
       const [m, an] = await Promise.all([
-        fetchExamStudentsMatrix(examUuid).catch(() => null),
+        fetchExamStudentsMatrix(examUuid).catch((e: any) => {
+          setMatrixError(e?.message || "Failed to load students");
+          return null;
+        }),
         fetchExamAnalytics(examUuid).catch(() => null),
       ]);
       setMatrix(m);
       setAnalytics(an);
     } catch (e: any) {
-      if (String(e?.message || "").toLowerCase().includes("not found")) setNotFound(true);
-      else toast.error(e?.message || "Failed to load exam");
+      setFailure(toFailure(e));
+      setExam(null);
     } finally {
       setLoading(false);
     }
@@ -199,22 +224,40 @@ export default function ExamDetailPage() {
 
   if (loading) {
     return (
-      <div className="space-y-6 animate-pulse">
-        <div className="h-8 w-1/3 bg-muted rounded" />
-        <div className="h-44 bg-muted rounded-2xl" />
-        <div className="h-64 bg-muted rounded-2xl" />
+      <div className="space-y-6">
+        <div className="h-5 w-48 bg-muted rounded animate-pulse" />
+        <div className="p-6 rounded-2xl border border-border/80 bg-card space-y-3 animate-pulse">
+          <div className="h-4 w-40 bg-muted rounded" />
+          <div className="h-8 w-2/3 bg-muted rounded" />
+          <div className="h-4 w-1/2 bg-muted rounded" />
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          {[0, 1, 2, 3, 4].map((i) => <div key={i} className="h-20 bg-muted rounded-xl animate-pulse" />)}
+        </div>
+        <div className="h-64 bg-muted rounded-2xl animate-pulse" />
+        <p className="text-xs text-muted-foreground text-center">Loading exam details...</p>
       </div>
     );
   }
 
-  if (notFound || !exam) {
+  if (failure || !exam) {
+    const kind = failure?.kind ?? "not-found";
+    const title =
+      kind === "offline" ? "You're offline" :
+      kind === "forbidden" ? "No permission to view" :
+      kind === "error" ? "Couldn't load exam" : "Exam Not Found";
     return (
-      <div className="py-16 text-center space-y-4">
-        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-muted mx-auto text-muted-foreground">
-          <FileSpreadsheet className="h-8 w-8" />
+      <div className="space-y-6">
+        <Breadcrumbs />
+        <EmptyState
+          title={title}
+          description={failure?.message ?? "This exam doesn't exist (or was removed)."}
+          actionLabel={kind === "offline" || kind === "error" ? "Retry" : undefined}
+          onAction={kind === "offline" || kind === "error" ? load : undefined}
+        />
+        <div className="flex justify-center">
+          <Button asChild variant="outline"><Link href="/exams">Back to Exams</Link></Button>
         </div>
-        <h2 className="text-xl font-bold text-foreground">Exam Not Found</h2>
-        <Button asChild variant="outline"><Link href="/exams">Back to Exams</Link></Button>
       </div>
     );
   }
@@ -232,32 +275,48 @@ export default function ExamDetailPage() {
     <div className="space-y-6 animate-in fade-in duration-300">
       <Breadcrumbs />
 
-      {/* Header */}
+      {/* Header - every exam detail in one place */}
       <div className="p-6 rounded-2xl border border-border/80 bg-card space-y-4">
         <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
           <div className="space-y-2">
             <div className="flex items-center gap-2 flex-wrap">
               <Badge variant="outline" className={`text-[10px] ${st.cls}`}>{st.label}</Badge>
-              <Badge variant="secondary" className="text-[10px]">{exam.examType?.name ?? "—"}</Badge>
+              <Badge variant="secondary" className="text-[10px]">{exam.examType?.name ?? "-"}</Badge>
+              <Badge variant="outline" className="text-[10px]">{exam.category}</Badge>
               <Badge variant="outline" className="text-[10px]">{exam.examMode}</Badge>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">{exam.name}</h1>
             <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1.5"><GraduationCap className="h-3.5 w-3.5" />{exam.class?.name ?? "—"} {exam.section ? `· Section ${exam.section}` : "· All Sections"}</span>
-              <span className="flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5" />{formatDate(exam.startDate)} → {formatDate(exam.endDate)}</span>
+              <span className="flex items-center gap-1.5"><GraduationCap className="h-3.5 w-3.5" />{exam.class?.name ?? "-"} {exam.section ? `| Section ${exam.section}` : "| All Sections"}</span>
+              <span className="flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5" />{formatDate(exam.startDate)} {"->"} {formatDate(exam.endDate)}</span>
               <span className="flex items-center gap-1.5"><BookOpen className="h-3.5 w-3.5" />{exam.academicYear}</span>
             </div>
+            {exam.noticePublishedAt && (
+              <div className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400">
+                <Clock className="h-3.5 w-3.5" />Notice published {formatDate(exam.noticePublishedAt)}
+              </div>
+            )}
             {exam.instructions && (
               <p className="text-xs bg-muted/40 border border-border/60 rounded-lg p-3 text-muted-foreground whitespace-pre-wrap">{exam.instructions}</p>
             )}
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
+              <span>Created {formatDate(exam.createdAt)}</span>
+              <span>Updated {formatDate(exam.updatedAt)}</span>
+              <span>{matrix?.total ?? 0} students enrolled</span>
+              <span>{schedules.length} datesheet papers</span>
+            </div>
           </div>
-          <div className="flex gap-2 shrink-0">
-            <Button variant="outline" size="sm" onClick={handleEnroll} disabled={enrolling} className="gap-1.5">
-              <Users className="h-4 w-4" />{enrolling ? "Enrolling..." : "Enroll Class"}
-            </Button>
-            <Button variant="outline" size="sm" onClick={handleRecompute} disabled={recomputing} className="gap-1.5">
-              <RefreshCw className="h-4 w-4" />{recomputing ? "..." : "Recompute"}
-            </Button>
+          <div className="flex gap-2 shrink-0 flex-wrap">
+            {canManageExam && (
+              <Button variant="outline" size="sm" onClick={handleEnroll} disabled={enrolling} className="gap-1.5">
+                <Users className="h-4 w-4" />{enrolling ? "Enrolling..." : "Enroll Class"}
+              </Button>
+            )}
+            {canManageExam && (
+              <Button variant="outline" size="sm" onClick={handleRecompute} disabled={recomputing} className="gap-1.5">
+                <RefreshCw className="h-4 w-4" />{recomputing ? "..." : "Recompute"}
+              </Button>
+            )}
             <Button variant="outline" size="sm" onClick={exportCsv} className="gap-1.5"><Download className="h-4 w-4" />CSV</Button>
             <Button variant="ghost" size="sm" asChild><Link href="/exams" className="gap-1.5"><ArrowLeft className="h-4 w-4" />Back</Link></Button>
           </div>
@@ -274,6 +333,13 @@ export default function ExamDetailPage() {
 
         {/* ── Matrix ── */}
         <TabsContent value="matrix" className="space-y-4">
+          {matrixError && (
+            <div className="flex items-center gap-2 text-xs text-amber-700 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-lg p-3">
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              <span className="flex-1">{matrixError}</span>
+              <Button variant="outline" size="sm" className="h-7 text-xs" onClick={load}>Retry</Button>
+            </div>
+          )}
           <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center justify-between">
             <div className="flex gap-2 flex-1 flex-wrap">
               <div className="relative w-full sm:w-64">
@@ -325,30 +391,32 @@ export default function ExamDetailPage() {
                     <TableHead className="text-right">Total</TableHead>
                     <TableHead className="text-right">%</TableHead>
                     <TableHead>Grade</TableHead>
+                    <TableHead className="text-right">GPA</TableHead>
                     <TableHead>Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredRows.map((r) => (
                     <TableRow key={r.studentUuid} className="hover:bg-muted/40">
-                      <TableCell className="text-right font-mono text-xs text-muted-foreground">{r.rank ?? "—"}</TableCell>
-                      <TableCell className="text-xs font-mono">{r.rollNo ?? "—"}</TableCell>
+                      <TableCell className="text-right font-mono text-xs text-muted-foreground">{r.rank ?? "-"}</TableCell>
+                      <TableCell className="text-xs font-mono">{r.rollNo ?? "-"}</TableCell>
                       <TableCell>
                         <div className="font-semibold text-sm">{r.studentName}</div>
                         <div className="text-[11px] text-muted-foreground">{r.admissionNo}</div>
                       </TableCell>
-                      <TableCell className="text-xs">{r.section ?? "—"}</TableCell>
+                      <TableCell className="text-xs">{r.section ?? "-"}</TableCell>
                       {matrix.schedules.map((s) => {
                         const p = r.papers.find((x) => x.scheduleUuid === s.uuid);
                         return (
                           <TableCell key={s.uuid} className="text-right text-xs font-mono">
-                            {p?.obtained != null ? p.obtained : <span className="text-muted-foreground">—</span>}
+                            {p?.obtained != null ? p.obtained : <span className="text-muted-foreground">-</span>}
                           </TableCell>
                         );
                       })}
                       <TableCell className="text-right text-xs font-bold">{r.obtained}/{r.total}</TableCell>
                       <TableCell className="text-right text-xs font-mono">{r.percentage.toFixed(1)}%</TableCell>
-                      <TableCell>{r.grade ? <Badge variant="outline" className="text-[11px] bg-primary/10 text-primary border-primary/20">{r.grade}</Badge> : <span className="text-xs text-muted-foreground">—</span>}</TableCell>
+                      <TableCell>{r.grade ? <Badge variant="outline" className="text-[11px] bg-primary/10 text-primary border-primary/20">{r.grade}</Badge> : <span className="text-xs text-muted-foreground">-</span>}</TableCell>
+                      <TableCell className="text-right text-xs font-mono">{r.gradePoint != null ? Number(r.gradePoint).toFixed(1) : <span className="text-muted-foreground">-</span>}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className={`text-[11px] ${(ROW_STATUS[r.status] ?? ROW_STATUS.PENDING).cls}`}>
                           {(ROW_STATUS[r.status] ?? ROW_STATUS.PENDING).label}
@@ -362,28 +430,30 @@ export default function ExamDetailPage() {
           )}
 
           {/* Quick marks entry */}
-          <Card className="border-border/70">
-            <CardHeader><CardTitle className="text-sm font-bold flex items-center gap-2"><FileSpreadsheet className="h-4 w-4 text-primary" />Quick Marks Entry</CardTitle></CardHeader>
-            <CardContent>
-              <p className="text-xs text-muted-foreground mb-3">Pick a datesheet subject to enter marks for all students at once. Empty cells are skipped; grades &amp; results auto-recompute.</p>
-              <div className="flex flex-wrap gap-2">
-                {matrix?.schedules.map((s) => (
-                  <Button key={s.uuid} variant="outline" size="sm" className="gap-1.5" onClick={() => openEntry(s)}>
-                    <PenIcon className="h-3.5 w-3.5" />{s.subject?.name ?? "Subject"} ({s.examDate ? formatDate(s.examDate) : "—"})
-                  </Button>
-                ))}
-                {(!matrix || matrix.schedules.length === 0) && (
-                  <span className="text-xs text-muted-foreground">Add datesheet entries first (Datesheet tab).</span>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+          {canEnterMarks && (
+            <Card className="border-border/70">
+              <CardHeader><CardTitle className="text-sm font-bold flex items-center gap-2"><FileSpreadsheet className="h-4 w-4 text-primary" />Quick Marks Entry</CardTitle></CardHeader>
+              <CardContent>
+                <p className="text-xs text-muted-foreground mb-3">Pick a datesheet subject to enter marks for all students at once. Empty cells are skipped; grades &amp; results auto-recompute.</p>
+                <div className="flex flex-wrap gap-2">
+                  {matrix?.schedules.map((s) => (
+                    <Button key={s.uuid} variant="outline" size="sm" className="gap-1.5" onClick={() => openEntry(s)}>
+                      <PenIcon className="h-3.5 w-3.5" />{s.subject?.name ?? "Subject"} ({s.examDate ? formatDate(s.examDate) : "-"})
+                    </Button>
+                  ))}
+                  {(!matrix || matrix.schedules.length === 0) && (
+                    <span className="text-xs text-muted-foreground">Add datesheet entries first (Datesheet tab).</span>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         {/* ── Datesheet ── */}
         <TabsContent value="datesheet" className="space-y-4">
           {schedules.length === 0 ? (
-            <EmptyState title="No datesheet yet" description="Add subject papers from the Exams → Datesheet tab." />
+            <EmptyState title="No datesheet yet" description="Add subject papers from the Exams -> Datesheet tab." />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {schedules.map((s) => (
@@ -392,14 +462,21 @@ export default function ExamDetailPage() {
                     <div className="flex items-start justify-between gap-2">
                       <div>
                         <div className="text-base font-bold text-foreground">{s.subject?.name ?? "Subject"}</div>
-                        <div className="text-[11px] text-muted-foreground">{s.examName}</div>
+                        <div className="text-[11px] text-muted-foreground">{s.examName} | {s.examType?.name ?? "-"}</div>
                       </div>
                       <Badge variant="outline" className="text-[10px]">{s.totalMarks} marks</Badge>
                     </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      <Badge variant="outline" className="text-[10px]">{s.status}</Badge>
+                      {s.publicationStatus && s.publicationStatus !== s.status && (
+                        <Badge variant="secondary" className="text-[10px]">{s.publicationStatus}</Badge>
+                      )}
+                      {s.academicYear && <Badge variant="outline" className="text-[10px]">{s.academicYear}</Badge>}
+                    </div>
                     <div className="space-y-1.5 text-xs text-muted-foreground">
                       <div className="flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5" />{formatDate(s.examDate)}</div>
-                      <div className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" />{String(s.startTime).slice(0, 5)} – {String(s.endTime).slice(0, 5)}</div>
-                      <div className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" />{s.room || "—"}</div>
+                      <div className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" />{String(s.startTime).slice(0, 5)} - {String(s.endTime).slice(0, 5)}</div>
+                      <div className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" />{s.room || "-"}</div>
                       <div className="flex items-center gap-1.5"><FileSpreadsheet className="h-3.5 w-3.5" />Pass: {s.passingMarks}</div>
                     </div>
                     {s.instructions && <p className="text-[11px] bg-muted/40 border border-border/60 rounded-lg p-2.5 text-muted-foreground whitespace-pre-wrap">{s.instructions}</p>}
@@ -495,7 +572,7 @@ export default function ExamDetailPage() {
                               </span>
                               <div>
                                 <div className="text-sm font-semibold text-foreground">{t.studentName}</div>
-                                <div className="text-[11px] text-muted-foreground">Roll {t.rollNo ?? "—"}</div>
+                                <div className="text-[11px] text-muted-foreground">Roll {t.rollNo ?? "-"}</div>
                               </div>
                             </div>
                             <div className="text-right">
@@ -533,16 +610,16 @@ export default function ExamDetailPage() {
       <Dialog open={!!entrySchedule} onOpenChange={(o) => { if (!o) setEntrySchedule(null); }}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Enter Marks — {entrySchedule?.subject?.name}</DialogTitle>
+            <DialogTitle>Enter Marks - {entrySchedule?.subject?.name}</DialogTitle>
             <DialogDescription>
-              {entrySchedule?.examName} · {entrySchedule ? formatDate(entrySchedule.examDate) : ""} · max {entrySchedule?.totalMarks} (pass {entrySchedule?.passingMarks})
+              {entrySchedule?.examName} | {entrySchedule ? formatDate(entrySchedule.examDate) : ""} | max {entrySchedule?.totalMarks} (pass {entrySchedule?.passingMarks})
             </DialogDescription>
           </DialogHeader>
           {entrySchedule && (
             <div className="space-y-2">
               {matrix?.rows.map((r: ExamMatrixRow) => (
                 <div key={r.studentUuid} className="flex items-center gap-3 p-2 rounded-lg bg-muted/30 border border-border/60">
-                  <span className="text-xs font-semibold w-8 font-mono text-muted-foreground">{r.rollNo ?? "—"}</span>
+                  <span className="text-xs font-semibold w-8 font-mono text-muted-foreground">{r.rollNo ?? "-"}</span>
                   <span className="text-sm font-medium flex-1">{r.studentName}</span>
                   <Input
                     type="number"

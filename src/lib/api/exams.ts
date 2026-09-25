@@ -120,15 +120,17 @@ export interface ExamListParams {
   status?: string;
   academicYear?: string;
   classUuid?: string;
+  examTypeUuid?: string;
+  search?: string;
   page?: number;
   limit?: number;
 }
 
 // ── Exam Types ─────────────────────────────────────────────────────────────
 
-export async function fetchExamTypes(params: { campusId?: string | null; limit?: number } = {}): Promise<BackendExamType[]> {
+export async function fetchExamTypes(params: { campusId?: string | null; limit?: number; search?: string } = {}): Promise<BackendExamType[]> {
   const res = await apiFetch<{ data: BackendExamType[] }>(
-    `/exams/types${qs({ limit: params.limit ?? 100 })}`,
+    `/exams/types${qs({ limit: params.limit ?? 100, search: params.search })}`,
     {},
     { campusId: params.campusId ?? undefined }
   );
@@ -160,6 +162,8 @@ export async function fetchExams(params: ExamListParams = {}): Promise<{ items: 
       status: params.status,
       academicYear: params.academicYear,
       classUuid: params.classUuid,
+      examTypeUuid: params.examTypeUuid,
+      search: params.search,
       page: params.page,
       limit: params.limit ?? 100,
     })}`,
@@ -215,16 +219,16 @@ export interface CreateSchedulePayload {
   examDate: string;
   startTime: string;
   endTime: string;
-  room?: string;
-  instructions?: string;
+  room?: string | null;
+  instructions?: string | null;
   totalMarks: number;
   passingMarks: number;
   status?: string;
 }
 
-export async function fetchExamSchedules(params: { campusId?: string | null; examUuid?: string; status?: string; limit?: number } = {}): Promise<BackendExamSchedule[]> {
+export async function fetchExamSchedules(params: { campusId?: string | null; examUuid?: string; examTypeUuid?: string; status?: string; limit?: number } = {}): Promise<BackendExamSchedule[]> {
   const res = await apiFetch<{ data: BackendExamSchedule[] }>(
-    `/exams/schedules${qs({ examUuid: params.examUuid, status: params.status, limit: params.limit ?? 200 })}`,
+    `/exams/schedules${qs({ examUuid: params.examUuid, examTypeUuid: params.examTypeUuid, status: params.status, limit: params.limit ?? 200 })}`,
     {},
     { campusId: params.campusId ?? undefined }
   );
@@ -244,6 +248,15 @@ export async function updateExamScheduleApi(uuid: string, payload: Partial<Creat
   const res = await apiFetch<{ data: BackendExamSchedule }>(`/exams/schedules/${uuid}`, {
     method: "PATCH",
     body: JSON.stringify(payload),
+  });
+  return res.data;
+}
+
+// Principal-only (campus-scoped) slot delete - backend removes the slot
+// row plus all its mark entries, then recalculates parent exam results.
+export async function deleteExamScheduleApi(uuid: string): Promise<{ deleted: boolean; removedMarks: number; recomputed: number }> {
+  const res = await apiFetch<{ data: { deleted: boolean; removedMarks: number; recomputed: number } }>(`/exams/schedules/${uuid}`, {
+    method: "DELETE",
   });
   return res.data;
 }
@@ -275,12 +288,18 @@ export interface BulkMarksEntry {
   remarks?: string;
 }
 
-export async function saveBulkMarks(scheduleUuid: string, entries: BulkMarksEntry[]): Promise<{ saved: number; recomputed: number }> {
-  const res = await apiFetch<{ data: { saved: number; recomputed: number } }>(
+export interface BulkMarksSkipped {
+  studentUuid: string | null;
+  reason: string;
+}
+
+export async function saveBulkMarks(scheduleUuid: string, entries: BulkMarksEntry[]): Promise<{ saved: number; skipped: BulkMarksSkipped[]; recomputed: number }> {
+  const res = await apiFetch<{ data: { saved: number; skipped: BulkMarksSkipped[]; recomputed: number } }>(
     `/exams/schedules/${scheduleUuid}/marks/bulk`,
     { method: "PUT", body: JSON.stringify({ entries }) }
   );
-  return res.data;
+  const d = res.data ?? { saved: 0, skipped: [], recomputed: 0 };
+  return { saved: d.saved ?? 0, skipped: d.skipped ?? [], recomputed: d.recomputed ?? 0 };
 }
 
 export async function recomputeExamApi(examUuid: string): Promise<{ recomputed: number }> {
