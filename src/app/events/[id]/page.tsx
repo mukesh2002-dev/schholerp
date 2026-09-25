@@ -149,7 +149,18 @@ export default function EventDetailPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <div className="p-4 rounded-xl border border-border/70 bg-card">
               <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">Date</span>
-              <span className="text-lg font-bold text-foreground mt-1 block">{formatDate(event.eventDate)}</span>
+              <span className="text-lg font-bold text-foreground mt-1 block">
+                {(() => {
+                  const d = new Date(event.eventDate);
+                  const wd = d.toLocaleDateString("en-IN", { weekday: "long", timeZone: "Asia/Kolkata" });
+                  const a = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+                  const n = new Date();
+                  const b = new Date(n.getFullYear(), n.getMonth(), n.getDate()).getTime();
+                  const diff = Math.round((a - b) / 86400000);
+                  const rel = diff === 0 ? "Today" : diff === 1 ? "Tomorrow" : diff === -1 ? "Yesterday" : diff > 1 && diff <= 30 ? `in ${diff} days` : diff < -1 && diff >= -30 ? `${Math.abs(diff)} days ago` : "";
+                  return <>{wd}, {formatDate(event.eventDate)}{rel ? <span className="ml-2 text-[11px] font-semibold text-primary bg-primary/10 rounded-full px-2 py-0.5">{rel}</span> : null}</>;
+                })()}
+              </span>
             </div>
             <div className="p-4 rounded-xl border border-border/70 bg-card">
               <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block flex items-center gap-1"><Clock className="h-3 w-3" /> Time</span>
