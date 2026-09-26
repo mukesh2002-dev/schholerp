@@ -47,3 +47,84 @@ export async function createFeeStructureApi(payload: Record<string, unknown>, ca
   );
   return res.data;
 }
+
+export interface BackendAssignment {
+  uuid: string;
+  status: string;
+  totalAssigned: string | number;
+  discount?: string | number;
+  dueDate?: string;
+  student?: { uuid: string; admissionNo: string; firstName: string; lastName: string };
+  structure?: { uuid: string; name: string };
+}
+
+export async function fetchAssignments(params: { campusId?: string | null; studentId?: string; status?: string } = {}): Promise<BackendAssignment[]> {
+  const q = new URLSearchParams();
+  if (params.studentId) { q.set("studentId", params.studentId); }
+  if (params.status) { q.set("status", params.status); }
+  const qs = q.toString() ? `?${q.toString()}` : "";
+  const res = await apiFetch<{ data: BackendAssignment[] }>(`/fees/assignments${qs}`, {}, { campusId: params.campusId ?? undefined });
+  return Array.isArray(res.data) ? res.data : [];
+}
+
+export async function createAssignmentApi(
+  payload: { studentId: string; structureId: string; classId?: string; discount?: number; discountReason?: string; dueDate: string },
+  campusId?: string | null
+): Promise<BackendAssignment> {
+  const res = await apiFetch<{ data: BackendAssignment }>(
+    `/fees/assignments`,
+    { method: "POST", body: JSON.stringify(payload) },
+    { campusId: campusId ?? undefined }
+  );
+  return res.data;
+}
+
+export async function generateInvoiceApi(assignmentId: string, campusId?: string | null): Promise<BackendInvoice> {
+  const res = await apiFetch<{ data: BackendInvoice }>(
+    `/fees/invoices/generate`,
+    { method: "POST", body: JSON.stringify({ assignmentId }) },
+    { campusId: campusId ?? undefined }
+  );
+  return res.data;
+}
+
+export async function createInvoiceApi(
+  payload: { studentId: string; feeStructureId?: string; amount: number; dueDate: string },
+  campusId?: string | null
+): Promise<BackendInvoice> {
+  const res = await apiFetch<{ data: BackendInvoice }>(
+    `/fees/invoices`,
+    { method: "POST", body: JSON.stringify(payload) },
+    { campusId: campusId ?? undefined }
+  );
+  return res.data;
+}
+
+export async function cancelInvoiceApi(uuid: string, reason: string): Promise<BackendInvoice> {
+  const res = await apiFetch<{ data: BackendInvoice }>(`/fees/invoices/${uuid}/cancel`, {
+    method: "POST",
+    body: JSON.stringify({ reason }),
+  });
+  return res.data;
+}
+
+export async function fetchStudentLedger(params: {
+  studentId: string;
+  campusId?: string | null;
+  from?: string;
+  to?: string;
+}): Promise<any> {
+  const q = new URLSearchParams({ studentId: params.studentId });
+  if (params.from) { q.set("from", params.from); }
+  if (params.to) { q.set("to", params.to); }
+  const res = await apiFetch<{ data: any }>(`/fees/ledger?${q.toString()}`, {}, { campusId: params.campusId ?? undefined });
+  return res.data ?? null;
+}
+
+export async function fetchDefaulters(params: { campusId?: string | null; asOf?: string } = {}): Promise<any[]> {
+  const q = new URLSearchParams();
+  if (params.asOf) { q.set("asOf", params.asOf); }
+  const qs = q.toString() ? `?${q.toString()}` : "";
+  const res = await apiFetch<{ data: any[] }>(`/fees/reports/defaulter${qs}`, {}, { campusId: params.campusId ?? undefined });
+  return Array.isArray(res.data) ? res.data : [];
+}

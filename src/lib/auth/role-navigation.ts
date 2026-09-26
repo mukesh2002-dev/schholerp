@@ -74,6 +74,8 @@ export interface RoleNavGroup {
 const ALL: StaffRole[] = ["ADMIN", "PRINCIPAL", "ACCOUNTANT", "HR_MANAGER", "TEACHER", "LIBRARIAN", "STAFF"];
 const LEADERSHIP: StaffRole[] = ["ADMIN", "PRINCIPAL"];
 const FINANCE: StaffRole[] = ["ADMIN", "ACCOUNTANT"];
+// HR manages fee entries end-to-end (backend grants: prisma/seed.js HR_FEE_ALLOW).
+const FINANCE_HR: StaffRole[] = ["ADMIN", "ACCOUNTANT", "HR_MANAGER"];
 const PEOPLE: StaffRole[] = ["ADMIN", "PRINCIPAL", "HR_MANAGER"];
 const ACADEMIC: StaffRole[] = ["ADMIN", "PRINCIPAL"];
 
@@ -216,7 +218,7 @@ export const ROLE_NAV_GROUPS: RoleNavGroup[] = [
         href: "/fees",
         icon: CreditCard,
         badge: "9",
-        allowedRoles: [...FINANCE, "PRINCIPAL"],
+        allowedRoles: [...FINANCE_HR, "PRINCIPAL"],
         featureKey: "fees",
         moduleKey: "fees",
       },
@@ -241,7 +243,7 @@ export const ROLE_NAV_GROUPS: RoleNavGroup[] = [
         href: "/expenses",
         icon: Receipt,
         badge: "7",
-        allowedRoles: [...FINANCE, "PRINCIPAL"],
+        allowedRoles: [...FINANCE_HR, "PRINCIPAL"],
         moduleKey: "fees",
       },
       {
