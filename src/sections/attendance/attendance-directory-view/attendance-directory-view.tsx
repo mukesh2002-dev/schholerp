@@ -7,6 +7,7 @@ import {
   fetchStaffAttendance,
   fetchLeaves,
   markStudentAttendanceApi,
+  markAllStudentAttendanceApi,
   mapBackendStudentAttendance,
   mapBackendStaffAttendance,
 } from "@/lib/api/attendance";
@@ -155,16 +156,29 @@ export function AttendanceDirectoryView() {
   }, [refreshRecords, refreshLeaves]);
 
   const handleMarkAllPresent = useCallback(async () => {
-    if (filtered.length === 0) {
-      toast.error("No records for this date", { description: "Select a date with existing records or ensure students are enrolled for this campus." });
-      return;
-    }
     if (category !== "STUDENT") {
       toast.info("Staff attendance marking uses biometric / manual check-in - use Staff tab");
       return;
     }
     if (!navigator.onLine) {
       toast.error("Offline — internet check karo");
+      return;
+    }
+    const campus = activeBranchId !== "all" ? activeBranchId : undefined;
+    // No records yet for this date (first marking): bootstrap server-side —
+    // backend builds the roster from enrolled students, no classId needed.
+    if (filtered.length === 0) {
+      setSaving(true);
+      try {
+        const res = await markAllStudentAttendanceApi({ campusId: campus, date: effectiveDate, status: "present" });
+        toast.success(`Marked ${res.count} students as PRESENT for ${effectiveDate}`);
+        await refreshRecords();
+      } catch (err: any) {
+        const msg = err?.message || "Failed to save attendance";
+        toast.error(msg, { description: "Students enrolled hain? Check admissions for this campus." });
+      } finally {
+        setSaving(false);
+      }
       return;
     }
     const classId = filtered[0]?.classId;
@@ -175,7 +189,7 @@ export function AttendanceDirectoryView() {
     setSaving(true);
     try {
       const records = filtered.map((r) => ({ studentId: r.personId, status: "present" as const }));
-      const res = await markStudentAttendanceApi({ campusId: activeBranchId !== "all" ? activeBranchId : undefined, classId, date: effectiveDate, records });
+      const res = await markStudentAttendanceApi({ campusId: campus, classId, date: effectiveDate, records });
       toast.success(`Marked ${res.count} students as PRESENT for ${effectiveDate}`);
       await refreshRecords();
     } catch (err: any) {
@@ -305,7 +319,9 @@ export function AttendanceDirectoryView() {
                           const cid = r.classId;
                           if (!cid) { toast.error("Class missing"); return; }
                           try {
-                            await markStudentAttendanceApi({ campusId: activeBranchId !== "all" ? activeBranchId : undefined, classId: cid, date: r.date, records: [{ studentId: r.personId, status: val.toLowerCase() }] });
+                            // Backend stores LEAVE as `excused` (see mapStatus) — send canonical value.
+                            const apiStatus = val === "LEAVE" ? "excused" : val.toLowerCase();
+                            await markStudentAttendanceApi({ campusId: activeBranchId !== "all" ? activeBranchId : undefined, classId: cid, date: r.date, records: [{ studentId: r.personId, status: apiStatus }] });
                             toast.success(`${r.personName} → ${val}`);
                             await refreshRecords();
                           } catch (e:any) { toast.error(e?.message || "Update failed"); }

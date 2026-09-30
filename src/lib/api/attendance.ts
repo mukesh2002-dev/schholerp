@@ -168,6 +168,14 @@ export async function markStudentAttendanceApi(payload: { campusId?: string | nu
   return res.data;
 }
 
+// Bootstrap for first-time marking: builds the student roster server-side
+// (campus/class), so "Mark All Present" works even when no attendance
+// records exist yet for the date (list would be empty otherwise).
+export async function markAllStudentAttendanceApi(payload: { campusId?: string | null; classId?: string; date: string; status?: string; remarks?: string | null }): Promise<{ count: number; date: string; status: string }> {
+  const res = await apiFetch<{ data: { count: number; date: string; status: string } }>(`/attendance/students/mark-all`, { method: "POST", body: JSON.stringify(payload) }, { campusId: payload.campusId ?? undefined });
+  return res.data;
+}
+
 export async function recordStaffAttendanceApi(payload: { campusId?: string | null; userId?: string; date?: string; status?: string; remarks?: string | null }): Promise<BackendStaffAttendance> {
   const res = await apiFetch<{ data: BackendStaffAttendance }>(`/attendance/staff`, { method: "POST", body: JSON.stringify(payload) }, { campusId: payload.campusId ?? undefined });
   return res.data;
