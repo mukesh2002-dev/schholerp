@@ -1,9 +1,9 @@
-"use client";
+﻿"use client";
 
-import React, { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import React, { useState } from "react";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { fetchNotices, Notice } from "@/lib/api/notices";
+import { fetchNotices, updateNoticeApi, deleteNoticeApi, safeString } from "@/lib/api/notices";
 import { useERP } from "@/components/providers/erp-provider";
 import { useCampusData } from "@/lib/hooks/use-campus-data";
 import { Announcement, AnnouncementPriority, AnnouncementStatus, AnnouncementTarget } from "@/types";
@@ -21,8 +21,11 @@ import {
   Clock,
   AlertTriangle,
   Loader2,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
+import { AnnouncementDialog, AnnouncementDeleteDialog } from "@/sections/announcements";
 
 const priorityConfig: Record<string, { label: string; variant: "destructive" | "warning" | "default" | "secondary" }> = {
   URGENT: { label: "Urgent", variant: "destructive" },
@@ -49,34 +52,59 @@ const targetLabels: Record<string, string> = {
 
 export default function AnnouncementDetailPage() {
   const params = useParams();
-  const announcementId = params.id as string;
+  const router = useRouter();
   const { activeBranchId } = useERP();
-  const { data: notices, isLoading } = useCampusData<Notice[]>({
+  const id = params.id as string;
+
+  const { data: rawNotices, isLoading } = useCampusData({
     fetcher: (cid) => fetchNotices({ campusId: cid }),
     campusId: activeBranchId,
     fallback: [],
     queryKeyPrefix: "notices",
   });
-  const found = notices.find((n) => n.id === announcementId);
-  const announcement: Announcement | undefined = found
+
+  const notices = Array.isArray(rawNotices) ? rawNotices : [];
+  const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [customAnnouncement, setCustomAnnouncement] = useState<Announcement | null>(null);
+
+  const found = notices.find((n) => n.id === id);
+  const announcement: Announcement | undefined = customAnnouncement || (found
     ? {
-        id: found.id,
-        title: found.title,
-        content: found.content,
-        summary: found.content,
-        author: found.author,
+        id: safeString(found.id),
+        title: safeString(found.title),
+        content: safeString(found.content),
+        summary: safeString(found.summary || found.content),
+        author: safeString(found.author, "Administration"),
         authorRole: "Administration",
-        branchId: found.branchId,
-        branchName: found.branchName,
-        priority: found.priority as AnnouncementPriority,
-        status: "PUBLISHED" as AnnouncementStatus,
-        target: "ALL" as AnnouncementTarget,
-        publishDate: found.date,
+        branchId: safeString(found.branchId, "all"),
+        branchName: safeString(found.branchName, "All Campuses"),
+        priority: (safeString(found.priority, "NORMAL").toUpperCase()) as AnnouncementPriority,
+        status: (safeString(found.status, "PUBLISHED").toUpperCase()) as AnnouncementStatus,
+        target: (safeString(found.target, "ALL").toUpperCase()) as AnnouncementTarget,
+        publishDate: safeString(found.date, new Date().toISOString()),
         viewCount: 0,
-        createdAt: found.date,
-        updatedAt: found.date,
+        createdAt: safeString(found.date, new Date().toISOString()),
+        updatedAt: safeString(found.date, new Date().toISOString()),
       }
-    : undefined;
+    : undefined);
+
+  const handleSave = async (data: Partial<Announcement>) => {
+    if (!announcement) return;
+    await updateNoticeApi(announcement.id, data, activeBranchId);
+    setCustomAnnouncement({
+      ...announcement,
+      ...data,
+      title: safeString(data.title || announcement.title),
+      content: safeString(data.content || announcement.content),
+      author: safeString(data.author || announcement.author),
+    } as Announcement);
+  };
+
+  const handleDelete = async (annId: string) => {
+    await deleteNoticeApi(annId, activeBranchId);
+    router.push("/announcements");
+  };
 
   if (isLoading) {
     return (
@@ -104,6 +132,14 @@ export default function AnnouncementDetailPage() {
     );
   }
 
+  const pKey = safeString(announcement.priority, "NORMAL").toUpperCase();
+  const sKey = safeString(announcement.status, "PUBLISHED").toUpperCase();
+  const tKey = safeString(announcement.target, "ALL").toUpperCase();
+  const pConf = priorityConfig[pKey] || priorityConfig.NORMAL;
+  const sConf = statusConfig[sKey] || statusConfig.PUBLISHED;
+  const tLabel = targetLabels[tKey] || safeString(announcement.target, "Everyone");
+  const authorName = safeString(announcement.author, "Administration");
+
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
       <Breadcrumbs />
@@ -113,35 +149,43 @@ export default function AnnouncementDetailPage() {
         <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
           <div className="space-y-3">
             <div className="flex items-center gap-2 flex-wrap">
-              <Badge variant={priorityConfig[announcement.priority].variant} className="text-[10px]">
-                {priorityConfig[announcement.priority].label}
+              <Badge variant={pConf.variant} className="text-[10px]">
+                {pConf.label}
               </Badge>
-              <Badge variant="outline" className={`text-[10px] border ${statusConfig[announcement.status].className}`}>
-                {statusConfig[announcement.status].label}
+              <Badge variant="outline" className={`text-[10px] border ${sConf.className}`}>
+                {sConf.label}
               </Badge>
             </div>
 
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
-              {announcement.title}
+              {safeString(announcement.title)}
             </h1>
 
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
               <div className="flex items-center gap-1.5">
                 <User className="h-3.5 w-3.5" />
-                <span className="font-semibold text-foreground">{announcement.author}</span>
-                <span className="text-border">·</span>
-                <span>{announcement.authorRole}</span>
+                <span className="font-semibold text-foreground">{authorName}</span>
+                <span className="text-border">•</span>
+                <span>{safeString(announcement.authorRole, "Administration")}</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <Users className="h-3.5 w-3.5" />
-                <span>{targetLabels[announcement.target]}</span>
+                <span>{tLabel}</span>
               </div>
             </div>
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
+            <Button variant="outline" size="sm" onClick={() => setEditOpen(true)} className="gap-1.5 text-xs">
+              <Pencil className="h-3.5 w-3.5 text-primary" />
+              <span>Edit</span>
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setDeleteOpen(true)} className="gap-1.5 text-xs text-destructive hover:bg-destructive/10">
+              <Trash2 className="h-3.5 w-3.5" />
+              <span>Delete</span>
+            </Button>
             <Button variant="ghost" size="sm" asChild>
-              <Link href="/announcements" className="gap-1.5">
+              <Link href="/announcements" className="gap-1.5 text-xs">
                 <ArrowLeft className="h-4 w-4" />
                 <span>Back</span>
               </Link>
@@ -152,7 +196,7 @@ export default function AnnouncementDetailPage() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 border-t border-border/60">
           <div className="p-3 rounded-xl bg-muted/40 border border-border/60">
             <span className="text-[11px] text-muted-foreground block mb-0.5">Views</span>
-            <span className="font-bold text-foreground text-sm">{announcement.viewCount}</span>
+            <span className="font-bold text-foreground text-sm">{announcement.viewCount || 0}</span>
           </div>
           <div className="p-3 rounded-xl bg-muted/40 border border-border/60">
             <span className="text-[11px] text-muted-foreground block mb-0.5">Published</span>
@@ -161,12 +205,12 @@ export default function AnnouncementDetailPage() {
           <div className="p-3 rounded-xl bg-muted/40 border border-border/60">
             <span className="text-[11px] text-muted-foreground block mb-0.5">Expiry Date</span>
             <span className="font-bold text-foreground text-sm">
-              {announcement.expiryDate ? formatDate(announcement.expiryDate) : "—"}
+              {announcement.expiryDate ? formatDate(announcement.expiryDate) : "-"}
             </span>
           </div>
           <div className="p-3 rounded-xl bg-muted/40 border border-border/60">
             <span className="text-[11px] text-muted-foreground block mb-0.5">Branch</span>
-            <span className="font-bold text-foreground text-sm">{announcement.branchName}</span>
+            <span className="font-bold text-foreground text-sm">{safeString(announcement.branchName, "All Campuses")}</span>
           </div>
         </div>
       </div>
@@ -181,7 +225,7 @@ export default function AnnouncementDetailPage() {
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
-            {announcement.content}
+            {safeString(announcement.content)}
           </p>
         </CardContent>
       </Card>
@@ -200,7 +244,7 @@ export default function AnnouncementDetailPage() {
               <Eye className="h-3.5 w-3.5" />
               View Count
             </span>
-            <span className="font-bold text-foreground">{announcement.viewCount}</span>
+            <span className="font-bold text-foreground">{announcement.viewCount || 0}</span>
           </div>
           <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30 border border-border/60 text-xs">
             <span className="text-muted-foreground flex items-center gap-1.5">
@@ -209,37 +253,43 @@ export default function AnnouncementDetailPage() {
             </span>
             <span className="font-bold text-foreground">{formatDate(announcement.publishDate)}</span>
           </div>
-          {announcement.expiryDate && (
-            <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30 border border-border/60 text-xs">
-              <span className="text-muted-foreground flex items-center gap-1.5">
-                <AlertTriangle className="h-3.5 w-3.5" />
-                Expires On
-              </span>
-              <span className="font-bold text-foreground">{formatDate(announcement.expiryDate)}</span>
-            </div>
-          )}
           <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30 border border-border/60 text-xs">
             <span className="text-muted-foreground flex items-center gap-1.5">
               <Users className="h-3.5 w-3.5" />
               Target Audience
             </span>
-            <span className="font-bold text-foreground">{targetLabels[announcement.target]}</span>
+            <span className="font-bold text-foreground">{tLabel}</span>
           </div>
           <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30 border border-border/60 text-xs">
             <span className="text-muted-foreground flex items-center gap-1.5">
               <User className="h-3.5 w-3.5" />
               Author
             </span>
-            <span className="font-bold text-foreground">{announcement.author}</span>
+            <span className="font-bold text-foreground">{authorName}</span>
           </div>
           <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30 border border-border/60 text-xs">
             <span className="text-muted-foreground">Status</span>
-            <Badge variant="outline" className={`text-[10px] border ${statusConfig[announcement.status].className}`}>
-              {statusConfig[announcement.status].label}
+            <Badge variant="outline" className={`text-[10px] border ${sConf.className}`}>
+              {sConf.label}
             </Badge>
           </div>
         </CardContent>
       </Card>
+
+      {/* Edit & Delete Dialogs */}
+      <AnnouncementDialog
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        announcement={announcement}
+        onSave={handleSave}
+      />
+
+      <AnnouncementDeleteDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        announcement={announcement}
+        onConfirm={handleDelete}
+      />
     </div>
   );
 }

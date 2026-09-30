@@ -1,4 +1,4 @@
-import { type ClassValue, clsx } from "clsx";
+﻿import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { SCHOOL_DATA } from "@/lib/school-data";
 
@@ -24,22 +24,32 @@ export function formatNumber(num: number, locale: string = SCHOOL_DATA.locale): 
 
 export function formatDate(dateString: string, locale: string = SCHOOL_DATA.locale): string {
   if (!dateString) return "-";
-  const date = new Date(dateString);
-  return new Intl.DateTimeFormat(locale, {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  }).format(date);
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return String(dateString);
+    return new Intl.DateTimeFormat(locale, {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    }).format(date);
+  } catch {
+    return String(dateString || "-");
+  }
 }
 
 export function formatDateTime(dateString: string, locale: string = SCHOOL_DATA.locale): string {
   if (!dateString) return "-";
-  const date = new Date(dateString);
-  return new Intl.DateTimeFormat(locale, {
-    day: "numeric",
-    month: "short",
-    hour: "numeric",
-    minute: "numeric",
-    hour12: true,
-  }).format(date);
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return String(dateString);
+    return new Intl.DateTimeFormat(locale, {
+      day: "numeric",
+      month: "short",
+      hour: "numeric",
+      minute: "numeric",
+      hour12: true,
+    }).format(date);
+  } catch {
+    return String(dateString || "-");
+  }
 }

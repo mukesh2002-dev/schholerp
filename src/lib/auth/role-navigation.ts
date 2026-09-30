@@ -263,13 +263,12 @@ export const ROLE_NAV_GROUPS: RoleNavGroup[] = [
   {
     group: "Communication & Events",
     items: [
-      { title: "Announcements", href: "/announcements", icon: Megaphone, badge: "6", featureKey: "broadcast", moduleKey: "notices" },
-      { title: "Messages", href: "/messages", icon: MessageSquare, badge: "3" },
+      { title: "Announcements", href: "/announcements", icon: Megaphone, featureKey: "broadcast", moduleKey: "notices" },
+      { title: "Messages", href: "/messages", icon: MessageSquare },
       {
         title: "Events Calendar",
         href: "/events",
         icon: Calendar,
-        badge: "8",
         allowedRoles: [...LEADERSHIP, "HR_MANAGER"],
       },
     ],

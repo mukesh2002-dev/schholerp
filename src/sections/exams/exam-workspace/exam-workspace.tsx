@@ -66,7 +66,7 @@ function useExamPermissions() {
 // --- Exam Setup Schema - Section removed, ExamType must pre-exist ---
 const examSchema = z.object({
   name: z.string().min(2, "Name required"),
-  examTypeId: z.string().min(1, "Exam type pehle create karo - tab Exam Types me banao"),
+  examTypeId: z.string().optional(),
   classId: z.string().min(1, "Class required"),
   academicYear: z.string().min(1, "Required"),
   startDate: z.string().min(1, "Required"),
@@ -247,6 +247,15 @@ function ExamsTab({ branchId }: { branchId: string }) {
   useEffect(() => { refresh(); loadTypes(); }, [refresh, loadTypes]);
 
   useEffect(() => {
+    const onNew = () => {
+      setEditing(null);
+      setOpen(true);
+    };
+    window.addEventListener("exams:new", onNew);
+    return () => window.removeEventListener("exams:new", onNew);
+  }, []);
+
+  useEffect(() => {
     fetchClasses({ campusId, limit: 100 })
       .then((cls) => setClasses(cls.map((c) => ({ id: c.id, name: c.name }))))
       .catch(() => setClasses([]));
@@ -267,7 +276,7 @@ function ExamsTab({ branchId }: { branchId: string }) {
 
   const onSubmit = async (v: ExamFormValues) => {
     try {
-      if (examTypes.length === 0) { toast.error("Create an Exam Type first (Exam Types tab)"); return; }
+      // Auto-handles exam types
       const et = examTypes.find((e) => e.uuid === v.examTypeId);
       if (editing) {
         await updateExamApi(editing.uuid, {
@@ -281,7 +290,7 @@ function ExamsTab({ branchId }: { branchId: string }) {
       } else {
         await createExamApi({
           name: v.name,
-          examTypeUuid: v.examTypeId,
+          examTypeUuid: v.examTypeId || (examTypes[0]?.uuid ?? undefined),
           category: et?.category ?? "CUSTOM",
           examMode: et?.defaultMode ?? "WRITTEN",
           academicYear: v.academicYear,

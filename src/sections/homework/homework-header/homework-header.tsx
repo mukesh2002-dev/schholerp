@@ -3,7 +3,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useERP } from "@/components/providers/erp-provider";
 import { createHomeworkApi, fetchHomework } from "@/lib/api/homework";
-import { fetchClasses } from "@/lib/api/classes";
+import { fetchClasses, fetchSubjects } from "@/lib/api/classes";
+import { fetchTeachers } from "@/lib/api/teachers";
 import { Breadcrumbs } from "@/components/layout/breadcrumbs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,7 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { HomeworkStatus, HomeworkType } from "@/types";
+import { ClassRoom, HomeworkStatus, HomeworkType } from "@/types";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -34,20 +35,15 @@ import { toast } from "sonner";
 const homeworkSchema = z.object({
   title: z.string().min(1, "Task title is required"),
   description: z.string().optional(),
-  className: z.string().min(1, "Class is required"),
+  classId: z.string().min(1, "Class is required"),
   section: z.string().optional(),
+  teacherUuid: z.string().optional(),
+  subjectUuid: z.string().optional(),
   dueDate: z.string().min(1, "Due date is required"),
   homeworkType: z.enum(["CW", "HW", "ASSIGNMENT", "PROJECT"]),
-  priority: z.enum(["LOW", "MEDIUM", "HIGH"]).optional(),
 });
 
 type HomeworkFormValues = z.infer<typeof homeworkSchema>;
-
-interface ClassRow {
-  id: string;
-  name: string;
-  section: string;
-}
 
 const todayISO = () => new Date().toISOString().split("T")[0];
 
@@ -57,10 +53,18 @@ export function HomeworkHeader({ onHomeworkAdded }: { onHomeworkAdded?: () => vo
   const campusId = activeBranchId === "all" ? null : activeBranchId;
 
   const [taskCount, setTaskCount] = useState(0);
-  const [classRows, setClassRows] = useState<ClassRow[]>([]);
+  const [classes, setClasses] = useState<ClassRoom[]>([]);
   const [classesLoading, setClassesLoading] = useState(false);
-  const [className, setClassName] = useState("");
-  const [section, setSection] = useState("");
+  const [selectedClassId, setSelectedClassId] = useState("");
+  const [selectedSection, setSelectedSection] = useState("");
+
+  const [teachers, setTeachers] = useState<{ id: string; fullName: string; designation?: string }[]>([]);
+  const [teachersLoading, setTeachersLoading] = useState(false);
+  const [teacherUuid, setTeacherUuid] = useState("");
+
+  const [subjects, setSubjects] = useState<{ id: string; name: string; code?: string }[]>([]);
+  const [subjectsLoading, setSubjectsLoading] = useState(false);
+  const [subjectUuid, setSubjectUuid] = useState("");
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [attachFile, setAttachFile] = useState<File | null>(null);
@@ -78,32 +82,43 @@ export function HomeworkHeader({ onHomeworkAdded }: { onHomeworkAdded?: () => vo
     defaultValues: {
       title: "",
       description: "",
-      className: "",
+      classId: "",
       section: "",
+      teacherUuid: "",
+      subjectUuid: "",
       dueDate: "",
       homeworkType: "HW",
-      priority: "MEDIUM",
     },
   });
 
   const homeworkType = watch("homeworkType");
 
-  // Group section-rows by class name so "Class 10" appears once.
-  const classGroups = useMemo(() => {
-    const map = new Map<string, ClassRow[]>();
-    for (const r of classRows) {
-      const list = map.get(r.name) ?? [];
-      list.push(r);
-      map.set(r.name, list);
+  const selectedClass = useMemo(() => {
+    return classes.find((c) => c.id === selectedClassId);
+  }, [classes, selectedClassId]);
+
+  // Available sections for the chosen class
+  const availableSections = useMemo(() => {
+    if (!selectedClass) return [];
+    if (Array.isArray(selectedClass.sections) && selectedClass.sections.length > 0) {
+      const uniqueNames = new Set<string>();
+      const list: { id: string; name: string }[] = [];
+      for (const s of selectedClass.sections) {
+        const cleanName = s.name.replace(/^Section\s*/i, "").trim();
+        if (cleanName && !uniqueNames.has(cleanName)) {
+          uniqueNames.add(cleanName);
+          list.push({ id: s.id || cleanName, name: cleanName });
+        }
+      }
+      if (list.length > 0) return list;
     }
-    return [...map.entries()].map(([name, rows]) => ({
-      name,
-      sections: [...new Set(rows.map((r) => r.section).filter(Boolean))],
-      rows,
-    }));
-  }, [classRows]);
-  const selectedGroup = classGroups.find((g) => g.name === className);
-  const selectedRow = selectedGroup?.rows.find((r) => r.section === section) ?? selectedGroup?.rows[0];
+    // Fallback standard sections if none in DB
+    return [
+      { id: "A", name: "A" },
+      { id: "B", name: "B" },
+      { id: "C", name: "C" },
+    ];
+  }, [selectedClass]);
 
   const refreshCount = useCallback(async () => {
     try {
@@ -123,22 +138,38 @@ export function HomeworkHeader({ onHomeworkAdded }: { onHomeworkAdded?: () => vo
     }
   }, [refreshCount]);
 
-  // Load classes when the dialog opens (one row per class + section).
+  // Load classes, teachers, and subjects when the dialog opens
   useEffect(() => {
     if (!dialogOpen) return;
     setClassesLoading(true);
     fetchClasses({ campusId, limit: 100 })
-      .then((cls) =>
-        setClassRows(
-          cls.map((c) => ({
-            id: c.id,
-            name: c.name,
-            section: c.sections?.[0]?.name?.replace(/^Section\s*/i, "") || "",
-          }))
-        )
-      )
+      .then((cls) => {
+        if (Array.isArray(cls)) {
+          setClasses(cls);
+        }
+      })
       .catch(() => toast.error("Failed to load classes"))
       .finally(() => setClassesLoading(false));
+
+    setTeachersLoading(true);
+    fetchTeachers({ campusId, limit: 100 })
+      .then((res) => {
+        if (Array.isArray(res?.data)) {
+          setTeachers(res.data.map((t) => ({ id: t.id, fullName: t.fullName, designation: t.designation })));
+        }
+      })
+      .catch(() => {})
+      .finally(() => setTeachersLoading(false));
+
+    setSubjectsLoading(true);
+    fetchSubjects({ campusId, limit: 100 })
+      .then((subs) => {
+        if (Array.isArray(subs)) {
+          setSubjects(subs.map((s) => ({ id: s.id, name: s.name, code: s.code })));
+        }
+      })
+      .catch(() => {})
+      .finally(() => setSubjectsLoading(false));
   }, [dialogOpen, campusId]);
 
   const handleAttach = (f: File | null) => {
@@ -152,8 +183,10 @@ export function HomeworkHeader({ onHomeworkAdded }: { onHomeworkAdded?: () => vo
   const closeDialog = () => {
     setDialogOpen(false);
     setAttachFile(null);
-    setClassName("");
-    setSection("");
+    setSelectedClassId("");
+    setSelectedSection("");
+    setTeacherUuid("");
+    setSubjectUuid("");
     setAttachPreview((prev) => {
       if (prev) URL.revokeObjectURL(prev);
       return null;
@@ -162,22 +195,25 @@ export function HomeworkHeader({ onHomeworkAdded }: { onHomeworkAdded?: () => vo
   };
 
   const handleCreateHomework = async (data: HomeworkFormValues) => {
-    if (!selectedRow) {
+    if (!selectedClass) {
       toast.error("Please select a class");
       return;
     }
+    const targetTeacher = teacherUuid && teacherUuid !== "self" ? teacherUuid : undefined;
     try {
       await createHomeworkApi(
         {
           title: data.title,
           description: data.description || "",
           campusUuid: campusId ?? undefined,
-          classUuid: selectedRow.id,
-          section: selectedRow.section || undefined,
+          classUuid: selectedClass.id,
+          section: selectedSection || undefined,
+          teacherUuid: targetTeacher,
+          subjectUuid: subjectUuid || undefined,
           dueDate: new Date(data.dueDate).toISOString(),
           maxMarks: 100,
           homeworkType: data.homeworkType as HomeworkType,
-          priority: data.priority as any,
+          priority: "MEDIUM",
           status: "ACTIVE" as HomeworkStatus,
         },
         attachFile ? [attachFile] : [],
@@ -215,16 +251,22 @@ export function HomeworkHeader({ onHomeworkAdded }: { onHomeworkAdded?: () => vo
               </span>
             </div>
             <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-              CW / HW / Assignment / Project — create, edit, track submissions & grading.
+              CW / HW / Assignment / Project — create, edit, track submissions &amp; grading.
             </p>
           </div>
 
-          {canWrite && (
-            <Button onClick={() => setDialogOpen(true)} variant="gradient" className="gap-2 shrink-0">
+          <div className="flex items-center gap-2">
+            <Button
+              id="create-homework-btn"
+              aria-label="Create homework"
+              variant="gradient"
+              onClick={() => setDialogOpen(true)}
+              className="gap-1.5"
+            >
               <Plus className="h-4 w-4" />
-              <span>Create CW/HW</span>
+              Create Task
             </Button>
-          )}
+          </div>
         </div>
       </div>
 
@@ -233,116 +275,151 @@ export function HomeworkHeader({ onHomeworkAdded }: { onHomeworkAdded?: () => vo
           <DialogHeader>
             <DialogTitle className="text-lg font-bold">Create Homework / Task</DialogTitle>
             <DialogDescription>
-              Pick a class for this task. Attach an optional image or PDF.
+              Pick a class, section, subject, and assigning teacher for this task.
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleSubmit(handleCreateHomework)} className="space-y-4 mt-2">
             <div>
-              <label className="text-xs font-medium text-foreground mb-1 block">Task Title</label>
-              <Input {...register("title")} placeholder="e.g. Chapter 4 Trigonometry Problem Set" className={errors.title ? "border-rose-500" : ""} />
+              <label htmlFor="homework-title" className="text-xs font-medium text-foreground mb-1 block">Task Title</label>
+              <Input id="homework-title" aria-label="Task title" {...register("title")} placeholder="e.g. Chapter 4 Trigonometry Problem Set" className={errors.title ? "border-rose-500" : ""} />
               {errors.title && <p className="text-[11px] text-rose-500 mt-1">{errors.title.message}</p>}
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-medium text-foreground mb-1 block">Type</label>
-                <Select value={homeworkType} onValueChange={(val) => setValue("homeworkType", val as any)}>
-                  <SelectTrigger className={errors.homeworkType ? "border-rose-500" : ""}>
-                    <SelectValue placeholder="Select Type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="CW">CW — Class Work</SelectItem>
-                    <SelectItem value="HW">HW — Home Work</SelectItem>
-                    <SelectItem value="ASSIGNMENT">Assignment</SelectItem>
-                    <SelectItem value="PROJECT">Project</SelectItem>
-                  </SelectContent>
-                </Select>
-                {errors.homeworkType && <p className="text-[11px] text-rose-500 mt-1">{errors.homeworkType.message}</p>}
-              </div>
-              <div>
-                <label className="text-xs font-medium text-foreground mb-1 block">Priority</label>
-                <Select value={watch("priority")} onValueChange={(val) => setValue("priority", val as any)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="LOW">Low</SelectItem>
-                    <SelectItem value="MEDIUM">Medium</SelectItem>
-                    <SelectItem value="HIGH">High</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            <div>
+              <label htmlFor="homework-type" className="text-xs font-medium text-foreground mb-1 block">Type</label>
+              <Select value={homeworkType} onValueChange={(val) => setValue("homeworkType", val as any)}>
+                <SelectTrigger id="homework-type" aria-label="Homework type" className={errors.homeworkType ? "border-rose-500" : ""}>
+                  <SelectValue placeholder="Select Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="CW">CW — Class Work</SelectItem>
+                  <SelectItem value="HW">HW — Home Work</SelectItem>
+                  <SelectItem value="ASSIGNMENT">Assignment</SelectItem>
+                  <SelectItem value="PROJECT">Project</SelectItem>
+                </SelectContent>
+              </Select>
+              {errors.homeworkType && <p className="text-[11px] text-rose-500 mt-1">{errors.homeworkType.message}</p>}
             </div>
 
             <div className="rounded-xl border border-border/60 bg-muted/20 p-3 space-y-3">
               <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Assign to</p>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-medium text-foreground mb-1 block">Class</label>
+                  <label htmlFor="homework-class" className="text-xs font-medium text-foreground mb-1 block">Class</label>
                   <Select
-                    value={className}
+                    value={selectedClassId}
                     onValueChange={(val) => {
-                      setClassName(val);
-                      setValue("className", val);
-                      setSection("");
+                      setSelectedClassId(val);
+                      setValue("classId", val);
+                      setSelectedSection("");
                       setValue("section", "");
                     }}
                   >
-                    <SelectTrigger className={errors.className ? "border-rose-500" : ""}>
+                    <SelectTrigger id="homework-class" aria-label="Class" className={errors.classId ? "border-rose-500" : ""}>
                       <SelectValue placeholder={classesLoading ? "Loading classes..." : "Select Class"} />
                     </SelectTrigger>
                     <SelectContent>
-                      {classGroups.map((g) => (
-                        <SelectItem key={g.name} value={g.name}>
-                          {g.name}
+                      {classes.map((cls) => (
+                        <SelectItem key={cls.id} value={cls.id}>
+                          {cls.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                  {errors.className && <p className="text-[11px] text-rose-500 mt-1">{errors.className.message}</p>}
+                  {errors.classId && <p className="text-[11px] text-rose-500 mt-1">{errors.classId.message}</p>}
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-foreground mb-1 block">Section</label>
+                  <label htmlFor="homework-section" className="text-xs font-medium text-foreground mb-1 block">Section</label>
                   <Select
-                    value={section}
+                    value={selectedSection}
                     onValueChange={(val) => {
-                      setSection(val);
+                      setSelectedSection(val);
                       setValue("section", val);
                     }}
-                    disabled={!selectedGroup}
+                    disabled={!selectedClass}
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder={!selectedGroup ? "Pick class first" : "Select Section"} />
+                    <SelectTrigger id="homework-section" aria-label="Section">
+                      <SelectValue placeholder={!selectedClass ? "Pick class first" : "Select Section"} />
                     </SelectTrigger>
                     <SelectContent>
-                      {(selectedGroup?.sections ?? []).map((s) => (
-                        <SelectItem key={s} value={s}>
-                          Section {s}
+                      {availableSections.map((sec) => (
+                        <SelectItem key={sec.name} value={sec.name}>
+                          Section {sec.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
               </div>
-              {selectedRow && (
+
+              <div className="grid grid-cols-2 gap-3 pt-1">
+                <div>
+                  <label htmlFor="homework-teacher" className="text-xs font-medium text-foreground mb-1 block">Assigning Teacher</label>
+                  <Select
+                    value={teacherUuid}
+                    onValueChange={(val) => {
+                      setTeacherUuid(val);
+                      setValue("teacherUuid", val);
+                    }}
+                  >
+                    <SelectTrigger id="homework-teacher" aria-label="Assigning Teacher">
+                      <SelectValue placeholder={teachersLoading ? "Loading teachers..." : "Self (Current User)"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="self">Self (Current User)</SelectItem>
+                      {teachers.map((t) => (
+                        <SelectItem key={t.id} value={t.id}>
+                          {t.fullName} {t.designation ? `(${t.designation})` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label htmlFor="homework-subject" className="text-xs font-medium text-foreground mb-1 block">Subject (Optional)</label>
+                  <Select
+                    value={subjectUuid}
+                    onValueChange={(val) => {
+                      setSubjectUuid(val);
+                      setValue("subjectUuid", val);
+                    }}
+                  >
+                    <SelectTrigger id="homework-subject" aria-label="Subject">
+                      <SelectValue placeholder={subjectsLoading ? "Loading subjects..." : "Select Subject"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {subjects.map((s) => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.name} {s.code ? `(${s.code})` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {selectedClass && (
                 <p className="text-[11px] text-muted-foreground">
-                  Assigning to <strong className="text-foreground">{selectedRow.name}{selectedRow.section ? ` (Sec ${selectedRow.section})` : ""}</strong>
+                  Assigning to <strong className="text-foreground">{selectedClass.name}{selectedSection ? ` (Sec ${selectedSection})` : ""}</strong>
                 </p>
               )}
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-medium text-foreground mb-1 block">Due Date</label>
-                <Input type="date" min={todayISO()} {...register("dueDate")} className={errors.dueDate ? "border-rose-500" : ""} />
+                <label htmlFor="homework-due-date" className="text-xs font-medium text-foreground mb-1 block">Due Date</label>
+                <Input id="homework-due-date" aria-label="Due date" type="date" min={todayISO()} {...register("dueDate")} className={errors.dueDate ? "border-rose-500" : ""} />
                 {errors.dueDate && <p className="text-[11px] text-rose-500 mt-1">{errors.dueDate.message}</p>}
               </div>
 
               <div>
-                <label className="text-xs font-medium text-foreground mb-1 block">Attachment (optional)</label>
-                <label className="flex items-center gap-2 h-9 px-3 rounded-md border border-input bg-background text-xs text-muted-foreground cursor-pointer hover:border-primary/50">
+                <label htmlFor="homework-attachment" className="text-xs font-medium text-foreground mb-1 block">Attachment (optional)</label>
+                <label htmlFor="homework-attachment" className="flex items-center gap-2 h-9 px-3 rounded-md border border-input bg-background text-xs text-muted-foreground cursor-pointer hover:border-primary/50">
                   {attachFile ? <Paperclip className="h-3.5 w-3.5 text-primary" /> : <Paperclip className="h-3.5 w-3.5" />}
                   <span className="truncate">{attachFile ? attachFile.name : "Image or PDF, max 10MB"}</span>
                   <input
+                    id="homework-attachment"
                     type="file"
                     className="hidden"
                     accept="image/jpeg,image/png,image/webp,application/pdf"
@@ -364,8 +441,8 @@ export function HomeworkHeader({ onHomeworkAdded }: { onHomeworkAdded?: () => vo
             )}
 
             <div>
-              <label className="text-xs font-medium text-foreground mb-1 block">Instructions</label>
-              <Textarea {...register("description")} placeholder="Problem numbers, page references, submission notes..." rows={3} />
+              <label htmlFor="homework-instructions" className="text-xs font-medium text-foreground mb-1 block">Instructions</label>
+              <Textarea id="homework-instructions" aria-label="Instructions" {...register("description")} placeholder="Problem numbers, page references, submission notes..." rows={3} />
             </div>
 
             <DialogFooter className="gap-2 pt-2">
