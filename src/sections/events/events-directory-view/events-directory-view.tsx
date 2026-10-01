@@ -26,9 +26,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import Link from "next/link";
-import { Calendar, List, LayoutGrid, Plus, MapPin, Clock, Send, CheckCircle2, XCircle, CheckCheck, Trash2, Search, Sparkles, ArrowRight, Users } from "lucide-react";
+import { Calendar, List, LayoutGrid, Plus, MapPin, Clock, Send, CheckCircle2, XCircle, CheckCheck, Trash2, Search, Sparkles, ArrowRight, Users, Loader2, WifiOff, RefreshCw, Pencil } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import { toast } from "sonner";
+import { EventsDirectoryViewSkeleton } from "./events-directory-view.skeleton";
 
 const TYPE_LABELS: Record<SchoolEventType, string> = {
   ACADEMIC: "Academic", CULTURAL: "Cultural", SPORTS: "Sports", WORKSHOP: "Workshop",
@@ -115,6 +116,11 @@ export function EventsDirectoryView() {
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   // Click a calendar date -> modal with that day's events.
   const [selectedDay, setSelectedDay] = useState<{ year: number; month: number; day: number } | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [busyKey, setBusyKey] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<SchoolEvent | null>(null);
+  const [rejectTarget, setRejectTarget] = useState<SchoolEvent | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
 
   const filteredEvents = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -171,42 +177,69 @@ export function EventsDirectoryView() {
   };
 
   const handleSave = async () => {
+    if (isOffline) { toast.error("You are offline — connect to the internet to save"); return; }
     if (!form.title.trim() || !form.eventDate) { toast.error("Event name and date are required"); return; }
+    if (!form.allDay && form.startTime && form.endTime && form.endTime < form.startTime) {
+      toast.error("End time must be after start time");
+      return;
+    }
     const payload = {
       title: form.title.trim(),
       type: form.type,
       eventDate: form.eventDate,
-      startTime: form.allDay ? null : form.startTime,
-      endTime: form.allDay ? null : form.endTime,
+      startTime: form.allDay ? null : form.startTime || null,
+      endTime: form.allDay ? null : form.endTime || null,
       allDay: form.allDay,
-      venue: form.venue || null,
-      description: form.description || null,
-      organizer: form.organizer || null,
+      venue: form.venue.trim() || null,
+      description: form.description.trim() || null,
+      organizer: form.organizer.trim() || null,
       audience: form.audience,
     };
+    setSaving(true);
     try {
       if (editing) {
         await updateEventApi(editing.uuid, payload);
         toast.success("Event updated");
       } else {
         await createEventApi(payload, activeBranchId !== "all" ? activeBranchId : undefined);
-        toast.success("Event saved as draft");
+        toast.success("Event saved as draft — submit it for approval");
       }
       setDialogOpen(false);
-      void refreshEvents();
+      setEditing(null);
+      await refreshEvents();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to save event");
+    } finally {
+      setSaving(false);
     }
   };
 
-  const doAction = async (fn: () => Promise<unknown>, okMsg: string) => {
+  const doAction = async (key: string, fn: () => Promise<unknown>, okMsg: string) => {
+    if (isOffline) { toast.error("You are offline — action unavailable"); return; }
+    setBusyKey(key);
     try {
       await fn();
       toast.success(okMsg);
-      void refreshEvents();
+      await refreshEvents();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Action failed");
+    } finally {
+      setBusyKey(null);
     }
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    await doAction(`delete-${deleteTarget.uuid}`, () => cancelEventApi(deleteTarget.uuid), "Event cancelled");
+    setDeleteTarget(null);
+  };
+
+  const confirmReject = async () => {
+    if (!rejectTarget) return;
+    if (!rejectReason.trim()) { toast.error("Please enter a rejection reason"); return; }
+    await doAction(`reject-${rejectTarget.uuid}`, () => rejectEventApi(rejectTarget.uuid, rejectReason.trim()), "Event rejected");
+    setRejectTarget(null);
+    setRejectReason("");
   };
 
   const daysInMonth = getDaysInMonth(currentYear, currentMonth);
@@ -219,9 +252,30 @@ export function EventsDirectoryView() {
     if (currentMonth === 11) { setCurrentMonth(0); setCurrentYear((y) => y + 1); } else { setCurrentMonth((m) => m + 1); }
   };
 
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <SectionOfflineBanner isOffline={isOffline} error={error} isLoading={isLoading} />
+        <EventsDirectoryViewSkeleton />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
-      <SectionOfflineBanner isOffline={isOffline} error={error} isLoading={isLoading} />
+      {isOffline && (
+        <div className="flex items-center gap-2 p-2.5 rounded-xl border border-amber-200 bg-amber-50 text-amber-800 text-xs">
+          <WifiOff className="h-3.5 w-3.5" /> You are offline — showing last cached events. Create / edit is paused until you reconnect.
+        </div>
+      )}
+      {error && !isOffline && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-xl border border-destructive/30 bg-destructive/5 text-xs">
+          <span className="text-destructive font-medium">{error}</span>
+          <Button size="sm" variant="outline" className="h-7 text-[11px] gap-1.5" onClick={() => void refreshEvents()}>
+            <RefreshCw className="h-3 w-3" /> Retry
+          </Button>
+        </div>
+      )}
 
       {upNext && (
         <Link href={`/events/${upNext.uuid}`} className="group flex items-center gap-4 p-4 rounded-2xl border border-primary/30 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent hover:from-primary/15 transition-colors">
@@ -375,22 +429,34 @@ export function EventsDirectoryView() {
                           {event.description && <p className="text-[11px] text-muted-foreground leading-relaxed line-clamp-2">{event.description}</p>}
                         </div>
                       </div>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        {event.status === "DRAFT" && <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => void doAction(() => submitEventApi(event.uuid), "Submitted for approval")}><Send className="h-3 w-3" /> Submit</Button>}
+                      <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
+                        {event.status === "DRAFT" && (
+                          <Button size="sm" variant="outline" className="h-7 text-[11px]" disabled={busyKey === `submit-${event.uuid}`} onClick={() => void doAction(`submit-${event.uuid}`, () => submitEventApi(event.uuid), "Submitted for approval")}>
+                            {busyKey === `submit-${event.uuid}` ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />} Submit
+                          </Button>
+                        )}
                         {event.status === "PENDING_APPROVAL" && isApprover && (
                           <>
-                            <Button size="sm" variant="outline" className="h-7 text-[11px] text-emerald-600" onClick={() => void doAction(() => approveEventApi(event.uuid), "Event published")}><CheckCircle2 className="h-3 w-3" /> Approve</Button>
-                            <Button size="sm" variant="outline" className="h-7 text-[11px] text-rose-600" onClick={() => void doAction(() => rejectEventApi(event.uuid, "Rejected"), "Event rejected")}><XCircle className="h-3 w-3" /> Reject</Button>
+                            <Button size="sm" variant="outline" className="h-7 text-[11px] text-emerald-600" disabled={busyKey === `approve-${event.uuid}`} onClick={() => void doAction(`approve-${event.uuid}`, () => approveEventApi(event.uuid), "Event published")}>
+                              {busyKey === `approve-${event.uuid}` ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3 w-3" />} Approve
+                            </Button>
+                            <Button size="sm" variant="outline" className="h-7 text-[11px] text-rose-600" disabled={busyKey === `reject-${event.uuid}`} onClick={() => { setRejectTarget(event); setRejectReason(""); }}>
+                              <XCircle className="h-3 w-3" /> Reject
+                            </Button>
                           </>
                         )}
                         {event.status === "PUBLISHED" && isApprover && (
-                          <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => void doAction(() => completeEventApi(event.uuid), "Event completed")}><CheckCheck className="h-3 w-3" /> Complete</Button>
+                          <Button size="sm" variant="outline" className="h-7 text-[11px]" disabled={busyKey === `complete-${event.uuid}`} onClick={() => void doAction(`complete-${event.uuid}`, () => completeEventApi(event.uuid), "Event completed")}>
+                            {busyKey === `complete-${event.uuid}` ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCheck className="h-3 w-3" />} Complete
+                          </Button>
                         )}
                         {canCreate && event.status !== "COMPLETED" && event.status !== "CANCELLED" && (
-                          <Button size="sm" variant="ghost" className="h-7 text-[11px]" onClick={() => openEdit(event)}>Edit</Button>
+                          <Button size="sm" variant="ghost" className="h-7 text-[11px] gap-1" onClick={() => openEdit(event)}><Pencil className="h-3 w-3" /> Edit</Button>
                         )}
                         {canCreate && event.status !== "COMPLETED" && event.status !== "CANCELLED" && (event.status !== "PUBLISHED" || isApprover) && (
-                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive" title="Cancel / delete event" onClick={() => void doAction(() => cancelEventApi(event.uuid), "Event cancelled")}><Trash2 className="h-3.5 w-3.5" /></Button>
+                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive" title="Cancel / delete event" disabled={busyKey === `delete-${event.uuid}`} onClick={() => setDeleteTarget(event)}>
+                            {busyKey === `delete-${event.uuid}` ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                          </Button>
                         )}
                       </div>
                     </div>
@@ -555,8 +621,53 @@ export function EventsDirectoryView() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-            <Button variant="gradient" onClick={() => void handleSave()}>{editing ? "Save Changes" : "Save Event (Draft)"}</Button>
+            <Button variant="outline" disabled={saving} onClick={() => setDialogOpen(false)}>Cancel</Button>
+            <Button variant="gradient" disabled={saving} onClick={() => void handleSave()}>
+              {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              {editing ? "Save Changes" : "Save Event (Draft)"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete / cancel confirm */}
+      <Dialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold">Cancel this event?</DialogTitle>
+            <DialogDescription>
+              {deleteTarget ? `“${deleteTarget.title}” will be marked CANCELLED. It stays visible in the list with its status.` : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Keep event</Button>
+            <Button variant="destructive" disabled={busyKey === `delete-${deleteTarget?.uuid}`} onClick={() => void confirmDelete()}>
+              {busyKey === `delete-${deleteTarget?.uuid}` && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              Yes, cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reject with reason */}
+      <Dialog open={!!rejectTarget} onOpenChange={(o) => { if (!o) { setRejectTarget(null); setRejectReason(""); } }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold">Reject event?</DialogTitle>
+            <DialogDescription>
+              {rejectTarget ? `“${rejectTarget.title}” goes back to the creator. A reason is required.` : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <label className="text-xs font-medium block">Rejection reason *</label>
+            <Textarea rows={3} value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} placeholder="e.g. Venue already booked — pick another date" />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setRejectTarget(null); setRejectReason(""); }}>Cancel</Button>
+            <Button variant="destructive" disabled={busyKey === `reject-${rejectTarget?.uuid}`} onClick={() => void confirmReject()}>
+              {busyKey === `reject-${rejectTarget?.uuid}` && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              Reject event
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

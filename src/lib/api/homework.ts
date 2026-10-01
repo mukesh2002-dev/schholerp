@@ -15,7 +15,12 @@ export interface BackendHomework {
   section: string | null;
   attachments: string[];
   class: { uuid: string; name: string; section: string | null } | null;
-  assignedBy: { uuid: string; name: string } | null;
+  subject?: { uuid: string; name: string; code?: string | null } | null;
+  subjectName?: string | null;
+  assignedBy?: { uuid: string; name: string } | null;
+  assignedByName?: string | null;
+  teacher?: { uuid: string; name: string } | null;
+  teacherName?: string | null;
   campus: { uuid: string; name: string } | null;
   submissionsCount?: number;
   createdAt: string;
@@ -40,21 +45,23 @@ export interface BackendHomeworkSubmission {
 /** Map the backend row onto the shared frontend `Homework` type. */
 export function mapBackendHomework(h: BackendHomework): Homework & { submissionsCount: number } {
   const sectionName = h.section ?? h.class?.section ?? "";
+  const teacherName = h.assignedByName || h.teacherName || h.assignedBy?.name || h.teacher?.name || "Teacher";
+  const subjectName = h.subjectName || h.subject?.name || "—";
   return {
     id: h.uuid,
     title: h.title,
     description: h.description ?? "",
-    subjectId: "",
-    subjectName: "—",
-    subjectCode: "",
+    subjectId: h.subject?.uuid ?? "",
+    subjectName,
+    subjectCode: h.subject?.code ?? "",
     classId: h.class?.uuid ?? "",
     className: h.class?.name ?? "—",
     sectionId: sectionName,
     sectionName,
     branchId: h.campus?.uuid ?? "all",
     branchName: h.campus?.name ?? "Campus",
-    teacherId: h.assignedBy?.uuid ?? "",
-    teacherName: h.assignedBy?.name ?? "—",
+    teacherId: h.assignedBy?.uuid ?? h.teacher?.uuid ?? "",
+    teacherName,
     assignedDate: h.createdAt,
     dueDate: h.dueDate,
     maxMarks: h.maxMarks,
@@ -124,6 +131,9 @@ export interface HomeworkPayload {
   campusUuid?: string;
   classUuid: string;
   section?: string;
+  teacherUuid?: string;
+  subjectUuid?: string;
+  assignedByName?: string;
   dueDate: string;
   homeworkType?: HomeworkType;
   priority?: "LOW" | "MEDIUM" | "HIGH" | "URGENT";

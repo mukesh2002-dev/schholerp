@@ -77,7 +77,7 @@ export function AcademicDirectoryView() {
   const [editingClass, setEditingClass] = useState<ClassRoom | null>(null);
 
   const [subjectOpen, setSubjectOpen] = useState(false);
-  const [editingSubject, setEditingSubject] = useState<any | null>(null);
+  const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
 
   const [chapterOpen, setChapterOpen] = useState(false);
   const [editingChapter, setEditingChapter] = useState<BackendChapter | null>(null);
@@ -701,7 +701,7 @@ export function AcademicDirectoryView() {
               <Input
                 type="number"
                 value={chapterForm.chapterNumber}
-                onChange={(e) => setChapterForm({ ...chapterForm, chapterNumber: parseInt(e.target.value) || 1 })}
+                onChange={(e) => setChapterForm({ ...chapterForm, chapterNumber: Number.parseInt(e.target.value) || 1 })}
                 className="h-9"
               />
             </div>
@@ -773,7 +773,7 @@ export function AcademicDirectoryView() {
               <Input
                 type="number"
                 value={topicForm.topicOrder}
-                onChange={(e) => setTopicForm({ ...topicForm, topicOrder: parseInt(e.target.value) || 1 })}
+                onChange={(e) => setTopicForm({ ...topicForm, topicOrder: Number.parseInt(e.target.value) || 1 })}
                 className="h-9"
               />
             </div>
@@ -791,7 +791,7 @@ export function AcademicDirectoryView() {
               <Input
                 type="number"
                 value={topicForm.estimatedClasses}
-                onChange={(e) => setTopicForm({ ...topicForm, estimatedClasses: parseInt(e.target.value) || 1 })}
+                onChange={(e) => setTopicForm({ ...topicForm, estimatedClasses: Number.parseInt(e.target.value) || 1 })}
                 className="h-9"
               />
             </div>

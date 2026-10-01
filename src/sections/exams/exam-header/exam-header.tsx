@@ -12,8 +12,19 @@ export function ExamHeader({ onNewExam }: { onNewExam?: () => void }) {
   const { activeBranchId, session } = useERP();
   const exams = mockDb.getExams(activeBranchId);
   const schedules = mockDb.getExamSchedules(activeBranchId);
-  // Only HR (+ADMIN) manages exams - principal is view-only.
-  const canCreate = session?.role === "ADMIN" || session?.role === "HR_MANAGER";
+  
+  const rawRole = String(session?.role || "ADMIN").toUpperCase().replace(/-/g, "_");
+  const canCreate = rawRole !== "STUDENT" && rawRole !== "PARENT";
+
+  const handleCreateClick = () => {
+    if (onNewExam) {
+      onNewExam();
+    } else {
+      window.history.pushState({}, "", "/exams?tab=exams");
+      window.dispatchEvent(new PopStateEvent("popstate"));
+      setTimeout(() => window.dispatchEvent(new CustomEvent("exams:new")), 100);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -23,19 +34,19 @@ export function ExamHeader({ onNewExam }: { onNewExam?: () => void }) {
           <div className="flex items-center gap-2 flex-wrap">
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
               <GraduationCap className="h-6 w-6 text-primary" />
-              Exams & Results
+              Exams &amp; Results
             </h1>
             <Badge variant="outline" className="text-xs">
               {exams.length} Exams | {schedules.length} Schedules
             </Badge>
           </div>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1 max-w-2xl">
-            Exam setup, datesheet scheduling, bulk marks entry (AB-supported), result processing with tie-aware ranking, printable report cards & analytics.
+            Exam setup, datesheet scheduling, bulk marks entry, result processing with ranking, printable report cards &amp; analytics.
           </p>
         </div>
-        {onNewExam && canCreate && (
-          <Button onClick={onNewExam} className="gap-2 shrink-0">
-            <Plus className="h-4 w-4" /> New Exam
+        {canCreate && (
+          <Button onClick={handleCreateClick} variant="gradient" className="gap-2 shrink-0">
+            <Plus className="h-4 w-4" /> Create Exam
           </Button>
         )}
       </div>

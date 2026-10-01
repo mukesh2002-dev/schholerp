@@ -2305,15 +2305,15 @@ class MockDatabaseService {
     if (this.isBrowser()) localStorage.setItem(NOTIFICATION_PREFS_STORAGE_KEY, JSON.stringify(prefs));
   }
 
-  // ==================== EVENTS ====================
+  // ==================== EVENTS (API-driven — no dummy seed) ====================
   public getEvents(branchId?: string): CalendarEvent[] {
-    let events = initialCalendarEvents;
+    let events: CalendarEvent[] = [];
     if (this.isBrowser()) {
       try {
         const stored = localStorage.getItem(EVENTS_STORAGE_KEY);
         if (stored) events = JSON.parse(stored);
-        else localStorage.setItem(EVENTS_STORAGE_KEY, JSON.stringify(initialCalendarEvents));
-      } catch { events = initialCalendarEvents; }
+        // Never seed dummy events — an empty calendar is the correct fallback.
+      } catch { events = []; }
     }
     if (!branchId || branchId === "all") return events;
     return events.filter((e) => e.branchId === branchId || e.branchId === "all");
@@ -2351,7 +2351,7 @@ class MockDatabaseService {
   }
 
   public getEventVenues(branchId?: string): EventVenue[] {
-    let venues = initialEventVenues;
+    const venues: EventVenue[] = initialEventVenues ?? [];
     if (!branchId || branchId === "all") return venues;
     return venues.filter((v) => v.branchId === branchId || v.branchId === "all");
   }
