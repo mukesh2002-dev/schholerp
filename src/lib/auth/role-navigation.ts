@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import {
   LayoutDashboard,
@@ -318,10 +318,11 @@ export function getNavForRole(
   const hasModuleGate = Array.isArray(allowedModules) && allowedModules.length > 0;
   const moduleAllowed = (moduleKey?: string) => {
     if (!moduleKey) return true;
-    // HR is explicitly enabled on the frontend to access students
-    if (staffRole === "HR_MANAGER" && moduleKey === "students") return true;
+    // HR and Principal are explicitly enabled to access fees/finance and student modules
+    if (staffRole === "HR_MANAGER" && (moduleKey === "students" || moduleKey === "fees")) return true;
+    if (staffRole === "PRINCIPAL" && moduleKey === "fees") return true;
     if (!hasModuleGate) return true;
-    return allowedModules.includes(moduleKey);
+    return (allowedModules as string[]).includes(moduleKey);
   };
 
   return ROLE_NAV_GROUPS.map((group) => ({
