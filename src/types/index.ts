@@ -657,6 +657,10 @@ export interface AttendanceRecord {
   personName: string;
   personAvatar?: string;
   category: AttendanceCategory;
+  /** Display role: staff designation (e.g. "Accountant") or student class. */
+  roleName?: string;
+  /** Staff department (e.g. "Accounts"). */
+  department?: string;
   date: string;
   status: AttendanceStatus;
   checkIn?: string;

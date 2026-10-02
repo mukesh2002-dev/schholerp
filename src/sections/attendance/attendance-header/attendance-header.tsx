@@ -5,8 +5,9 @@ import { useERP } from "@/components/providers/erp-provider";
 import { Breadcrumbs } from "@/components/layout/breadcrumbs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Fingerprint, CheckCircle2 } from "lucide-react";
+import { Fingerprint, UserPlus } from "lucide-react";
 import { toast } from "sonner";
+import { OPEN_MANUAL_ATTENDANCE_EVENT } from "@/sections/attendance/manual-attendance-modal";
 
 export function AttendanceHeader() {
   const { triggerBiometricSync } = useERP();
@@ -37,6 +38,14 @@ export function AttendanceHeader() {
         </div>
 
         <div className="flex items-center gap-2">
+          <Button
+            onClick={() => window.dispatchEvent(new CustomEvent(OPEN_MANUAL_ATTENDANCE_EVENT))}
+            variant="outline"
+            className="gap-2 shrink-0"
+          >
+            <UserPlus className="h-4 w-4" />
+            <span>Manual Attendance</span>
+          </Button>
           <Button
             onClick={handleBiometricSync}
             variant="gradient"

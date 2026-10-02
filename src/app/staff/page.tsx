@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useCallback, Suspense } from "react";
+import React, { useState, useMemo, useCallback, Suspense, useEffect } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useERP } from "@/components/providers/erp-provider";
@@ -8,13 +8,26 @@ import { useCampusData } from "@/lib/hooks/use-campus-data";
 import {
   fetchStaffDashboard,
   fetchStaffList,
+  fetchStaffById,
   bulkImportStaffApi,
   createStaffApi,
+  updateStaffApi,
   deleteStaffApi,
   fetchStaffAttendance,
   bulkMarkAttendance,
   fetchDocumentExpiryReport,
 } from "@/lib/api/staff";
+import {
+  STAFF_TYPE_OPTIONS,
+  DEPARTMENTS,
+  EMPLOYMENT_TYPES,
+  WORK_TYPES,
+  EMPLOYMENT_STATUS_OPTIONS,
+  designationsFor,
+  departmentsForStaffType,
+  toStaffTypeCode,
+  toEmploymentStatusCode,
+} from "@/lib/staff-employment";
 import { fetchLeaves, mapBackendLeave } from "@/lib/api/attendance";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +41,13 @@ import { ListPagination } from "@/components/ui/list-pagination";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ExcelCsvImportDialog } from "@/components/common/excel-csv-import-dialog";
+import {
+  StaffAttendanceTab,
+  StaffLeaveTab,
+  StaffPayrollTab,
+  StaffDocumentsTab,
+  StaffPerformanceTab,
+} from "@/sections/staff";
 import { toast } from "sonner";
 import {
   Upload,
@@ -139,18 +159,20 @@ function ListTab() {
   const [search, setSearch] = useState("");
   const [department, setDepartment] = useState("ALL");
   const [staffType, setStaffType] = useState("ALL");
+  const [employmentType, setEmploymentType] = useState("ALL");
+  const [workType, setWorkType] = useState("ALL");
   const [status, setStatus] = useState("ALL");
   const [page, setPage] = useState(1);
   const limit = 10;
 
   const { data, isLoading, error, isOffline, refresh } = useCampusData({
     fetcher: async (cid) => {
-      const res = await fetchStaffList({ campusId: cid, search: search || undefined, department: department !== "ALL" ? department : undefined, staffType: staffType !== "ALL" ? staffType : undefined, status: status !== "ALL" ? status : undefined, page, limit });
+      const res = await fetchStaffList({ campusId: cid, search: search || undefined, department: department !== "ALL" ? department : undefined, staffType: staffType !== "ALL" ? staffType : undefined, employmentType: employmentType !== "ALL" ? employmentType : undefined, workType: workType !== "ALL" ? workType : undefined, status: status !== "ALL" ? status : undefined, page, limit });
       return res;
     },
     campusId: activeBranchId,
     fallback: { data: [], total: 0 } as any,
-    queryKeyPrefix: `staff-list-${search}-${department}-${staffType}-${status}-${page}`,
+    queryKeyPrefix: `staff-list-${search}-${department}-${staffType}-${employmentType}-${workType}-${status}-${page}`,
   });
 
   const list = (data as any)?.data ?? [];
@@ -168,9 +190,11 @@ function ListTab() {
           <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder="Name, Employee ID, Mobile, Email" className="pl-9 h-9 text-sm" />
         </div>
-        <Select value={department} onValueChange={(v) => { setDepartment(v); setPage(1); }}><SelectTrigger className="w-[160px] h-9 text-xs"><SelectValue placeholder="Department" /></SelectTrigger><SelectContent><SelectItem value="ALL">All Departments</SelectItem><SelectItem value="Academics">Academics</SelectItem><SelectItem value="Administration">Administration</SelectItem><SelectItem value="Accounts">Accounts</SelectItem><SelectItem value="Library">Library</SelectItem><SelectItem value="Transport">Transport</SelectItem></SelectContent></Select>
-        <Select value={staffType} onValueChange={(v) => { setStaffType(v); setPage(1); }}><SelectTrigger className="w-[150px] h-9 text-xs"><SelectValue placeholder="Type" /></SelectTrigger><SelectContent><SelectItem value="ALL">All Types</SelectItem><SelectItem value="TEACHING">Teaching</SelectItem><SelectItem value="NON_TEACHING">Non-Teaching</SelectItem></SelectContent></Select>
-        <Select value={status} onValueChange={(v) => { setStatus(v); setPage(1); }}><SelectTrigger className="w-[140px] h-9 text-xs"><SelectValue placeholder="Status" /></SelectTrigger><SelectContent><SelectItem value="ALL">All Status</SelectItem><SelectItem value="ACTIVE">Active</SelectItem><SelectItem value="INACTIVE">Inactive</SelectItem><SelectItem value="RESIGNED">Resigned</SelectItem></SelectContent></Select>
+        <Select value={department} onValueChange={(v) => { setDepartment(v); setPage(1); }}><SelectTrigger className="w-[160px] h-9 text-xs"><SelectValue placeholder="Department" /></SelectTrigger><SelectContent><SelectItem value="ALL">All Departments</SelectItem>{DEPARTMENTS.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent></Select>
+        <Select value={staffType} onValueChange={(v) => { setStaffType(v); setPage(1); }}><SelectTrigger className="w-[150px] h-9 text-xs"><SelectValue placeholder="Type" /></SelectTrigger><SelectContent><SelectItem value="ALL">All Types</SelectItem>{STAFF_TYPE_OPTIONS.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent></Select>
+        <Select value={employmentType} onValueChange={(v) => { setEmploymentType(v); setPage(1); }}><SelectTrigger className="w-[140px] h-9 text-xs"><SelectValue placeholder="Employment" /></SelectTrigger><SelectContent><SelectItem value="ALL">All Employment</SelectItem>{EMPLOYMENT_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent></Select>
+        <Select value={workType} onValueChange={(v) => { setWorkType(v); setPage(1); }}><SelectTrigger className="w-[130px] h-9 text-xs"><SelectValue placeholder="Work Type" /></SelectTrigger><SelectContent><SelectItem value="ALL">All Work Types</SelectItem>{WORK_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent></Select>
+        <Select value={status} onValueChange={(v) => { setStatus(v); setPage(1); }}><SelectTrigger className="w-[140px] h-9 text-xs"><SelectValue placeholder="Status" /></SelectTrigger><SelectContent><SelectItem value="ALL">All Status</SelectItem>{EMPLOYMENT_STATUS_OPTIONS.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent></Select>
         <div className="ml-auto flex items-center gap-2">
           <Button
             type="button"
@@ -243,7 +267,10 @@ function AddStaffTab({ editId }: { editId?: string }) {
   const { activeBranchId } = useERP();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [loadingEdit, setLoadingEdit] = useState(!!editId);
   const [loadingPincode, setLoadingPincode] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [customDesignation, setCustomDesignation] = useState(false);
 
   const generateAutoEmpId = () => `EMP-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
@@ -265,6 +292,75 @@ function AddStaffTab({ editId }: { editId?: string }) {
     state: "",
     pincode: "",
   });
+
+  // Load existing staff for edit — preserves all existing functionality
+  useEffect(() => {
+    if (!editId) { setLoadingEdit(false); return; }
+    let cancelled = false;
+    (async () => {
+      setLoadingEdit(true);
+      try {
+        const s: any = await fetchStaffById(editId);
+        if (cancelled || !s) return;
+        setForm((prev: any) => ({
+          ...prev,
+          employeeId: s.employeeId ?? prev.employeeId,
+          firstName: s.firstName ?? "",
+          middleName: s.middleName ?? "",
+          lastName: s.lastName ?? "",
+          fatherName: s.fatherName ?? "",
+          motherName: s.motherName ?? "",
+          dob: s.dob ? String(s.dob).slice(0, 10) : "",
+          gender: s.gender ?? "Male",
+          bloodGroup: s.bloodGroup ?? "",
+          mobile: s.mobile ?? "",
+          alternateMobile: s.alternateMobile ?? "",
+          email: s.email ?? "",
+          address: s.address ?? "",
+          city: s.city ?? "",
+          state: s.state ?? "",
+          pincode: s.pincode ?? "",
+          emergencyContactName: s.emergencyContactName ?? "",
+          emergencyContactNumber: s.emergencyContactNumber ?? "",
+          emergencyContactRelationship: s.emergencyContactRelationship ?? "",
+          idType: s.idType ?? "",
+          idNumber: s.idNumber ?? "",
+          department: s.department ?? "Academics",
+          designation: s.designation ?? "Teacher",
+          staffType: toStaffTypeCode(s.staffType),
+          joiningDate: s.joiningDate ? String(s.joiningDate).slice(0, 10) : new Date().toISOString().slice(0, 10),
+          employmentType: s.employmentType ?? "Permanent",
+          workType: s.workType ?? "Full Time",
+          employmentStatus: toEmploymentStatusCode(s.employmentStatus ?? s.status),
+          accountHolderName: s.accountHolderName ?? "",
+          bankName: s.bankName ?? "",
+          accountNumber: s.accountNumber ?? "",
+          ifscCode: s.ifscCode ?? "",
+          bankBranch: s.bankBranch ?? "",
+          basicSalary: s.basicSalary ?? "",
+          hra: s.hra ?? "",
+          allowances: s.allowances ?? "",
+        }));
+        const known = designationsFor(s.department);
+        if (s.designation && !known.includes(s.designation)) setCustomDesignation(true);
+      } catch (e: any) {
+        toast.error(e.message || "Failed to load staff");
+      } finally {
+        if (!cancelled) setLoadingEdit(false);
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editId]);
+
+  const designationOptions = useMemo(() => designationsFor(form.department), [form.department]);
+  const departmentOptions = useMemo(() => {
+    const scoped = departmentsForStaffType(form.staffType);
+    // Non-restrictive: always offer the full list alongside staff-type suggestions
+    const merged = [...scoped];
+    for (const d of DEPARTMENTS) if (!merged.includes(d)) merged.push(d);
+    return merged;
+  }, [form.staffType]);
 
   const handlePincodeChange = async (pin: string) => {
     handleChange("pincode", pin);
@@ -289,12 +385,57 @@ function AddStaffTab({ editId }: { editId?: string }) {
     }
   };
 
-  const handleChange = (k: string, v: any) => setForm((p: any) => ({ ...p, [k]: v }));
+  const handleChange = (k: string, v: any) => {
+    setForm((p: any) => {
+      const next = { ...p, [k]: v };
+      // Staff Type influences available Department/Designation options (non-restrictive)
+      if (k === "staffType") {
+        const scoped = departmentsForStaffType(v);
+        if (p.department && !scoped.includes(p.department) && !DEPARTMENTS.includes(p.department)) {
+          next.department = scoped[0] ?? p.department;
+        }
+      }
+      if (k === "department") {
+        const known = designationsFor(v);
+        if (p.designation && known.length > 0 && !known.includes(p.designation) && !customDesignation) {
+          next.designation = "";
+        }
+      }
+      return next;
+    });
+    setErrors((prev) => {
+      if (!prev[k]) return prev;
+      const next = { ...prev };
+      delete next[k];
+      return next;
+    });
+  };
+
+  const validateEmployment = () => {
+    const e: Record<string, string> = {};
+    if (!form.staffType) e.staffType = "Staff type is required";
+    if (!form.department?.trim()) e.department = "Department is required";
+    if (!form.designation?.trim()) e.designation = "Designation is required";
+    if (!form.joiningDate) {
+      e.joiningDate = "Joining date is required";
+    } else {
+      const d = new Date(form.joiningDate);
+      if (Number.isNaN(d.getTime())) e.joiningDate = "Enter a valid date (YYYY-MM-DD)";
+    }
+    if (!form.employmentType) e.employmentType = "Employment type is required";
+    if (!form.workType) e.workType = "Work type is required";
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // All fields optional — provide safe fallbacks if user leaves them blank
-    const empId = form.employeeId?.trim() || `EMP-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+    if (!validateEmployment()) {
+      toast.error("Please fix the highlighted employment fields");
+      return;
+    }
+    // Preserve existing fallbacks for personal fields; respect existing EMP format
+    const empId = form.employeeId?.trim() || generateAutoEmpId();
     const fName = form.firstName?.trim() || "Staff Member";
     const dept = form.department?.trim() || "Academics";
     const desig = form.designation?.trim() || "Teacher";
@@ -306,11 +447,14 @@ function AddStaffTab({ editId }: { editId?: string }) {
       department: dept,
       designation: desig,
       joiningDate: joinDate,
+      staffType: toStaffTypeCode(form.staffType),
+      employmentStatus: toEmploymentStatusCode(form.employmentStatus),
+      workLocation: null,
+      reportingManagerId: null,
     };
     setLoading(true);
     try {
       if (editId) {
-        const { updateStaffApi } = await import("@/lib/api/staff");
         await updateStaffApi(editId, submission);
         toast.success("Staff updated");
       } else {
@@ -321,15 +465,29 @@ function AddStaffTab({ editId }: { editId?: string }) {
     } catch (err: any) { toast.error(err.message || "Failed"); } finally { setLoading(false); }
   };
 
+  const fieldError = (k: string) => errors[k] ? <p className="text-xs text-rose-600 mt-1">{errors[k]}</p> : null;
+  const labelCls = "text-xs font-medium text-muted-foreground";
+
+  if (loadingEdit) {
+    return (
+      <Card>
+        <CardHeader><CardTitle className="text-base">Edit Staff</CardTitle></CardHeader>
+        <CardContent className="space-y-3">
+          <Skeleton className="h-10" /><Skeleton className="h-10" /><Skeleton className="h-24" />
+          <p className="text-xs text-muted-foreground">Loading staff details…</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card>
-      <CardHeader><CardTitle className="text-base">{editId ? "Edit Staff" : "Add Staff"} — All Fields Optional</CardTitle></CardHeader>
+      <CardHeader><CardTitle className="text-base">{editId ? "Edit Staff" : "Add Staff"}</CardTitle></CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <h4 className="text-sm font-semibold mb-3">Personal Information</h4>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div className="flex gap-1.5 items-center"><Input placeholder="Employee ID" value={form.employeeId} onChange={(e) => handleChange("employeeId", e.target.value)} /><Button type="button" variant="outline" size="sm" className="h-9 px-2 text-xs shrink-0" title="Generate New ID" onClick={() => handleChange("employeeId", generateAutoEmpId())}>Auto ID</Button></div>
               <Input placeholder="First Name" value={form.firstName} onChange={(e) => handleChange("firstName", e.target.value)} />
               <Input placeholder="Last Name" value={form.lastName} onChange={(e) => handleChange("lastName", e.target.value)} />
               <Input placeholder="Father Name" value={form.fatherName || ""} onChange={(e) => handleChange("fatherName", e.target.value)} />
@@ -359,15 +517,60 @@ function AddStaffTab({ editId }: { editId?: string }) {
           </div>
 
           <div>
-            <h4 className="text-sm font-semibold mb-3">Job / Employment Details</h4>
+            <h4 className="text-sm font-semibold mb-1">Job / Employment Details</h4>
+            <p className="text-xs text-muted-foreground mb-3">Staff type, department, designation, joining, employment & work type are required.</p>
+            {/* Row 1: Staff Type • Department • Designation */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <Select value={form.staffType} onValueChange={(v) => handleChange("staffType", v)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="TEACHING">Teaching</SelectItem><SelectItem value="NON_TEACHING">Non-Teaching</SelectItem></SelectContent></Select>
-              <Input placeholder="Department" value={form.department} onChange={(e) => handleChange("department", e.target.value)} />
-              <Input placeholder="Designation" value={form.designation} onChange={(e) => handleChange("designation", e.target.value)} />
-              <Input type="date" value={form.joiningDate} onChange={(e) => handleChange("joiningDate", e.target.value)} />
-              <Select value={form.employmentType} onValueChange={(v) => handleChange("employmentType", v)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Permanent">Permanent</SelectItem><SelectItem value="Temporary">Temporary</SelectItem><SelectItem value="Contract">Contract</SelectItem><SelectItem value="Part Time">Part Time</SelectItem></SelectContent></Select>
-              <Select value={form.workType} onValueChange={(v) => handleChange("workType", v)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Full Time">Full Time</SelectItem><SelectItem value="Part Time">Part Time</SelectItem></SelectContent></Select>
-              <Select value={form.employmentStatus} onValueChange={(v) => handleChange("employmentStatus", v)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="ACTIVE">Active</SelectItem><SelectItem value="INACTIVE">Inactive</SelectItem><SelectItem value="RESIGNED">Resigned</SelectItem><SelectItem value="TERMINATED">Terminated</SelectItem><SelectItem value="RETIRED">Retired</SelectItem></SelectContent></Select>
+              <div>
+                <label className={labelCls}>Staff Type *</label>
+                <Select value={form.staffType} onValueChange={(v) => handleChange("staffType", v)}><SelectTrigger className={errors.staffType ? "border-rose-500" : ""}><SelectValue placeholder="Select staff type" /></SelectTrigger><SelectContent>{STAFF_TYPE_OPTIONS.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent></Select>
+                {fieldError("staffType")}
+              </div>
+              <div>
+                <label className={labelCls}>Department *</label>
+                <Select value={form.department} onValueChange={(v) => handleChange("department", v)}><SelectTrigger className={errors.department ? "border-rose-500" : ""}><SelectValue placeholder="Select department" /></SelectTrigger><SelectContent>{departmentOptions.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent></Select>
+                {fieldError("department")}
+              </div>
+              <div>
+                <label className={labelCls}>Designation *</label>
+                {customDesignation ? (
+                  <Input placeholder="Enter custom designation" value={form.designation} onChange={(e) => handleChange("designation", e.target.value)} className={errors.designation ? "border-rose-500" : ""} />
+                ) : (
+                  <Select value={designationOptions.includes(form.designation) ? form.designation : ""} onValueChange={(v) => { if (v === "__custom") setCustomDesignation(true); else handleChange("designation", v); }}><SelectTrigger className={errors.designation ? "border-rose-500" : ""}><SelectValue placeholder="Select designation" /></SelectTrigger><SelectContent>{designationOptions.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}<SelectItem value="__custom">Other / Custom…</SelectItem></SelectContent></Select>
+                )}
+                {customDesignation && (
+                  <button type="button" className="text-xs text-primary underline mt-1" onClick={() => { setCustomDesignation(false); handleChange("designation", ""); }}>
+                    Choose from list instead
+                  </button>
+                )}
+                {fieldError("designation")}
+              </div>
+            </div>
+            {/* Row 2: Joining Date • Employment Type • Work Type */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
+              <div>
+                <label className={labelCls}>Joining Date *</label>
+                <Input type="date" value={form.joiningDate} onChange={(e) => handleChange("joiningDate", e.target.value)} className={errors.joiningDate ? "border-rose-500" : ""} />
+                {form.joiningDate && !errors.joiningDate && <p className="text-[11px] text-muted-foreground mt-1">Displays as {formatDate(form.joiningDate)} • stored as YYYY-MM-DD</p>}
+                {fieldError("joiningDate")}
+              </div>
+              <div>
+                <label className={labelCls}>Employment Type *</label>
+                <Select value={form.employmentType} onValueChange={(v) => handleChange("employmentType", v)}><SelectTrigger className={errors.employmentType ? "border-rose-500" : ""}><SelectValue placeholder="Select employment type" /></SelectTrigger><SelectContent>{EMPLOYMENT_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent></Select>
+                {fieldError("employmentType")}
+              </div>
+              <div>
+                <label className={labelCls}>Work Type *</label>
+                <Select value={form.workType} onValueChange={(v) => handleChange("workType", v)}><SelectTrigger className={errors.workType ? "border-rose-500" : ""}><SelectValue placeholder="Select work type" /></SelectTrigger><SelectContent>{WORK_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent></Select>
+                {fieldError("workType")}
+              </div>
+            </div>
+            {/* Row 3: Employment Status */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
+              <div>
+                <label className={labelCls}>Employment Status</label>
+                <Select value={form.employmentStatus} onValueChange={(v) => handleChange("employmentStatus", v)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{EMPLOYMENT_STATUS_OPTIONS.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent></Select>
+              </div>
             </div>
           </div>
 
@@ -488,19 +691,19 @@ export default function StaffPage() {
         <TabsContent value="list"><ListTab /></TabsContent>
         <TabsContent value="add"><AddStaffTab editId={editId} /></TabsContent>
         <TabsContent value="attendance">
-          <Card><CardHeader><CardTitle className="text-sm">Staff Attendance — Mark & Bulk</CardTitle></CardHeader><CardContent className="text-sm text-muted-foreground">Select a staff from All Staff → Profile → Attendance to mark daily attendance. Bulk attendance available via API: POST /api/v1/staff/attendance/bulk</CardContent></Card>
+          <StaffAttendanceTab />
         </TabsContent>
         <TabsContent value="leave">
-          <Card><CardHeader><CardTitle className="text-sm">Leave Management</CardTitle></CardHeader><CardContent className="text-sm text-muted-foreground">Leave requests are managed via Leaves module. Staff can apply, HR/Principal can approve/reject. APIs: POST /api/v1/leaves, PATCH /api/v1/leaves/:id/approve</CardContent></Card>
+          <StaffLeaveTab />
         </TabsContent>
         <TabsContent value="payroll">
-          <Card><CardHeader><CardTitle className="text-sm">Payroll</CardTitle></CardHeader><CardContent className="text-sm text-muted-foreground">Monthly payroll generation per staff: POST /api/v1/payroll/generate — unique per staff/month/year. Payslip view via Staff Profile → Payroll tab.</CardContent></Card>
+          <StaffPayrollTab />
         </TabsContent>
         <TabsContent value="documents">
-          <Card><CardHeader><CardTitle className="text-sm">Documents</CardTitle></CardHeader><CardContent className="text-sm text-muted-foreground">Upload, view, download, delete with expiry tracking. APIs: POST /api/v1/staff/:id/documents</CardContent></Card>
+          <StaffDocumentsTab />
         </TabsContent>
         <TabsContent value="performance">
-          <Card><CardHeader><CardTitle className="text-sm">Performance</CardTitle></CardHeader><CardContent className="text-sm text-muted-foreground">Performance reviews & trainings per staff profile. APIs: POST /api/v1/staff/:id/performance</CardContent></Card>
+          <StaffPerformanceTab />
         </TabsContent>
         <TabsContent value="reports"><ReportsTab /></TabsContent>
         <TabsContent value="import">

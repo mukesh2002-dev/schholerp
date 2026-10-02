@@ -166,7 +166,42 @@ export async function fetchStudents(params: { campusId?: string | null; search?:
   const qs = q.toString() ? `?${q.toString()}` : "";
   const res = await apiFetch<{ data: BackendStudent[]; meta?: { total: number } }>(`/students${qs}`, {}, { campusId: params.campusId ?? undefined });
   const list = Array.isArray(res.data) ? res.data : [];
-  return { data: list.map(mapBackendStudent), total: res.meta?.total ?? list.length };
+  const mapped = list.map(mapBackendStudent);
+  // Enrich with live attendance summaries (best-effort: a failure here must
+  // never break the student list — cards keep 0% in that case).
+  try {
+    const { fetchStudentAttendance } = await import("./attendance");
+    const att = await fetchStudentAttendance({ campusId: params.campusId ?? undefined });
+    if (Array.isArray(att) && att.length > 0) {
+      const byStudent = new Map<string, { total: number; present: number; absent: number; late: number }>();
+      for (const r of att) {
+        const key = r.student?.uuid ?? r.studentId;
+        if (!key) continue;
+        const cur = byStudent.get(key) ?? { total: 0, present: 0, absent: 0, late: 0 };
+        cur.total += 1;
+        const st = String(r.status ?? "").toLowerCase();
+        if (st === "present") cur.present += 1;
+        else if (st === "absent") cur.absent += 1;
+        else if (st === "late") cur.late += 1;
+        byStudent.set(key, cur);
+      }
+      for (const s of mapped) {
+        const a = byStudent.get(s.id);
+        if (a && a.total > 0) {
+          s.attendanceSummary = {
+            totalDays: a.total,
+            presentDays: a.present,
+            absentDays: a.absent,
+            lateDays: a.late,
+            attendanceRate: Math.round(((a.present + a.late) / a.total) * 100),
+          };
+        }
+      }
+    }
+  } catch {
+    // offline or forbidden — keep zero summaries
+  }
+  return { data: mapped, total: res.meta?.total ?? list.length };
 }
 
 export async function createStudentApi(payload: Record<string, unknown>, campusId?: string | null): Promise<Student> {
