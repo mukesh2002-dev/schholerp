@@ -168,7 +168,7 @@ export function StudentsTab() {
                         <Link href={`/fees/${stu.uuid ?? stu.id}`}>View Detail</Link>
                       </Button>
                       <Button asChild size="sm" className="flex-1 h-7 text-[11px] gap-1" disabled={a ? due <= 0 : true}>
-                        <Link href={`/fees/${stu.uuid ?? stu.id}`}><CreditCard className="h-3 w-3" /> Pay</Link>
+                        <Link href={`/fees/collect?student=${stu.uuid ?? stu.id}`}><CreditCard className="h-3 w-3" /> Pay</Link>
                       </Button>
                     </div>
                   </CardContent>
