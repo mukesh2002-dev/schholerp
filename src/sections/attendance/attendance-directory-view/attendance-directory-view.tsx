@@ -30,6 +30,7 @@ import { toast } from "sonner";
 import { CalendarCheck, Users, Search, CheckCircle2, TrendingUp, UserPlus, ClipboardCheck } from "lucide-react";
 import { ManualAttendanceModal, OPEN_MANUAL_ATTENDANCE_EVENT } from "@/sections/attendance/manual-attendance-modal";
 import { MarkAttendance } from "../mark-attendance/mark-attendance";
+import { MarkStaff } from "../mark-staff/mark-staff";
 
 const statusVariant = (s: AttendanceStatus) => {
   switch (s) {
@@ -147,7 +148,7 @@ export function AttendanceDirectoryView() {
     }));
   }, [allRecords]);
   // Filter by the selected tab: STUDENT shows student rows, the other tabs
-  // show only staff rows mapped to that category (TEACHER / STAFF / WORKER).
+  // show only staff rows mapped to that category (TEACHER / STAFF).
   const recordsForCategory = useMemo(
     () =>
       category === "STUDENT"
@@ -180,6 +181,10 @@ export function AttendanceDirectoryView() {
       toast.error("Offline — cannot save attendance");
       return;
     }
+    if (date > new Date().toISOString().split("T")[0]) {
+      toast.error("Future dates not allowed — today or past only");
+      return;
+    }
     const campus = activeBranchId !== "all" ? activeBranchId : undefined;
     // Staff tabs: build the roster from the staff directory and bulk-mark
     // everyone in this category as PRESENT for the selected date.
@@ -191,7 +196,7 @@ export function AttendanceDirectoryView() {
           (s: any) => staffDirectoryCategory({ staffType: s.staffType }) === category && (s?.user?.uuid ?? s?.user?.id)
         );
         if (roster.length === 0) {
-          const who = category === "TEACHER" ? "teachers" : category === "WORKER" ? "workers" : "staff members";
+          const who = category === "TEACHER" ? "teachers" : "staff members";
           toast.error(`No ${who} found for this campus. Add staff first.`);
           return;
         }
@@ -254,7 +259,7 @@ export function AttendanceDirectoryView() {
       {/* Category Filter Pills & Controls */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl bg-card border border-border/70">
         <div className="flex items-center gap-2">
-          {(["STUDENT", "TEACHER", "STAFF", "WORKER"] as AttendanceCategory[]).map((cat) => (
+          {(["STUDENT", "TEACHER", "STAFF"] as AttendanceCategory[]).map((cat) => (
             <Button
               key={cat}
               variant={category === cat ? "default" : "outline"}
@@ -296,7 +301,10 @@ export function AttendanceDirectoryView() {
       <Tabs defaultValue="mark" className="space-y-4">
         <TabsList>
           <TabsTrigger value="mark" className="gap-1.5 text-xs">
-            <ClipboardCheck className="h-3.5 w-3.5" /> Mark Attendance
+            <ClipboardCheck className="h-3.5 w-3.5" /> Mark Students
+          </TabsTrigger>
+          <TabsTrigger value="mark-staff" className="gap-1.5 text-xs">
+            <ClipboardCheck className="h-3.5 w-3.5" /> Mark Staff
           </TabsTrigger>
           <TabsTrigger value="daily" className="gap-1.5 text-xs">
             <CalendarCheck className="h-3.5 w-3.5" /> Daily Punch Ledger
@@ -314,6 +322,11 @@ export function AttendanceDirectoryView() {
           <MarkAttendance />
         </TabsContent>
 
+        {/* Tab 0b: Direct on-screen marking (teacher / staff roster) */}
+        <TabsContent value="mark-staff" className="space-y-4">
+          <MarkStaff />
+        </TabsContent>
+
         {/* Tab 1: Daily */}
         <TabsContent value="daily" className="space-y-4">
           <div className="flex flex-col md:flex-row gap-3 p-3 rounded-xl bg-card border border-border/70">
@@ -329,7 +342,17 @@ export function AttendanceDirectoryView() {
             <Input
               type="date"
               value={date}
-              onChange={(e) => setDate(e.target.value)}
+              max={new Date().toISOString().split("T")[0]}
+              onChange={(e) => {
+                const v = e.target.value;
+                const today = new Date().toISOString().split("T")[0];
+                if (v && v > today) {
+                  toast.error("Future dates not allowed — reset to today");
+                  setDate(today);
+                } else {
+                  setDate(v);
+                }
+              }}
               className="w-[160px] h-9 text-xs"
             />
             <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -374,7 +397,7 @@ export function AttendanceDirectoryView() {
                     <TableCell>
                       <div className="flex items-center gap-1.5">
                         <Badge variant="outline" className="text-[10px] capitalize">
-                          {r.category === "STUDENT" ? "Student" : r.category === "TEACHER" ? "Teacher" : r.category === "WORKER" ? "Worker" : "Staff"}
+                          {r.category === "STUDENT" ? "Student" : r.category === "TEACHER" ? "Teacher" : "Staff"}
                         </Badge>
                         <div className="flex flex-col">
                           <span className="text-xs font-medium leading-tight">{r.roleName || "—"}</span>

@@ -100,16 +100,16 @@ export interface BackendStaffAttendance {
 }
 
 // Staff attendance rows carry the person's staffType (TEACHING / NON_TEACHING /
-// SUPPORT...). The gateway tabs (Teachers / Staffs / Workers) filter on this.
+// SUPPORT...). The gateway tabs (Teachers / Staffs) filter on this — support
+// and worker staff count as Staff.
 // NOTE: "NON_TEACHING" contains "TEACH", so non-teaching must be checked first.
 export function mapStaffCategory(r: BackendStaffAttendance): AttendanceCategory {
   const st = String(r.user?.staffProfile?.staffType ?? "").toUpperCase().replace(/[\s-]+/g, "_");
-  if (st === "NON_TEACHING" || st === "NON_TEACHER" || st === "NONTEACHING") return "STAFF" as AttendanceCategory;
-  if (st.includes("TEACH")) return "TEACHER" as AttendanceCategory;
-  if (st.includes("SUPPORT") || st === "WORKER") return "WORKER" as AttendanceCategory;
-  if (st) return "STAFF" as AttendanceCategory;
-  const role = String(r.user?.role?.name ?? "").toLowerCase();
-  if (role === "teacher") return "TEACHER" as AttendanceCategory;
+  if (st.includes("TEACH") && st !== "NON_TEACHING" && st !== "NON_TEACHER" && st !== "NONTEACHING") return "TEACHER" as AttendanceCategory;
+  if (!st) {
+    const role = String(r.user?.role?.name ?? "").toLowerCase();
+    if (role === "teacher") return "TEACHER" as AttendanceCategory;
+  }
   return "STAFF" as AttendanceCategory;
 }
 
@@ -158,7 +158,7 @@ export function mapBackendStaffAttendance(r: BackendStaffAttendance, campusId?: 
   const roleRaw = String(r.user?.role?.name ?? "").trim();
   const roleLabel = roleRaw ? roleRaw.charAt(0).toUpperCase() + roleRaw.slice(1) : "";
   const cat = mapStaffCategory(r);
-  const catLabel = cat === "TEACHER" ? "Teacher" : cat === "WORKER" ? "Worker" : "Staff";
+  const catLabel = cat === "TEACHER" ? "Teacher" : "Staff";
   return {
     id: r.uuid,
     personId: r.user?.uuid ?? r.userId,
@@ -229,11 +229,10 @@ export async function bulkMarkStaffAttendanceApi(payload: { campusId?: string | 
 // NOTE: "NON_TEACHING" contains "TEACH", so non-teaching must be checked first.
 export function staffDirectoryCategory(s: { staffType?: string | null; role?: string | null }): AttendanceCategory {
   const st = String(s?.staffType ?? "").toUpperCase().replace(/[\s-]+/g, "_");
-  if (st === "NON_TEACHING" || st === "NON_TEACHER" || st === "NONTEACHING") return "STAFF" as AttendanceCategory;
-  if (st.includes("TEACH")) return "TEACHER" as AttendanceCategory;
-  if (st.includes("SUPPORT") || st === "WORKER") return "WORKER" as AttendanceCategory;
-  if (st) return "STAFF" as AttendanceCategory;
-  const role = String((s as any)?.role ?? "").toLowerCase();
-  if (role === "teacher") return "TEACHER" as AttendanceCategory;
+  if (st.includes("TEACH") && st !== "NON_TEACHING" && st !== "NON_TEACHER" && st !== "NONTEACHING") return "TEACHER" as AttendanceCategory;
+  if (!st) {
+    const role = String((s as any)?.role ?? "").toLowerCase();
+    if (role === "teacher") return "TEACHER" as AttendanceCategory;
+  }
   return "STAFF" as AttendanceCategory;
 }

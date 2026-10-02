@@ -50,6 +50,8 @@ const STATUS_OPTIONS = [
 
 const labelCls = "text-xs font-medium text-muted-foreground";
 
+const todayISO = () => new Date().toISOString().split("T")[0];
+
 function staffUserId(s: any): string {
   return s?.user?.uuid ?? s?.user?.id ?? "";
 }
@@ -84,7 +86,7 @@ export function ManualAttendanceModal({
   const [loadingClasses, setLoadingClasses] = useState(false);
   const [loadingPeople, setLoadingPeople] = useState(false);
 
-  // Staff/Teacher/Worker path
+  // Staff/Teacher path
   const [staffList, setStaffList] = useState<any[]>([]);
   const [staffUserIdSel, setStaffUserIdSel] = useState("");
   const [personSearch, setPersonSearch] = useState("");
@@ -179,7 +181,7 @@ export function ManualAttendanceModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, category, classId]);
 
-  // Load staff list for teacher/staff/worker path
+  // Load staff list for teacher/staff path
   useEffect(() => {
     if (!open || category === "STUDENT") return;
     let cancelled = false;
@@ -218,8 +220,8 @@ export function ManualAttendanceModal({
   }, [students, section, personSearch]);
 
   const visibleStaff = useMemo(() => {
-    // Strict category match (TEACHING -> Teachers, NON_TEACHING -> Staffs,
-    // SUPPORT -> Workers). Falls back to the full list only when nothing matches.
+    // Strict category match (TEACHING -> Teachers, everything else -> Staff).
+    // Falls back to the full list only when nothing matches.
     const matched = staffList.filter(
       (s: any) => staffDirectoryCategory({ staffType: s.staffType }) === category
     );
@@ -245,6 +247,10 @@ export function ManualAttendanceModal({
     }
     if (!canSubmit) {
       toast.error("Class, Section aur naam select karo");
+      return;
+    }
+    if (date > todayISO()) {
+      toast.error("Future dates not allowed — today or past only");
       return;
     }
     setSaving(true);
@@ -303,7 +309,6 @@ export function ManualAttendanceModal({
                 <SelectItem value="STUDENT">Student (class-wise)</SelectItem>
                 <SelectItem value="TEACHER">Teacher</SelectItem>
                 <SelectItem value="STAFF">Staff</SelectItem>
-                <SelectItem value="WORKER">Worker</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -365,7 +370,7 @@ export function ManualAttendanceModal({
           {/* 2. Staff path: direct person picker */}
           {category !== "STUDENT" && (
             <div>
-              <label className={labelCls}>2. Kon {category === "TEACHER" ? "Teacher" : category === "WORKER" ? "Worker" : "Staff"}? *</label>
+              <label className={labelCls}>2. Kon {category === "TEACHER" ? "Teacher" : "Staff"}? *</label>
               <Input
                 placeholder="Naam se khojo..."
                 value={personSearch}
@@ -394,7 +399,21 @@ export function ManualAttendanceModal({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className={labelCls}>Date *</label>
-              <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="mt-1 h-9 text-xs" />
+              <Input
+                type="date"
+                value={date}
+                max={todayISO()}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v && v > todayISO()) {
+                    toast.error("Future dates not allowed — reset to today");
+                    setDate(todayISO());
+                  } else {
+                    setDate(v);
+                  }
+                }}
+                className="mt-1 h-9 text-xs"
+              />
             </div>
             <div>
               <label className={labelCls}>Status *</label>
