@@ -118,16 +118,69 @@ export function ExcelCsvImportDialog({
         const workbook = XLSX.read(data, { type: "binary" });
         const sheetName = workbook.SheetNames[0];
         const sheet = workbook.Sheets[sheetName];
-        const json = XLSX.utils.sheet_to_json(sheet, { defval: "" });
-
-        if (!json || json.length === 0) {
+        // Read as arrays first so we can detect the real header row.
+        // Transport/custom Excels often have 1-3 title rows on top
+        // (e.g. "Transport Staff Details") before the actual headers.
+        const grid = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1, defval: "" });
+        const nonEmpty = (grid ?? []).filter((r) => Array.isArray(r) && r.some((c) => String(c ?? "").trim() !== ""));
+        if (!nonEmpty.length) {
           toast.error("The selected file is empty or has no data rows");
           setParsedRows([]);
           return;
         }
 
+        const HEADER_HINTS = [
+          "firstname", "lastname", "name", "staffname", "employeename",
+          "mobile", "phone", "contact", "email",
+          "department", "designation", "stafftype", "type",
+          "gender", "join", "city", "state", "pin",
+          "salary", "bank", "ifsc", "account",
+        ];
+        const scoreRow = (row: any[]) => {
+          let s = 0;
+          for (const cell of row) {
+            const c = String(cell ?? "").trim().toLowerCase().replace(/[\s\-_]+/g, "");
+            if (!c) continue;
+            if (HEADER_HINTS.some((h) => c.includes(h))) s += 1;
+          }
+          return s;
+        };
+        let headerIdx = 0;
+        let best = -1;
+        for (let i = 0; i < Math.min(nonEmpty.length, 10); i++) {
+          const s = scoreRow(nonEmpty[i]);
+          if (s >= 2 && s > best) { best = s; headerIdx = i; break; }
+          if (s > best) { best = s; headerIdx = i; }
+        }
+        // If even the best row looks nothing like a header, fall back to row 0
+        // (previous behaviour for standard templates).
+        const headerRow = nonEmpty[headerIdx].map((h) => String(h ?? "").trim());
+        const dataRows = nonEmpty.slice(headerIdx + 1);
+
+        const json = dataRows
+          .map((r) => {
+            const obj: Record<string, any> = {};
+            headerRow.forEach((h, idx) => {
+              if (!h) return;
+              const v = r[idx];
+              obj[h] = typeof v === "string" ? v.trim() : (v ?? "");
+            });
+            return obj;
+          })
+          .filter((o) => Object.values(o).some((v) => String(v ?? "").trim() !== ""));
+
+        if (!json.length) {
+          toast.error("No data rows found below the header row. Please use the standard template.");
+          setParsedRows([]);
+          return;
+        }
+
         setParsedRows(json);
-        toast.info(`Detected ${json.length} records ready for import`);
+        if (headerIdx > 0) {
+          toast.info(`Skipped ${headerIdx} title row(s) — detected ${json.length} records ready for import`);
+        } else {
+          toast.info(`Detected ${json.length} records ready for import`);
+        }
       } catch (err: any) {
         toast.error(`Failed to parse file: ${err.message || "Unknown error"}`);
         setParsedRows([]);
@@ -177,12 +230,18 @@ export function ExcelCsvImportDialog({
     }
   };
 
-  // Derive dynamic preview headers if not provided
+  // Derive dynamic preview headers. If caller-provided previewColumns don't
+  // exist in the uploaded file (custom Excel headers), fall back to the
+  // file's actual headers so preview never shows all "—".
+  const actualKeys = parsedRows.length > 0 ? Object.keys(parsedRows[0]) : [];
+  const providedMatch = previewColumns.filter((c) =>
+    actualKeys.some((k) => k === c.key || k.toLowerCase() === c.key.toLowerCase())
+  );
   const displayColumns =
-    previewColumns.length > 0
-      ? previewColumns
-      : parsedRows.length > 0
-      ? Object.keys(parsedRows[0])
+    providedMatch.length > 0
+      ? providedMatch
+      : actualKeys.length > 0
+      ? actualKeys
           .slice(0, 6)
           .map((k) => ({ key: k, label: k }))
       : [];

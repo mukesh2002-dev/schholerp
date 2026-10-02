@@ -84,8 +84,8 @@ export default function StaffProfilePage() {
         </TabsContent>
 
         <TabsContent value="employment">
-          <Card><CardContent className="p-4 grid grid-cols-2 gap-2 text-sm">
-            <p>Department: {s.department}</p><p>Designation: {s.designation}</p><p>Staff Type: {s.staffType}</p><p>Employment Type: {s.employmentType || "—"}</p><p>Work Type: {s.workType || "—"}</p><p>Status: {s.employmentStatus}</p><p>Joining: {formatDate(s.joiningDate)}</p><p>Experience: {s.experienceYears ?? "—"} years</p>
+          <Card><CardContent className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+            <p>Employee ID: {s.employeeId}</p><p>Staff Type: {s.staffType}</p><p>Department: {s.department}</p><p>Designation: {s.designation}</p><p>Employment Type: {s.employmentType || "—"}</p><p>Work Type: {s.workType || "—"}</p><p>Work Location: {s.workLocation || "—"}</p><p>Reporting Manager: {s.reportingManager?.name || "—"}</p><p>Status: {s.employmentStatus}</p><p>Joining: {formatDate(s.joiningDate)}</p><p>Experience: {s.experienceYears ?? "—"} years</p><p>Campus: {s.campus?.name || "—"}</p>
           </CardContent></Card>
         </TabsContent>
 

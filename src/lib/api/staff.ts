@@ -13,6 +13,9 @@ export interface BackendStaff {
   staffType: string;
   employmentType?: string | null;
   workType?: string | null;
+  workLocation?: string | null;
+  reportingManagerId?: string | null;
+  reportingManager?: { uuid: string; name: string; email?: string } | null;
   employmentStatus?: string | null;
   status?: string | null;
   joiningDate: string;
@@ -64,6 +67,9 @@ export async function fetchStaffList(params: {
   designation?: string;
   staffType?: string;
   employmentType?: string;
+  employmentStatus?: string;
+  workType?: string;
+  workLocation?: string;
   status?: string;
   page?: number;
   limit?: number;
@@ -76,6 +82,9 @@ export async function fetchStaffList(params: {
   if (params.designation) q.set("designation", params.designation);
   if (params.staffType) q.set("staffType", params.staffType);
   if (params.employmentType) q.set("employmentType", params.employmentType);
+  if (params.employmentStatus) q.set("employmentStatus", params.employmentStatus);
+  if (params.workType) q.set("workType", params.workType);
+  if (params.workLocation) q.set("workLocation", params.workLocation);
   if (params.status) q.set("status", params.status);
   if (params.page) q.set("page", String(params.page));
   if (params.limit) q.set("limit", String(params.limit));

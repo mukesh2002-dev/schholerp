@@ -88,9 +88,29 @@ export interface BackendStaffAttendance {
   status: string;
   checkIn?: string | null;
   checkOut?: string | null;
-  user?: { uuid: string; name?: string; email?: string; role?: { name?: string } } | null;
+  user?: {
+    uuid: string;
+    name?: string;
+    email?: string;
+    role?: { name?: string } | null;
+    staffProfile?: { staffType?: string | null; department?: string | null; designation?: string | null } | null;
+  } | null;
   markedBy?: { uuid: string; name?: string } | null;
   campusId?: string;
+}
+
+// Staff attendance rows carry the person's staffType (TEACHING / NON_TEACHING /
+// SUPPORT...). The gateway tabs (Teachers / Staffs / Workers) filter on this.
+// NOTE: "NON_TEACHING" contains "TEACH", so non-teaching must be checked first.
+export function mapStaffCategory(r: BackendStaffAttendance): AttendanceCategory {
+  const st = String(r.user?.staffProfile?.staffType ?? "").toUpperCase().replace(/[\s-]+/g, "_");
+  if (st === "NON_TEACHING" || st === "NON_TEACHER" || st === "NONTEACHING") return "STAFF" as AttendanceCategory;
+  if (st.includes("TEACH")) return "TEACHER" as AttendanceCategory;
+  if (st.includes("SUPPORT") || st === "WORKER") return "WORKER" as AttendanceCategory;
+  if (st) return "STAFF" as AttendanceCategory;
+  const role = String(r.user?.role?.name ?? "").toLowerCase();
+  if (role === "teacher") return "TEACHER" as AttendanceCategory;
+  return "STAFF" as AttendanceCategory;
 }
 
 const STATUS_MAP: Record<string, AttendanceStatus> = {
@@ -112,11 +132,13 @@ function toDate(d: string | Date | null | undefined): string {
 
 export function mapBackendStudentAttendance(r: BackendStudentAttendance, campusId?: string | null): AttendanceRecord {
   const name = `${r.student?.firstName ?? ""} ${r.student?.lastName ?? ""}`.trim() || (r.student?.uuid ?? r.studentId);
+  const classLabel = [r.class?.name, r.class?.section].filter(Boolean).join(" • ");
   return {
     id: r.uuid,
     personId: r.student?.uuid ?? r.studentId,
     personName: name,
     category: "STUDENT" as AttendanceCategory,
+    roleName: classLabel || undefined,
     date: toDate(r.date),
     status: mapStatus(r.status),
     branchId: r.campusId ?? campusId ?? "all",
@@ -132,11 +154,18 @@ export function mapBackendStudentAttendance(r: BackendStudentAttendance, campusI
 }
 
 export function mapBackendStaffAttendance(r: BackendStaffAttendance, campusId?: string | null): AttendanceRecord {
+  const prof = r.user?.staffProfile;
+  const roleRaw = String(r.user?.role?.name ?? "").trim();
+  const roleLabel = roleRaw ? roleRaw.charAt(0).toUpperCase() + roleRaw.slice(1) : "";
+  const cat = mapStaffCategory(r);
+  const catLabel = cat === "TEACHER" ? "Teacher" : cat === "WORKER" ? "Worker" : "Staff";
   return {
     id: r.uuid,
     personId: r.user?.uuid ?? r.userId,
     personName: r.user?.name ?? r.userId,
-    category: "TEACHER" as AttendanceCategory,
+    category: cat,
+    roleName: prof?.designation || roleLabel || catLabel,
+    department: prof?.department ?? undefined,
     date: toDate(r.date),
     status: mapStatus(r.status),
     checkIn: r.checkIn ? toDate(r.checkIn) : undefined,
@@ -179,4 +208,32 @@ export async function markAllStudentAttendanceApi(payload: { campusId?: string |
 export async function recordStaffAttendanceApi(payload: { campusId?: string | null; userId?: string; date?: string; status?: string; remarks?: string | null }): Promise<BackendStaffAttendance> {
   const res = await apiFetch<{ data: BackendStaffAttendance }>(`/attendance/staff`, { method: "POST", body: JSON.stringify(payload) }, { campusId: payload.campusId ?? undefined });
   return res.data;
+}
+
+// Manual single-person mark by Admin/HR/Principal (Attendance Gateway modal).
+// Backend: POST /attendance/staff/single { campusId, userId, date, status, remarks }
+export async function markSingleStaffAttendanceApi(payload: { campusId?: string | null; userId: string; date: string; status: string; remarks?: string | null }): Promise<BackendStaffAttendance> {
+  const res = await apiFetch<{ data: BackendStaffAttendance }>(`/attendance/staff/single`, { method: "POST", body: JSON.stringify(payload) }, { campusId: payload.campusId ?? undefined });
+  return res.data;
+}
+
+// Bulk mark (Admin/HR/Principal) — used by "Mark All Present" on staff tabs.
+// Backend: POST /attendance/staff/bulk { campusId, date, records: [{ userId, status }] }
+export async function bulkMarkStaffAttendanceApi(payload: { campusId?: string | null; date: string; records: { userId: string; status: string; remarks?: string | null }[] }): Promise<{ saved: number; errors: { userId: string; error: string }[] }> {
+  const res = await apiFetch<{ data: { saved: number; errors: { userId: string; error: string }[] } }>(`/attendance/staff/bulk`, { method: "POST", body: JSON.stringify(payload) }, { campusId: payload.campusId ?? undefined });
+  return res.data;
+}
+
+// Staff-directory category used by the gateway tabs and bulk marking,
+// consistent with mapStaffCategory for attendance rows.
+// NOTE: "NON_TEACHING" contains "TEACH", so non-teaching must be checked first.
+export function staffDirectoryCategory(s: { staffType?: string | null; role?: string | null }): AttendanceCategory {
+  const st = String(s?.staffType ?? "").toUpperCase().replace(/[\s-]+/g, "_");
+  if (st === "NON_TEACHING" || st === "NON_TEACHER" || st === "NONTEACHING") return "STAFF" as AttendanceCategory;
+  if (st.includes("TEACH")) return "TEACHER" as AttendanceCategory;
+  if (st.includes("SUPPORT") || st === "WORKER") return "WORKER" as AttendanceCategory;
+  if (st) return "STAFF" as AttendanceCategory;
+  const role = String((s as any)?.role ?? "").toLowerCase();
+  if (role === "teacher") return "TEACHER" as AttendanceCategory;
+  return "STAFF" as AttendanceCategory;
 }

@@ -8,9 +8,13 @@ import {
   fetchLeaves,
   markStudentAttendanceApi,
   markAllStudentAttendanceApi,
+  markSingleStaffAttendanceApi,
+  bulkMarkStaffAttendanceApi,
+  staffDirectoryCategory,
   mapBackendStudentAttendance,
   mapBackendStaffAttendance,
 } from "@/lib/api/attendance";
+import { fetchStaffList } from "@/lib/api/staff";
 import { useCampusData } from "@/lib/hooks/use-campus-data";
 import { SectionOfflineBanner } from "@/components/layout/section-guard";
 import { AttendanceCategory, AttendanceStatus, AttendanceRecord } from "@/types";
@@ -23,7 +27,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { formatDate } from "@/lib/utils";
 import { toast } from "sonner";
-import { CalendarCheck, Users, Search, CheckCircle2, TrendingUp } from "lucide-react";
+import { CalendarCheck, Users, Search, CheckCircle2, TrendingUp, UserPlus } from "lucide-react";
+import { ManualAttendanceModal, OPEN_MANUAL_ATTENDANCE_EVENT } from "@/sections/attendance/manual-attendance-modal";
 
 const statusVariant = (s: AttendanceStatus) => {
   switch (s) {
@@ -47,6 +52,14 @@ export function AttendanceDirectoryView() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [saving, setSaving] = useState(false);
+  const [manualOpen, setManualOpen] = useState(false);
+
+  // Header ka "Manual Attendance" button isi modal ko kholta hai
+  React.useEffect(() => {
+    const handler = () => setManualOpen(true);
+    window.addEventListener(OPEN_MANUAL_ATTENDANCE_EVENT, handler);
+    return () => window.removeEventListener(OPEN_MANUAL_ATTENDANCE_EVENT, handler);
+  }, []);
 
   const fallbackRecords: AttendanceRecord[] = [];
   const fallbackSummaries: any[] = [];
@@ -132,14 +145,20 @@ export function AttendanceDirectoryView() {
       rate: p.totalDays > 0 ? Math.round(((p.present + p.late) / p.totalDays) * 100) : 0,
     }));
   }, [allRecords]);
-  const availableDates = useMemo(
-    () => Array.from(new Set(allRecords.map((r) => r.date))).sort().reverse(),
-    [allRecords]
+  // Filter by the selected tab: STUDENT shows student rows, the other tabs
+  // show only staff rows mapped to that category (TEACHER / STAFF / WORKER).
+  const recordsForCategory = useMemo(
+    () =>
+      category === "STUDENT"
+        ? allRecords.filter((r) => r.category === "STUDENT")
+        : allRecords.filter((r) => r.category === category),
+    [allRecords, category]
   );
-  const effectiveDate = availableDates.includes(date) ? date : availableDates[0] || date;
+  // The date picker always respects the chosen date. Records are fetched for
+  // that date, so no silent switching to another day.
   const recordsForDate = useMemo(
-    () => allRecords.filter((r) => r.date === effectiveDate),
-    [allRecords, effectiveDate]
+    () => recordsForCategory.filter((r) => r.date === date),
+    [recordsForCategory, date]
   );
 
   const filtered = useMemo(() => {
@@ -156,22 +175,50 @@ export function AttendanceDirectoryView() {
   }, [refreshRecords, refreshLeaves]);
 
   const handleMarkAllPresent = useCallback(async () => {
-    if (category !== "STUDENT") {
-      toast.info("Staff attendance marking uses biometric / manual check-in - use Staff tab");
-      return;
-    }
     if (!navigator.onLine) {
-      toast.error("Offline — internet check karo");
+      toast.error("Offline — cannot save attendance");
       return;
     }
     const campus = activeBranchId !== "all" ? activeBranchId : undefined;
+    // Staff tabs: build the roster from the staff directory and bulk-mark
+    // everyone in this category as PRESENT for the selected date.
+    if (category !== "STUDENT") {
+      setSaving(true);
+      try {
+        const res = await fetchStaffList({ campusId: campus, limit: 200 });
+        const roster = ((res as any)?.data ?? []).filter(
+          (s: any) => staffDirectoryCategory({ staffType: s.staffType }) === category && (s?.user?.uuid ?? s?.user?.id)
+        );
+        if (roster.length === 0) {
+          const who = category === "TEACHER" ? "teachers" : category === "WORKER" ? "workers" : "staff members";
+          toast.error(`No ${who} found for this campus. Add staff first.`);
+          return;
+        }
+        const result = await bulkMarkStaffAttendanceApi({
+          campusId: campus,
+          date,
+          records: roster.map((s: any) => ({ userId: s.user.uuid ?? s.user.id, status: "PRESENT" })),
+        });
+        const failed = result.errors?.length ?? 0;
+        toast.success(
+          `Marked ${result.saved} ${category.toLowerCase()} as PRESENT for ${date}` +
+            (failed > 0 ? ` (${failed} failed)` : "")
+        );
+        await refreshRecords();
+      } catch (err: any) {
+        toast.error(err?.message || "Failed to save attendance");
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
     // No records yet for this date (first marking): bootstrap server-side —
     // backend builds the roster from enrolled students, no classId needed.
     if (filtered.length === 0) {
       setSaving(true);
       try {
-        const res = await markAllStudentAttendanceApi({ campusId: campus, date: effectiveDate, status: "present" });
-        toast.success(`Marked ${res.count} students as PRESENT for ${effectiveDate}`);
+        const res = await markAllStudentAttendanceApi({ campusId: campus, date, status: "present" });
+        toast.success(`Marked ${res.count} students as PRESENT for ${date}`);
         await refreshRecords();
       } catch (err: any) {
         const msg = err?.message || "Failed to save attendance";
@@ -189,8 +236,8 @@ export function AttendanceDirectoryView() {
     setSaving(true);
     try {
       const records = filtered.map((r) => ({ studentId: r.personId, status: "present" as const }));
-      const res = await markStudentAttendanceApi({ campusId: campus, classId, date: effectiveDate, records });
-      toast.success(`Marked ${res.count} students as PRESENT for ${effectiveDate}`);
+      const res = await markStudentAttendanceApi({ campusId: campus, classId, date, records });
+      toast.success(`Marked ${res.count} students as PRESENT for ${date}`);
       await refreshRecords();
     } catch (err: any) {
       const msg = err?.message || "Failed to save attendance";
@@ -198,7 +245,7 @@ export function AttendanceDirectoryView() {
     } finally {
       setSaving(false);
     }
-  }, [filtered, category, effectiveDate, activeBranchId, refreshRecords]);
+  }, [filtered, category, date, activeBranchId, refreshRecords]);
 
   return (
     <div className="space-y-4">
@@ -219,16 +266,31 @@ export function AttendanceDirectoryView() {
           ))}
         </div>
 
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={handleMarkAllPresent}
-          disabled={saving || recordsLoading}
-          className="gap-1.5 text-xs h-8 text-emerald-600 hover:bg-emerald-500/10"
-        >
-          <CheckCircle2 className={`h-3.5 w-3.5 ${saving ? "animate-spin" : ""}`} /> {saving ? "Saving..." : "Mark All Present"}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            onClick={() => setManualOpen(true)}
+            className="gap-1.5 text-xs h-8"
+          >
+            <UserPlus className="h-3.5 w-3.5" /> Manual Attendance
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleMarkAllPresent}
+            disabled={saving || recordsLoading}
+            className="gap-1.5 text-xs h-8 text-emerald-600 hover:bg-emerald-500/10"
+          >
+            <CheckCircle2 className={`h-3.5 w-3.5 ${saving ? "animate-spin" : ""}`} /> {saving ? "Saving..." : "Mark All Present"}
+          </Button>
+        </div>
       </div>
+      <ManualAttendanceModal
+        open={manualOpen}
+        onOpenChange={setManualOpen}
+        defaultCategory={category}
+        onSaved={refresh}
+      />
 
       <Tabs defaultValue="daily" className="space-y-4">
         <TabsList>
@@ -257,7 +319,7 @@ export function AttendanceDirectoryView() {
             </div>
             <Input
               type="date"
-              value={effectiveDate}
+              value={date}
               onChange={(e) => setDate(e.target.value)}
               className="w-[160px] h-9 text-xs"
             />
@@ -280,8 +342,8 @@ export function AttendanceDirectoryView() {
               <div className="p-8 text-center text-xs text-muted-foreground">Loading attendance... <span className="animate-pulse">●</span></div>
             ) : filtered.length === 0 ? (
               <div className="p-8 text-center space-y-2">
-                <p className="text-sm font-semibold text-foreground">No records for {effectiveDate}</p>
-                <p className="text-xs text-muted-foreground">No {category.toLowerCase()} attendance marked for this date/campus. Use <em>Mark All Present</em> after enrolling students, or change date/class.</p>
+                <p className="text-sm font-semibold text-foreground">No records for {date}</p>
+                <p className="text-xs text-muted-foreground">No {category.toLowerCase()} attendance marked for this date/campus. Use <em>Manual Attendance</em> to mark individually{category === "STUDENT" ? <> or <em>Mark All Present</em> after enrolling students</> : ""}, or pick another date.</p>
                 {recordsOffline && <p className="text-xs text-amber-600">Offline — showing cached data</p>}
               </div>
             ) : (
@@ -300,7 +362,19 @@ export function AttendanceDirectoryView() {
                 {filtered.map((r) => (
                   <TableRow key={r.id} className="hover:bg-muted/40">
                     <TableCell className="font-semibold text-sm">{r.personName}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{r.category}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1.5">
+                        <Badge variant="outline" className="text-[10px] capitalize">
+                          {r.category === "STUDENT" ? "Student" : r.category === "TEACHER" ? "Teacher" : r.category === "WORKER" ? "Worker" : "Staff"}
+                        </Badge>
+                        <div className="flex flex-col">
+                          <span className="text-xs font-medium leading-tight">{r.roleName || "—"}</span>
+                          {r.department && (
+                            <span className="text-[10px] text-muted-foreground leading-tight">{r.department}</span>
+                          )}
+                        </div>
+                      </div>
+                    </TableCell>
                     <TableCell className="text-xs font-mono font-medium">
                       {r.checkIn || "—"}
                     </TableCell>
@@ -315,13 +389,17 @@ export function AttendanceDirectoryView() {
                         value={r.status}
                         onValueChange={async (val) => {
                           if (!navigator.onLine) { toast.error("Offline — cannot update"); return; }
-                          if (category !== "STUDENT") return;
-                          const cid = r.classId;
-                          if (!cid) { toast.error("Class missing"); return; }
+                          const campus = activeBranchId !== "all" ? activeBranchId : undefined;
                           try {
-                            // Backend stores LEAVE as `excused` (see mapStatus) — send canonical value.
-                            const apiStatus = val === "LEAVE" ? "excused" : val.toLowerCase();
-                            await markStudentAttendanceApi({ campusId: activeBranchId !== "all" ? activeBranchId : undefined, classId: cid, date: r.date, records: [{ studentId: r.personId, status: apiStatus }] });
+                            if (r.category === "STUDENT") {
+                              const cid = r.classId;
+                              if (!cid) { toast.error("Class missing"); return; }
+                              // Backend stores LEAVE as `excused` (see mapStatus) — send canonical value.
+                              const apiStatus = val === "LEAVE" ? "excused" : val.toLowerCase();
+                              await markStudentAttendanceApi({ campusId: campus, classId: cid, date: r.date, records: [{ studentId: r.personId, status: apiStatus }] });
+                            } else {
+                              await markSingleStaffAttendanceApi({ campusId: campus, userId: r.personId, date: r.date, status: val });
+                            }
                             toast.success(`${r.personName} → ${val}`);
                             await refreshRecords();
                           } catch (e:any) { toast.error(e?.message || "Update failed"); }

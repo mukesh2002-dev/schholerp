@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useERP } from "@/components/providers/erp-provider";
 import { fetchStudentById } from "@/lib/api/students";
 import { fetchInvoices, BackendInvoice } from "@/lib/api/fees";
+import { fetchStudentAttendance, BackendStudentAttendance } from "@/lib/api/attendance";
 import { Student } from "@/types";
 import { Breadcrumbs } from "@/components/layout/breadcrumbs";
 import { StudentFormDialog } from "@/components/students/student-form-dialog";
@@ -68,6 +69,35 @@ export default function StudentDetailPage() {
     if (!student?.id) return;
     void fetchInvoices({ studentId: student.id }).then((list) => setInvoices(Array.isArray(list) ? list : []));
   }, [student?.id]);
+
+  // Live attendance records for this student (class roster filtered to this student)
+  const [attRecords, setAttRecords] = useState<BackendStudentAttendance[]>([]);
+  const [attLoading, setAttLoading] = useState(false);
+  useEffect(() => {
+    if (!student?.id) return;
+    setAttLoading(true);
+    const classId = student.classId && student.classId !== "all" ? student.classId : undefined;
+    const campusId = student.branchId && student.branchId !== "all" ? student.branchId : undefined;
+    void fetchStudentAttendance({ campusId, classId })
+      .then((list) => {
+        const mine = (Array.isArray(list) ? list : []).filter(
+          (r) => (r.student?.uuid ?? r.studentId) === student.id
+        );
+        mine.sort((a, b) => String(b.date).localeCompare(String(a.date)));
+        setAttRecords(mine);
+      })
+      .catch(() => setAttRecords([]))
+      .finally(() => setAttLoading(false));
+  }, [student?.id, student?.classId, student?.branchId]);
+
+  const attSummary = useMemo(() => {
+    const present = attRecords.filter((r) => String(r.status).toLowerCase() === "present").length;
+    const absent = attRecords.filter((r) => String(r.status).toLowerCase() === "absent").length;
+    const late = attRecords.filter((r) => String(r.status).toLowerCase() === "late").length;
+    const total = attRecords.length;
+    const rate = total ? Math.round(((present + late) / total) * 100) : 0;
+    return { present, absent, late, total, rate };
+  }, [attRecords]);
 
   const feeTotals = useMemo(() => {
     const billed = invoices.reduce((a, i) => a + Number(i.amount ?? 0), 0);
@@ -449,23 +479,51 @@ export default function StudentDetailPage() {
                 <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
                   <span className="text-[11px] text-emerald-600 block">Present Days</span>
                   <span className="text-xl font-bold text-emerald-600">
-                    {student.attendanceSummary.presentDays}
+                    {attSummary.present}
                   </span>
                 </div>
                 <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20">
                   <span className="text-[11px] text-rose-600 block">Absent Days</span>
-                  <span className="text-xl font-bold text-rose-600">{student.attendanceSummary.absentDays}</span>
+                  <span className="text-xl font-bold text-rose-600">{attSummary.absent}</span>
                 </div>
                 <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
                   <span className="text-[11px] text-amber-600 block">Late Check-ins</span>
-                  <span className="text-xl font-bold text-amber-600">{student.attendanceSummary.lateDays}</span>
+                  <span className="text-xl font-bold text-amber-600">{attSummary.late}</span>
                 </div>
                 <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20">
                   <span className="text-[11px] text-blue-600 block">Attendance Rate</span>
                   <span className="text-xl font-bold text-blue-600">
-                    {student.attendanceSummary.attendanceRate}%
+                    {attSummary.rate}%
                   </span>
                 </div>
+              </div>
+              <div className="rounded-xl border border-border/60 overflow-hidden">
+                <div className="px-3 py-2 text-xs font-semibold text-muted-foreground border-b border-border/60">
+                  Day-wise Records ({attSummary.total})
+                </div>
+                {attLoading ? (
+                  <p className="p-4 text-xs text-muted-foreground text-center">Loading attendance...</p>
+                ) : attRecords.length === 0 ? (
+                  <p className="p-4 text-xs text-muted-foreground text-center">No attendance marked for this student yet. Mark it from Attendance & Biometric → Students.</p>
+                ) : (
+                  <div className="divide-y divide-border/40 max-h-72 overflow-y-auto">
+                    {attRecords.map((r) => {
+                      const st = String(r.status ?? "").toLowerCase();
+                      return (
+                        <div key={r.uuid} className="flex items-center justify-between px-3 py-2 text-xs">
+                          <span className="font-medium">{formatDate(r.date)}</span>
+                          <span className="text-muted-foreground truncate max-w-[40%]">{r.remarks || "—"}</span>
+                          <Badge
+                            variant={st === "present" ? "success" : st === "absent" ? "destructive" : st === "late" ? "warning" : "info"}
+                            className="text-[10px] uppercase"
+                          >
+                            {st === "excused" ? "Leave" : st || "—"}
+                          </Badge>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
