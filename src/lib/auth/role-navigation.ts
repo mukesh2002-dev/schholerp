@@ -227,7 +227,7 @@ export const ROLE_NAV_GROUPS: RoleNavGroup[] = [
         href: "/attendance",
         icon: Fingerprint,
         badge: "Live",
-        allowedRoles: [...PEOPLE, "ACCOUNTANT"],
+        allowedRoles: [...PEOPLE, "ACCOUNTANT", "TEACHER"],
         featureKey: "attendance",
         moduleKey: "attendance",
       },

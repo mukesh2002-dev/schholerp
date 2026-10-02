@@ -27,8 +27,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { formatDate } from "@/lib/utils";
 import { toast } from "sonner";
-import { CalendarCheck, Users, Search, CheckCircle2, TrendingUp, UserPlus } from "lucide-react";
+import { CalendarCheck, Users, Search, CheckCircle2, TrendingUp, UserPlus, ClipboardCheck } from "lucide-react";
 import { ManualAttendanceModal, OPEN_MANUAL_ATTENDANCE_EVENT } from "@/sections/attendance/manual-attendance-modal";
+import { MarkAttendance } from "../mark-attendance/mark-attendance";
 
 const statusVariant = (s: AttendanceStatus) => {
   switch (s) {
@@ -292,8 +293,11 @@ export function AttendanceDirectoryView() {
         onSaved={refresh}
       />
 
-      <Tabs defaultValue="daily" className="space-y-4">
+      <Tabs defaultValue="mark" className="space-y-4">
         <TabsList>
+          <TabsTrigger value="mark" className="gap-1.5 text-xs">
+            <ClipboardCheck className="h-3.5 w-3.5" /> Mark Attendance
+          </TabsTrigger>
           <TabsTrigger value="daily" className="gap-1.5 text-xs">
             <CalendarCheck className="h-3.5 w-3.5" /> Daily Punch Ledger
           </TabsTrigger>
@@ -304,6 +308,11 @@ export function AttendanceDirectoryView() {
             <Users className="h-3.5 w-3.5" /> Individual Compliance
           </TabsTrigger>
         </TabsList>
+
+        {/* Tab 0: Direct on-screen marking (class roster) */}
+        <TabsContent value="mark" className="space-y-4">
+          <MarkAttendance />
+        </TabsContent>
 
         {/* Tab 1: Daily */}
         <TabsContent value="daily" className="space-y-4">

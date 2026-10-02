@@ -158,9 +158,10 @@ function mapBackendStudent(s: BackendStudent): Student {
   };
 }
 
-export async function fetchStudents(params: { campusId?: string | null; search?: string; page?: number; limit?: number } = {}): Promise<{ data: Student[]; total: number }> {
+export async function fetchStudents(params: { campusId?: string | null; search?: string; classId?: string; page?: number; limit?: number } = {}): Promise<{ data: Student[]; total: number }> {
   const q = new URLSearchParams();
   if (params.search) q.set("search", params.search);
+  if (params.classId) q.set("classId", params.classId);
   if (params.page) q.set("page", String(params.page));
   if (params.limit) q.set("limit", String(params.limit));
   const qs = q.toString() ? `?${q.toString()}` : "";
