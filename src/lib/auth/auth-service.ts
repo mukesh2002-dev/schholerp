@@ -104,6 +104,7 @@ export function mapBackendUserToSession(user: BackendUser): UserSession {
     title: prettyRole,
     rawRole: user.role ?? undefined,
     campusName: user.campus?.name ?? undefined,
+    campusUuid: user.campus?.uuid ?? undefined,
     // Backend-driven navigation modules (dynamic sidebar). Falls back to the
     // static role-based nav when absent (offline / demo mode).
     sidebar: Array.isArray(user.sidebar) ? user.sidebar : undefined,
