@@ -292,11 +292,12 @@ export async function collectFeeApi(payload: {
 
 export async function bulkCreateAssignmentsApi(payload: {
   campusId?: string;
-  classId?: string;
+  classId: string;
   academicYearId?: string;
   structureId: string;
   dueDate: string;
-  studentIds: string[];
+  // Optional: omitted = backend assigns ALL active students of the class.
+  studentIds?: string[];
 }, campusId?: string | null): Promise<{ created: number; skipped: number }> {
   const res = await apiFetch<{ data: { created: number; skipped: number } }>(
     `/fees/assignments/bulk`,

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useERP } from "@/components/providers/erp-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -59,6 +59,7 @@ export function CollectTab() {
 
   const [receipt, setReceipt] = useState<ReceiptData | null>(null);
   const [receiptOpen, setReceiptOpen] = useState(false);
+  const [amountTouched, setAmountTouched] = useState(false);
 
   const runSearch = async (q: string) => {
     const text = q.trim();
@@ -80,8 +81,13 @@ export function CollectTab() {
     try {
       const data = await fetchStudentCollectionProfile(uuid, branch);
       setProfile(data);
-      const due = Number(data?.summary?.totalDue ?? 0);
+      const ms: any[] = data?.monthlyStatus ?? [];
+      const planDue = ms.reduce((a, m) => a + Number(m.due ?? 0), 0);
+      const due = Math.max(Number(data?.summary?.totalDue ?? 0), planDue);
       setAmount(due > 0 ? String(due) : "");
+      const dm = ms.filter((m) => Number(m.due ?? 0) > 0).map((m) => m.monthNumber as number);
+      setMonths(dm.length > 0 ? dm : [new Date().getMonth() + 1]);
+      setAmountTouched(false);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not load dues");
       setProfile(null);
@@ -90,8 +96,30 @@ export function CollectTab() {
     }
   };
 
-  const toggleMonth = (m: number) =>
+  const toggleMonth = (m: number) => {
     setMonths((p) => (p.includes(m) ? p.filter((x) => x !== m) : [...p, m]));
+    setAmountTouched(false);
+  };
+
+  // When month selection changes (and user hasn't typed a custom amount),
+  // auto-fill with the due of the selected months.
+  useEffect(() => {
+    if (amountTouched || !profile) return;
+    const ms: any[] = profile?.monthlyStatus ?? [];
+    if (ms.length === 0) return;
+    const sel = ms.filter((m) => months.includes(m.monthNumber));
+    const sum = sel.reduce((a, m) => a + Number(m.due ?? m.total ?? 0), 0);
+    if (sum > 0) setAmount(String(sum));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [months, profile]);
+
+  // Deep-link: /fees/collect?student=<uuid> preloads that student's dues
+  const searchParams = useSearchParams();
+  const deepLinkStudent = searchParams.get("student");
+  useEffect(() => {
+    if (deepLinkStudent) void pickStudent(deepLinkStudent);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deepLinkStudent]);
 
   const handleCollect = async () => {
     if (!profile?.student) { toast.error("Select a student first"); return; }
@@ -132,6 +160,19 @@ export function CollectTab() {
   const summary = profile?.summary;
   const monthlyStatus: any[] = profile?.monthlyStatus ?? [];
   const invoices: any[] = profile?.invoices ?? [];
+
+  // Real due = invoice-level due (summary.totalDue) OR plan-level monthly dues
+  // (assignments exist but invoices not generated yet → totalDue is 0 but
+  // monthlyStatus carries the true per-month dues).
+  const monthDues = useMemo(
+    () => monthlyStatus.reduce((a, m) => a + Number(m.due ?? 0), 0),
+    [monthlyStatus]
+  );
+  const effectiveDue = Math.max(Number(summary?.totalDue ?? 0), monthDues);
+  const dueMonths = useMemo(
+    () => monthlyStatus.filter((m) => Number(m.due ?? 0) > 0).map((m) => m.monthNumber as number),
+    [monthlyStatus]
+  );
 
   return (
     <div className="space-y-4">
@@ -186,10 +227,10 @@ export function CollectTab() {
                   <div className="font-bold text-sm">{student.firstName} {student.lastName}</div>
                   <div className="text-[11px] text-muted-foreground font-mono">Adm {student.admissionNo}{student.rollNo ? ` • Roll ${student.rollNo}` : ""}{student.class ? ` • ${student.class.name}` : ""}</div>
                 </div>
-                <Badge variant={Number(summary?.totalDue ?? 0) > 0 ? "destructive" : "success"} className="text-xs font-mono">
-                  Due {formatCurrency(summary?.totalDue ?? 0)}
+                <Badge variant={effectiveDue > 0 ? "destructive" : "success"} className="text-xs font-mono">
+                  Due {formatCurrency(effectiveDue)}
                 </Badge>
-                <Button size="sm" variant="gradient" className="h-8 text-xs gap-1" disabled={Number(summary?.totalDue ?? 0) <= 0} onClick={() => setCollectOpen(true)}>
+                <Button size="sm" variant="gradient" className="h-8 text-xs gap-1" disabled={effectiveDue <= 0} onClick={() => { if (dueMonths.length > 0) setMonths(dueMonths); setCollectOpen(true); }}>
                   <CreditCard className="h-3.5 w-3.5" /> Collect
                 </Button>
               </div>
@@ -208,7 +249,9 @@ export function CollectTab() {
               </div>
               {monthlyStatus.length > 0 && (
                 <div>
-                  <div className="text-xs font-semibold mb-1">Month-wise status</div>
+                  <div className="text-xs font-semibold mb-1">
+                    Month-wise dues {invoices.length === 0 && <span className="text-[10px] font-normal text-muted-foreground">— plan assigned, invoices not generated yet; collecting below creates invoice + receipt in one step</span>}
+                  </div>
                   <div className="flex flex-wrap gap-1.5">
                     {monthlyStatus.map((m: any, i: number) => (
                       <Badge key={i} variant={m.status === "Paid" ? "success" : m.status === "Partial" ? "warning" : m.status === "Overdue" ? "destructive" : "outline"} className="text-[10px]">
@@ -220,6 +263,15 @@ export function CollectTab() {
               )}
             </CardContent>
           </Card>
+
+          {invoices.length === 0 && monthlyStatus.length === 0 && (
+            <Card className="border-dashed p-8 text-center">
+              <h3 className="font-semibold text-sm">No fee plan assigned</h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                This student has no fee assignment and no invoices. Assign a structure first — <button className="underline text-primary" onClick={() => router.push("/fees/assignments/new?student=" + (student.uuid ?? ""))}>go to Assign</button>.
+              </p>
+            </Card>
+          )}
 
           {invoices.length > 0 && (
             <div className="rounded-xl border border-border/80 bg-card overflow-hidden">
@@ -277,23 +329,28 @@ export function CollectTab() {
               </div>
             </div>
             <div>
-              <label className="text-xs font-medium block mb-1">Months</label>
+              <label className="text-xs font-medium block mb-1">Months (tap to toggle)</label>
               <div className="flex flex-wrap gap-1.5">
-                {MONTHS.map((m) => (
-                  <button
-                    key={m.v}
-                    onClick={() => toggleMonth(m.v)}
-                    className={`px-2.5 py-1 rounded-md border text-xs ${months.includes(m.v) ? "bg-primary text-primary-foreground border-primary" : "bg-card hover:border-primary/40"}`}
-                  >
-                    {m.n}
-                  </button>
-                ))}
+                {MONTHS.map((m) => {
+                  const ms = (profile?.monthlyStatus ?? []).find((x: any) => x.monthNumber === m.v);
+                  const mDue = Number(ms?.due ?? 0);
+                  return (
+                    <button
+                      key={m.v}
+                      onClick={() => toggleMonth(m.v)}
+                      className={`px-2.5 py-1 rounded-md border text-xs ${months.includes(m.v) ? "bg-primary text-primary-foreground border-primary" : "bg-card hover:border-primary/40"}`}
+                    >
+                      {m.n}{mDue > 0 && <span className="block text-[9px] opacity-80">{formatCurrency(mDue)}</span>}
+                    </button>
+                  );
+                })}
               </div>
+              <p className="text-[10px] text-muted-foreground mt-1">Month chips show per-month due. Selection auto-fills the amount — type over it for a partial payment.</p>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-medium block mb-1">Amount (₹) *</label>
-                <Input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Enter amount" type="number" />
+                <Input value={amount} onChange={(e) => { setAmount(e.target.value); setAmountTouched(true); }} placeholder="Enter amount" type="number" />
               </div>
               <div>
                 <label className="text-xs font-medium block mb-1">Transaction Ref</label>

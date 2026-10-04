@@ -24,6 +24,9 @@ export interface UserSession {
   /** Backend campus name (e.g. "Main Campus") — shown in the header before
    *  the campus list finishes loading. */
   campusName?: string;
+  /** Backend campus UUID for campus-scoped roles (principal/hr/teacher).
+   *  Their creates are locked to this campus (rules.md isolation). */
+  campusUuid?: string;
   /** Backend-driven list of accessible modules (from /auth/me `sidebar`).
    *  Drives the dynamic sidebar when present; role-based nav is the fallback. */
   sidebar?: string[];
