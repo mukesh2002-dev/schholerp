@@ -116,7 +116,9 @@ export interface ApprovedDropdownItem {
 
 export interface AdmissionFiles {
   avatar?: File | null;
-  documents?: Array<{ file: File; name: string }>;
+  // Per-slot upload: `field` = backend slot (aadhaar_student | aadhaar_parent |
+  // tc | report_card | photo). Falls back to generic `documents` when absent.
+  documents?: Array<{ file: File; name: string; field?: string }>;
   signature?: File | null;
 }
 
@@ -280,18 +282,32 @@ export async function createAdmissionApi(
     if (files.signature) form.append("signature", files.signature);
     for (const d of files.documents ?? []) {
       form.append("documentNames[]", d.name || d.file.name);
-      form.append("documents", d.file);
+      // Separate slot per document so backend maps it directly
+      // (aadhaar_student / aadhaar_parent / tc / report_card / photo).
+      form.append(d.field || "documents", d.file);
     }
     // Backend now creates record instantly and uploads to Cloudinary in background,
     // but we still allow up to 60s for the multipart to reach the server (large docs / slow network).
     // 30s is enough for the DB-only path; 60s safety for legacy blocking behavior.
     // skipRetry: POST is not idempotent — retry on timeout would create duplicate applications.
-    const res = await apiFetch<{ data: BackendAdmission }>(
+    const res = await apiFetch<{
+      data: BackendAdmission;
+      uploadsReceived?: number;
+      uploadsSaved?: string[];
+      uploadsFailed?: Array<{ name: string; error: string }>;
+    }>(
       `/admissions`,
       { method: "POST", body: form as unknown as BodyInit },
       { campusId: campusId ?? undefined, timeoutMs: 60_000, skipRetry: true }
     );
-    return mapBackendAdmission(res.data);
+    // Receipt passthrough — kaunsi file save hui, kaunsi fail (naam + reason).
+    // AdmissionApplication me index signature hai, isliye extra keys safe hai.
+    return {
+      ...mapBackendAdmission(res.data),
+      uploadsReceived: res.uploadsReceived ?? 0,
+      uploadsSaved: res.uploadsSaved ?? [],
+      uploadsFailed: res.uploadsFailed ?? [],
+    } as AdmissionApplication;
   }
   const res = await apiFetch<{ data: BackendAdmission }>(`/admissions`, { method: "POST", body: JSON.stringify(payload) }, { campusId: campusId ?? undefined, timeoutMs: 30_000, skipRetry: true });
   return mapBackendAdmission(res.data);

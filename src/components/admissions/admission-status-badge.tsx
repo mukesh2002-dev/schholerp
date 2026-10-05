@@ -16,6 +16,7 @@ export function AdmissionStatusBadge({ status, className }: AdmissionStatusBadge
         </Badge>
       );
     case "UNDER_REVIEW":
+    case "IN_REVIEW":
       return (
         <Badge variant="purple" className={className}>
           Under Review

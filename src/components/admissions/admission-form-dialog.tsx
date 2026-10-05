@@ -164,10 +164,11 @@ export function AdmissionFormDialog({ open, onOpenChange, onSuccess }: Admission
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [signaturePreview, setSignaturePreview] = useState<string | null>(null);
   const [signatureFile, setSignatureFile] = useState<File | null>(null);
-  const [docFiles, setDocFiles] = useState<Array<{ file: File; name: string }>>([]);
+  // ── 5 alag document slots (Image 1): Aadhaar student/parent, TC, Report Card, Photo ──
+  const [docFiles, setDocFiles] = useState<Array<{ file: File; name: string; field: string }>>([]);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const signatureInputRef = useRef<HTMLInputElement>(null);
-  const docsInputRef = useRef<HTMLInputElement>(null);
+  const slotInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const {
     register,
@@ -444,18 +445,27 @@ export function AdmissionFormDialog({ open, onOpenChange, onSuccess }: Admission
     setSignaturePreview(URL.createObjectURL(file));
     if (signatureInputRef.current) signatureInputRef.current.value = "";
   };
-  const handleDocsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? []);
-    if (!files.length) return;
-    const ok = files.filter((f) => {
-      if (!(f.type.startsWith("image/") || f.type === "application/pdf")) { toast.error(`${f.name}: images+PDF only`); return false; }
-      if (f.size > 10 * 1024 * 1024) { toast.error(`${f.name}: <10MB`); return false; }
-      return true;
-    });
-    if (docFiles.length + ok.length > 10) { toast.error("Max 10 docs"); return; }
-    setDocFiles((prev) => [...prev, ...ok.map((file) => ({ file, name: file.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ") }))]);
-    if (docsInputRef.current) docsInputRef.current.value = "";
+  // ── 5 fixed slots — har document ka apna Upload (images + PDF, <10MB each) ──
+  const DOC_SLOTS = [
+    { field: "aadhaar_student", label: "Aadhaar Card (Student)", hint: "Student ka Aadhaar — image / PDF" },
+    { field: "aadhaar_parent", label: "Aadhaar Card (Parent)", hint: "Father / Mother ka Aadhaar — image / PDF" },
+    { field: "tc", label: "Transfer Certificate (TC)", hint: "TC — image / PDF" },
+    { field: "report_card", label: "Report Card / Marksheet", hint: "Previous class marksheet — image / PDF" },
+    { field: "photo", label: "Passport Size Photo", hint: "Student photo — image / PDF" },
+  ] as const;
+
+  const handleSlotFile = (field: string, canonicalName: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!(file.type.startsWith("image/") || file.type === "application/pdf")) { toast.error(`${file.name}: images + PDF only`); return; }
+    if (file.size > 10 * 1024 * 1024) { toast.error(`${file.name}: <10MB`); return; }
+    // Ek slot me ek hi file — dobara choose karne par replace ho jayegi
+    setDocFiles((prev) => [...prev.filter((d) => d.field !== field), { file, name: canonicalName, field }]);
+    e.target.value = "";
   };
+
+  const removeSlotFile = (field: string) =>
+    setDocFiles((prev) => prev.filter((d) => d.field !== field));
 
   const stepFields: Record<number, (keyof AdmissionFormValues)[]> = {
     1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [], 8: [],
@@ -579,8 +589,24 @@ export function AdmissionFormDialog({ open, onOpenChange, onSuccess }: Admission
         toast.error("Offline — internet check karo");
         return;
       }
+      const attachedCount = (avatarFile ? 1 : 0) + docFiles.length + (signatureFile ? 1 : 0);
       const saved = await createAdmissionApi(payload, campusFallback, { avatar: avatarFile, documents: docFiles, signature: signatureFile });
-      toast.success("Admission submitted ✅", { description: `${saved.applicantFullName} • ${saved.applicationNumber}` });
+      const received = (saved as any)?.uploadsReceived ?? -1;
+      const failed = ((saved as any)?.uploadsFailed ?? []) as Array<{ name: string; error: string }>;
+      const savedNames = ((saved as any)?.uploadsSaved ?? []) as string[];
+      if (attachedCount > 0 && received === 0) {
+        // Files form me thi par server tak ek bhi nahi pahunchi.
+        toast.error("Admission bana, par FILES server tak nahi pahunchi!", { description: `${saved.applicationNumber} • Detail page par Upload se dobara lagao` });
+      } else if (failed.length > 0) {
+        // Record bana + kuch files save hui, kuch fail — naam + reason ke saath.
+        toast.warning("Admission bana, par kuch files fail ho gayi", {
+          description: `${failed.map((f) => `${f.name} (${f.error})`).join(" • ")}${savedNames.length ? ` • Saved: ${savedNames.join(", ")}` : ""}`,
+        });
+      } else if (attachedCount > 0) {
+        toast.success("Admission submitted ✅", { description: `${saved.applicantFullName} • ${saved.applicationNumber} • Files saved: ${savedNames.join(", ") || received}` });
+      } else {
+        toast.success("Admission submitted ✅", { description: `${saved.applicantFullName} • ${saved.applicationNumber}` });
+      }
       onOpenChange(false);
       if (onSuccess) onSuccess();
     } catch (err: any) {
@@ -808,15 +834,26 @@ export function AdmissionFormDialog({ open, onOpenChange, onSuccess }: Admission
             <div className="space-y-4">
               <h3 className="font-bold text-sm flex gap-2"><FileCheck className="h-4 w-4 text-primary" /> 6. Document Uploads & Declaration</h3>
               <div className="space-y-2 p-3 rounded-xl border bg-muted/20">
-                <div className="flex items-center justify-between"><div className="text-xs font-semibold">Enclosures {docFiles.length>0 && <Badge variant="secondary" className="ml-1 text-[10px]">{docFiles.length}</Badge>}</div><Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={()=>docsInputRef.current?.click()}><Upload className="h-3 w-3" /> Attach</Button><input ref={docsInputRef} type="file" accept="image/*,application/pdf" multiple className="hidden" onChange={handleDocsChange} /></div>
-                <p className="text-[11px] text-muted-foreground">Birth Certificate, Aadhaar (student+parents), TC & Report Card, Address Proof, Caste Certificate, Photos — images+PDF max 10</p>
-                {docFiles.map((d,i)=>(
-                  <div key={`${d.file.name}-${i}`} className="flex items-center gap-2">
-                    <Input value={d.name} onChange={(e)=>setDocFiles(prev=>prev.map((x,j)=>j===i?{...x,name:e.target.value}:x))} placeholder="Document name e.g. Birth Certificate" className="h-7 text-xs flex-1" />
-                    <span className="text-[10px] text-muted-foreground truncate max-w-[120px]">{d.file.name}</span>
-                    <button type="button" onClick={()=>setDocFiles(prev=>prev.filter((_,j)=>j!==i))} className="h-6 w-6 rounded-full hover:bg-destructive/10 flex items-center justify-center"><X className="h-3 w-3" /></button>
-                  </div>
-                ))}
+                <div className="flex items-center justify-between">
+                  <div className="text-xs font-semibold">Documents {docFiles.length>0 && <Badge variant="secondary" className="ml-1 text-[10px]">{docFiles.length} / {DOC_SLOTS.length}</Badge>}</div>
+                  <span className="text-[10px] text-muted-foreground">images + PDF • har doc alag se</span>
+                </div>
+                {DOC_SLOTS.map((slot) => {
+                  const picked = docFiles.find((d) => d.field === slot.field);
+                  return (
+                    <div key={slot.field} className="flex items-center justify-between gap-2 p-2.5 rounded-xl border bg-background">
+                      <div className="min-w-0 flex-1">
+                        <div className="text-xs font-semibold flex items-center gap-1.5">{slot.label} {picked && <Badge variant="secondary" className="text-[10px] px-1 py-0">✓ {picked.file.name.length > 18 ? `${picked.file.name.slice(0,18)}…` : picked.file.name}</Badge>}</div>
+                        {!picked && <p className="text-[11px] text-muted-foreground">{slot.hint}</p>}
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={()=>slotInputRefs.current[slot.field]?.click()}><Upload className="h-3 w-3" /> {picked ? "Change" : "Upload"}</Button>
+                        <input ref={(el)=>{ slotInputRefs.current[slot.field] = el; }} type="file" accept="image/*,application/pdf" className="hidden" onChange={handleSlotFile(slot.field, slot.label)} />
+                        {picked && <button type="button" onClick={()=>removeSlotFile(slot.field)} aria-label={`${slot.label} हटाओ`} className="h-6 w-6 rounded-full hover:bg-destructive/10 flex items-center justify-center"><X className="h-3 w-3" /></button>}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
 
               <div className="flex items-center gap-4 p-3 rounded-xl border bg-muted/20">

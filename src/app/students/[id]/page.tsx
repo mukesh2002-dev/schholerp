@@ -35,6 +35,7 @@ import {
   Route as RouteIcon,
   Banknote,
   Loader2,
+  Eye,
 } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
@@ -605,22 +606,40 @@ export default function StudentDetailPage() {
               {student.documents.map((doc) => (
                 <div
                   key={doc.id}
-                  className="flex items-center justify-between p-3 rounded-xl border border-border/70 bg-card"
+                  className={`p-3 rounded-xl border ${
+                    doc.verified
+                      ? "bg-emerald-500/10 border-emerald-500/30"
+                      : "bg-card border-border/70"
+                  }`}
                 >
-                  <div className="flex items-center gap-3">
-                    <FileText className="h-5 w-5 text-primary shrink-0" />
-                    <div>
-                      <span className="text-xs font-semibold text-foreground block">{doc.name}</span>
-                      <span className="text-[10px] text-muted-foreground">
-                        Uploaded {formatDate(doc.uploadedAt)} • {doc.size}
-                      </span>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <FileText className="h-5 w-5 text-primary shrink-0" />
+                      <div className="min-w-0">
+                        <span className="text-xs font-semibold text-foreground block truncate">{doc.name}</span>
+                        <span className="text-[10px] text-muted-foreground">
+                          {doc.fileUrl ? "Attached" : "Missing"} • {doc.verified ? "Approved" : "Pending approval"}
+                        </span>
+                      </div>
                     </div>
+                    <Badge variant={doc.verified ? "success" : "outline"} className="text-[10px] shrink-0">
+                      {doc.verified ? "Verified" : doc.fileUrl ? "Pending" : "Missing"}
+                    </Badge>
                   </div>
-                  <Badge variant="success" className="text-[10px]">
-                    Verified
-                  </Badge>
+                  {doc.fileUrl && (
+                    <div className="mt-2">
+                      <Button variant="outline" size="sm" className="h-7 text-[11px] gap-1" asChild>
+                        <a href={doc.fileUrl} target="_blank" rel="noreferrer">
+                          <Eye className="h-3 w-3" /> View
+                        </a>
+                      </Button>
+                    </div>
+                  )}
                 </div>
               ))}
+              {student.documents.length === 0 && (
+                <p className="text-xs text-muted-foreground text-center py-6">Koi document nahi mila.</p>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
