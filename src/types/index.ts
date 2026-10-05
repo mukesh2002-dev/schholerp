@@ -94,6 +94,7 @@ export interface Branch {
 export type AdmissionStatus =
   | "NEW"
   | "UNDER_REVIEW"
+  | "IN_REVIEW"
   | "INTERVIEW_SCHEDULED"
   | "APPROVED"
   | "REJECTED"
@@ -223,6 +224,10 @@ export interface StudentDocument {
   uploadedAt: string;
   verified: boolean;
   size: string;
+  /** View URL (Cloudinary / data URI) — admission se aata hai. */
+  fileUrl?: string;
+  /** File lagi hai ya Missing. */
+  submitted?: boolean;
 }
 
 export interface Student {

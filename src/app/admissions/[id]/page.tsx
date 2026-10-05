@@ -53,6 +53,9 @@ import {
   ShieldCheck,
   Award,
   Loader2,
+  Eye,
+  Upload,
+  RefreshCw,
 } from "lucide-react";
 import { formatDate, formatDateTime } from "@/lib/utils";
 import { toast } from "sonner";
@@ -162,32 +165,61 @@ export default function AdmissionDetailPage() {
   }
 
   const handleStatusChange = async (newStatus: AdmissionStatus) => {
+    if (newStatus === application.status) return;
     try {
       const updated = await updateAdmissionStatusApi(application.id, {
         status: newStatus,
         notes: application.notes ?? undefined,
       });
       setApplication(updated);
+      toast.success(`Status: ${newStatus === "IN_REVIEW" ? "Under Review" : newStatus === "REJECTED" ? "Rejected" : "New Lead"}`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to update status");
     }
   };
 
-  const handleToggleDocVerification = async (docId: string) => {
+  // ── Per-document View / Approve / Reject (Image 1) ──
+  // Approve = verified:true (needs file — backend 400s otherwise)
+  // Reject  = verified:false (file stays, dobara upload ho sakta hai)
+  const handleApproveDoc = async (docId: string) => {
     const doc = application.documents.find((d) => d.id === docId);
     if (!doc) return;
+    if (!doc.fileUrl) {
+      toast.error(`"${doc.name}" ki file missing hai — pehle Upload karo`);
+      return;
+    }
     try {
       const updated = await updateAdmissionDocumentApi(application.id, doc.name, {
-        verified: !doc.verified,
+        verified: true,
       });
       setApplication({
         ...application,
         documents: application.documents.map((d) =>
-          d.id === docId ? { ...d, verified: updated.verified } : d
+          d.id === docId ? { ...d, verified: updated.verified, submitted: updated.submitted } : d
         ),
       });
+      toast.success(`"${doc.name}" approved ✓`);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to update document");
+      toast.error(err instanceof Error ? err.message : "Approve failed");
+    }
+  };
+
+  const handleRejectDoc = async (docId: string) => {
+    const doc = application.documents.find((d) => d.id === docId);
+    if (!doc) return;
+    try {
+      const updated = await updateAdmissionDocumentApi(application.id, doc.name, {
+        verified: false,
+      });
+      setApplication({
+        ...application,
+        documents: application.documents.map((d) =>
+          d.id === docId ? { ...d, verified: updated.verified, submitted: updated.submitted } : d
+        ),
+      });
+      toast.success(`"${doc.name}" rejected — dobara verify kar sakte ho`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Reject failed");
     }
   };
 
@@ -317,10 +349,7 @@ export default function AdmissionDetailPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="NEW">New Lead</SelectItem>
-                <SelectItem value="UNDER_REVIEW">Under Review</SelectItem>
-                <SelectItem value="INTERVIEW_SCHEDULED">Interview Scheduled</SelectItem>
-                <SelectItem value="APPROVED">Approved</SelectItem>
-                <SelectItem value="WAITLISTED">Waitlisted</SelectItem>
+                <SelectItem value="IN_REVIEW">Under Review</SelectItem>
                 <SelectItem value="REJECTED">Rejected</SelectItem>
               </SelectContent>
             </Select>
@@ -421,69 +450,97 @@ export default function AdmissionDetailPage() {
                   <FileText className="h-4 w-4 text-primary" />
                   Document Verification
                 </CardTitle>
-                <Badge variant="outline" className="text-xs">
-                  {application.documents.filter((d) => d.verified).length} / {application.documents.length} Verified
-                </Badge>
+                <div className="flex items-center gap-1.5">
+                  <Badge variant="outline" className="text-xs">
+                    {application.documents.filter((d) => d.verified).length} / {application.documents.length} Verified
+                  </Badge>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    title="Documents refresh karo (form wali files background me upload hoti hai)"
+                    onClick={() => void loadAdmission()}
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
               </div>
               <CardDescription>
-                Click checkbox to toggle verification audit status for each submitted certificate.
+                File dekho (View), sahi lage to Approve, galat ho to Reject. Missing file par pehle Upload karo.
               </CardDescription>
+              {application.documents.some((d) => d.fileUrl?.toLowerCase().includes(".pdf")) && (
+                <div className="mx-6 -mt-1 mb-1 p-2.5 rounded-xl border border-amber-500/40 bg-amber-500/10 text-[11px] leading-relaxed">
+                  <span className="font-bold">PDF View me 401 / “deny or ACL failure” aaye to:</span>{" "}
+                  Cloudinary dashboard → <span className="font-semibold">Settings → Security → “Allow delivery of PDF and ZIP files”</span> ON
+                  karke Save karo. Images bina setting ke khulti hai — sirf PDF/ZIP block hoti hai.
+                </div>
+              )}
             </CardHeader>
             <CardContent className="space-y-3">
               {application.documents.map((doc) => (
                 <div
                   key={doc.id}
-                  onClick={() => handleToggleDocVerification(doc.id)}
-                  className={`flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer ${
+                  className={`p-3 rounded-xl border transition-all ${
                     doc.verified
-                      ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-950 dark:text-emerald-100"
-                      : "bg-card border-border/70 hover:border-primary/40"
+                      ? "bg-emerald-500/10 border-emerald-500/30"
+                      : "bg-card border-border/70"
                   }`}
                 >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <input
-                      type="checkbox"
-                      checked={doc.verified}
-                      readOnly
-                      className="h-4 w-4 rounded text-emerald-600 pointer-events-none"
-                    />
+                  <div className="flex items-center justify-between gap-2">
                     <div className="min-w-0">
                       <span className="text-xs font-semibold block truncate">{doc.name}</span>
                       <span className="text-[10px] text-muted-foreground">
-                        {doc.required ? "Mandatory" : "Optional"} • {doc.submitted ? "Attached" : "Missing"}
+                        {doc.required ? "Mandatory" : "Optional"} • {doc.fileUrl ? "Attached" : "Missing"}
                       </span>
-                      {doc.fileUrl && (
-                        <a
-                          href={doc.fileUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          onClick={(e) => e.stopPropagation()}
-                          className="text-[10px] text-primary hover:underline block truncate"
-                        >
-                          View on Cloudinary
-                        </a>
-                      )}
                     </div>
-                  </div>
-                  <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
-                    <label className="text-[10px] px-2 py-1 rounded-md border hover:bg-muted cursor-pointer">
-                      Upload
-                      <input
-                        type="file"
-                        accept="image/*,application/pdf"
-                        className="hidden"
-                        onChange={(e) => {
-                          void handleDocFileUpload(doc.id, e.target.files?.[0]);
-                          e.target.value = "";
-                        }}
-                      />
-                    </label>
                     <Badge
                       variant={doc.verified ? "success" : "outline"}
                       className="text-[10px] py-0 px-2 shrink-0"
                     >
-                      {doc.verified ? "Verified" : "Pending"}
+                      {doc.verified ? "Verified" : doc.fileUrl ? "Pending" : "Missing"}
                     </Badge>
+                  </div>
+                  <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                    {!doc.fileUrl ? (
+                      <label className="h-7 px-2.5 inline-flex items-center gap-1 text-[11px] font-medium rounded-md border hover:bg-muted cursor-pointer">
+                        <Upload className="h-3 w-3" /> Upload
+                        <input
+                          type="file"
+                          accept="image/*,application/pdf"
+                          className="hidden"
+                          onChange={(e) => {
+                            void handleDocFileUpload(doc.id, e.target.files?.[0]);
+                            e.target.value = "";
+                          }}
+                        />
+                      </label>
+                    ) : (
+                      <>
+                        <Button variant="outline" size="sm" className="h-7 text-[11px] gap-1" asChild>
+                          <a href={doc.fileUrl} target="_blank" rel="noreferrer">
+                            <Eye className="h-3 w-3" /> View
+                          </a>
+                        </Button>
+                        {doc.verified ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-[11px] gap-1 text-destructive border-destructive/40 hover:bg-destructive/10"
+                            onClick={() => void handleRejectDoc(doc.id)}
+                          >
+                            <XCircle className="h-3 w-3" /> Reject
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm"
+                            className="h-7 text-[11px] gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                            onClick={() => void handleApproveDoc(doc.id)}
+                          >
+                            <CheckCircle2 className="h-3 w-3" /> Approve
+                          </Button>
+                        )}
+                      </>
+                    )}
                   </div>
                 </div>
               ))}

@@ -95,23 +95,34 @@ function mapBackendStudent(s: BackendStudent): Student {
   // Documents: prefer student.documents json, else admission documents
   let documents: Student["documents"] = [];
   if (Array.isArray((s as any).documents) && (s as any).documents.length > 0) {
-    documents = (s as any).documents.map((d: any) => ({
-      id: d.id || d.uuid,
-      name: d.name,
-      type: d.type || "OTHER",
-      uploadedAt: d.uploadedAt || d.createdAt || s.createdAt || new Date().toISOString(),
-      verified: !!d.verified,
-      size: d.size || "—",
-    }));
+    documents = (s as any).documents.map((d: any) => {
+      const fileUrl = d.fileUrl ?? d.url ?? undefined;
+      return {
+        id: d.id || d.uuid,
+        name: d.name,
+        type: d.type || "OTHER",
+        uploadedAt: d.uploadedAt || d.createdAt || s.createdAt || new Date().toISOString(),
+        // Sirf wahi Verified jo admission me approve hua + file lagi hai.
+        verified: Boolean(d.verified) && Boolean(fileUrl),
+        submitted: Boolean(d.submitted || fileUrl),
+        fileUrl,
+        size: d.size || (fileUrl ? "Attached" : "—"),
+      };
+    });
   } else if (Array.isArray(app?.documents) && app.documents.length > 0) {
-    documents = app.documents.map((d: any) => ({
-      id: d.uuid || d.id,
-      name: d.name,
-      type: d.required ? "IDENTITY" : "OTHER",
-      uploadedAt: d.createdAt || app.createdAt || s.createdAt || new Date().toISOString(),
-      verified: !!d.verified,
-      size: d.fileUrl ? "Cloudinary" : "—",
-    }));
+    documents = app.documents.map((d: any) => {
+      const fileUrl = d.fileUrl ?? d.url ?? undefined;
+      return {
+        id: d.uuid || d.id,
+        name: d.name,
+        type: d.required ? "IDENTITY" : "OTHER",
+        uploadedAt: d.createdAt || app.createdAt || s.createdAt || new Date().toISOString(),
+        verified: Boolean(d.verified) && Boolean(fileUrl),
+        submitted: Boolean(d.submitted || fileUrl),
+        fileUrl,
+        size: fileUrl ? "Attached" : "—",
+      };
+    });
   }
 
   return {
