@@ -7,8 +7,13 @@ import { cn } from "@/lib/utils";
 const ITEMS = [
   { href: "/transport", label: "Overview" },
   { href: "/transport/fleet", label: "Fleet (Vehicles)" },
-  { href: "/transport/drivers", label: "Drivers" },
+  { href: "/transport/drivers", label: "Drivers & Helpers" },
   { href: "/transport/routes", label: "Routes & Stops" },
+  { href: "/transport/assignments", label: "Student Allocation" },
+  { href: "/transport/trips", label: "Boarding Attendance" },
+  { href: "/transport/fees", label: "Transport Fees" },
+  { href: "/transport/incidents", label: "Incidents" },
+  { href: "/transport/parent", label: "Parent Portal" },
 ];
 
 export function TransportSubnav() {
