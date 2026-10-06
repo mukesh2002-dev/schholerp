@@ -1,22 +1,87 @@
 "use client";
 
-import { use } from "react";
+import { use, useState } from "react";
 import Link from "next/link";
 import { SectionGuard } from "@/components/layout/section-guard";
 import { TransportPageShell } from "@/components/layout/transport-subnav";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useERP } from "@/components/providers/erp-provider";
 import { useCampusData } from "@/lib/hooks/use-campus-data";
+import { toast } from "sonner";
 import { ArrowLeft, ShieldAlert, ShieldCheck, Wrench, Ban } from "lucide-react";
-import { fetchVehicleDetail, fetchVehicleMaintenance, fetchIncidents } from "@/lib/api/transport";
+import { fetchVehicleDetail, fetchVehicleMaintenance, fetchIncidents, fetchDrivers, fetchHelpers, assignVehicleCrewApi } from "@/lib/api/transport";
+
+function CrewAssign({ vehicleUuid, currentDriver, currentConductor, onDone }: { vehicleUuid: string; currentDriver?: string | null; currentConductor?: string | null; onDone: () => void }) {
+  const { activeBranchId } = useERP();
+  const [driver, setDriver] = useState(currentDriver ?? "");
+  const [conductor, setConductor] = useState(currentConductor ?? "");
+  const [saving, setSaving] = useState(false);
+
+  const { data: drivers } = useCampusData({
+    fetcher: (cid) => fetchDrivers({ campusId: cid, limit: 100 }),
+    campusId: activeBranchId,
+    fallback: { data: [], total: 0 },
+    queryKeyPrefix: "transport-drivers-for-crew",
+  });
+  const { data: helpers } = useCampusData({
+    fetcher: (cid) => fetchHelpers({ campusId: cid, limit: 100 }),
+    campusId: activeBranchId,
+    fallback: { data: [], total: 0 },
+    queryKeyPrefix: "transport-helpers-for-crew",
+  });
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await assignVehicleCrewApi(vehicleUuid, { driverUuid: driver || null, conductorUuid: conductor || null });
+      toast.success("Driver + conductor assign ho gaye");
+      onDone();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Assign failed");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+      <div>
+        <label className="text-xs font-medium">Driver</label>
+        <Select value={driver || "none"} onValueChange={(v) => setDriver(v === "none" ? "" : v)}>
+          <SelectTrigger className="mt-1 h-9 text-xs"><SelectValue placeholder="Select driver" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">No driver</SelectItem>
+            {(drivers.data as any[]).map((d: any) => <SelectItem key={d.uuid} value={d.uuid}>{d.name}{d.employeeId ? ` · ${d.employeeId}` : ""}{d.phone ? ` · ${d.phone}` : ""}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+      <div>
+        <label className="text-xs font-medium">Conductor / Helper</label>
+        <Select value={conductor || "none"} onValueChange={(v) => setConductor(v === "none" ? "" : v)}>
+          <SelectTrigger className="mt-1 h-9 text-xs"><SelectValue placeholder="Select conductor" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">No conductor</SelectItem>
+            {(helpers.data as any[]).map((h: any) => <SelectItem key={h.uuid} value={h.uuid}>{h.name} · {h.role}{h.phone ? ` · ${h.phone}` : ""}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="flex items-end">
+        <Button size="sm" variant="gradient" className="h-9 text-xs" disabled={saving} onClick={() => void save()}>
+          {saving ? "Saving…" : "Assign"}
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 export default function VehicleDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { activeBranchId } = useERP();
 
-  const { data: v, isLoading } = useCampusData({
+  const { data: v, isLoading, refresh } = useCampusData({
     fetcher: () => fetchVehicleDetail(id),
     campusId: activeBranchId,
     fallback: null,
@@ -63,6 +128,12 @@ export default function VehicleDetailPage({ params }: { params: Promise<{ id: st
                   <div className="p-2 rounded-lg bg-muted/30"><div className="text-[10px] text-muted-foreground">Driver</div><div className="font-medium">{detail.driver?.name ?? "—"}</div></div>
                   <div className="p-2 rounded-lg bg-muted/30"><div className="text-[10px] text-muted-foreground">Conductor</div><div className="font-medium">{detail.conductor?.name ?? "—"}</div></div>
                 </div>
+                <CrewAssign
+                  vehicleUuid={detail.uuid}
+                  currentDriver={detail.driver?.uuid}
+                  currentConductor={detail.conductor?.uuid}
+                  onDone={() => refresh()}
+                />
                 <div className="flex flex-wrap gap-1.5">
                   <Badge variant="outline" className="text-[10px]">Students {detail.currentStudentsCount ?? 0}{detail.utilizationPct != null ? ` · ${detail.utilizationPct}%` : ""}</Badge>
                   <Badge variant={detail.openIncidents > 0 ? "destructive" : "outline"} className="text-[10px]">{detail.openIncidents ?? 0} open incidents</Badge>

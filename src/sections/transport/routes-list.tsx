@@ -27,7 +27,7 @@ export function RoutesList() {
   const filtered = (routes.data as any[]).filter((r) => {
     if (!search.trim()) return true;
     const s = search.toLowerCase();
-    return `${r.name} ${r.description ?? ""} ${r.vehicle?.registrationNumber ?? ""} ${r.driver?.name ?? ""}`.toLowerCase().includes(s);
+    return `${r.name} ${r.description ?? ""} ${r.vehicle?.registrationNumber ?? ""} ${r.driver?.name ?? ""} ${r.vehicle?.conductor?.name ?? ""}`.toLowerCase().includes(s);
   });
 
   return (
@@ -73,6 +73,7 @@ export function RoutesList() {
                 <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground border-t pt-2">
                   <span className="flex items-center gap-1"><Bus className="h-3 w-3" /> {r.vehicle?.registrationNumber ?? "No bus"}</span>
                   <span className="flex items-center gap-1"><Users className="h-3 w-3" /> {r.driver?.name ?? "No driver"}</span>
+                  <span className="flex items-center gap-1"><Users className="h-3 w-3" /> {r.vehicle?.conductor?.name ?? "No conductor"}</span>
                   {r.startTime && <span className="font-mono">{r.startTime}{r.endTime ? ` → ${r.endTime}` : ""}</span>}
                   {r.totalKm != null && <span>{r.totalKm} km</span>}
                 </div>

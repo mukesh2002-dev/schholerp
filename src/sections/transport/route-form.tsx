@@ -101,7 +101,7 @@ export function RouteForm() {
           <div><label className="text-xs font-medium">End Time</label><Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="mt-1" /></div>
           <div><label className="text-xs font-medium">Total KM</label><Input type="number" step="0.1" value={totalKm} onChange={(e) => setTotalKm(e.target.value)} className="mt-1" /></div>
         </div>
-        <p className="text-[11px] text-muted-foreground">Vehicle and driver are assigned later from Fleet / crew management once backend crew endpoints are live.</p>
+        <p className="text-[11px] text-muted-foreground">Bus + driver route save hone ke baad route detail page par “Crew” section se assign honge. Conductor bus ke sath judta hai.</p>
       </Card>
 
       <Card className="p-4 border-border/70 space-y-3">

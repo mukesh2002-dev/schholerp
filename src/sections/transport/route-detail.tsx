@@ -11,15 +11,24 @@ import { toast } from "sonner";
 import { ArrowLeft, ArrowUp, ArrowDown, Plus, Trash2, Save, Pencil } from "lucide-react";
 import {
   fetchRouteDetail,
+  fetchVehicleDetail,
   updateRouteApi,
+  updateRouteCrewApi,
+  assignVehicleCrewApi,
+  fetchVehicles,
+  fetchDrivers,
+  fetchHelpers,
   addRouteStopApi,
   updateRouteStopApi,
   deleteRouteStopApi,
   reorderRouteStopsApi,
   type TransportStop,
 } from "@/lib/api/transport";
+import { useERP } from "@/components/providers/erp-provider";
 
 export function RouteDetail({ uuid }: { uuid: string }) {
+  const { activeBranchId, session } = useERP();
+  const canManage = ["ADMIN", "PRINCIPAL"].includes(String(session?.role ?? ""));
   const [route, setRoute] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -48,6 +57,15 @@ export function RouteDetail({ uuid }: { uuid: string }) {
   const [eLandmark, setELandmark] = useState("");
   const [savingStop, setSavingStop] = useState(false);
 
+  // Crew assignment
+  const [vehicles, setVehicles] = useState<any[]>([]);
+  const [drivers, setDrivers] = useState<any[]>([]);
+  const [helpers, setHelpers] = useState<any[]>([]);
+  const [selVehicle, setSelVehicle] = useState("");
+  const [selDriver, setSelDriver] = useState("");
+  const [selConductor, setSelConductor] = useState("");
+  const [savingCrew, setSavingCrew] = useState(false);
+
   const load = async () => {
     setLoading(true);
     try {
@@ -57,6 +75,27 @@ export function RouteDetail({ uuid }: { uuid: string }) {
       setDescription(d.description ?? "");
       setStartTime(d.startTime ?? "");
       setEndTime(d.endTime ?? "");
+      setSelVehicle(d.vehicle?.uuid ?? "");
+      setSelDriver(d.driver?.uuid ?? "");
+      const [v, dr, hp] = await Promise.all([
+        fetchVehicles({ campusId: activeBranchId, limit: 100 }).catch(() => ({ data: [] })),
+        fetchDrivers({ campusId: activeBranchId, limit: 100 }).catch(() => ({ data: [] })),
+        fetchHelpers({ campusId: activeBranchId, limit: 100 }).catch(() => ({ data: [] })),
+      ]);
+      setVehicles(v.data as any[]);
+      setDrivers(dr.data as any[]);
+      setHelpers(hp.data as any[]);
+      // Conductor bus par hota hai — route ki bus ka current conductor lao
+      if (d.vehicle?.uuid) {
+        try {
+          const vd = await fetchVehicleDetail(d.vehicle.uuid);
+          setSelConductor(vd?.conductor?.uuid ?? "");
+        } catch {
+          setSelConductor("");
+        }
+      } else {
+        setSelConductor("");
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Load failed");
       setRoute(null);
@@ -66,6 +105,31 @@ export function RouteDetail({ uuid }: { uuid: string }) {
   };
 
   useEffect(() => { void load(); }, [uuid]);
+
+  const handleSaveCrew = async () => {
+    setSavingCrew(true);
+    try {
+      const d = await updateRouteCrewApi(uuid, {
+        vehicleId: selVehicle || null,
+        driverId: selDriver || null,
+      });
+      setRoute((p: any) => ({ ...p, ...d }));
+      // Conductor bus par lagta hai — route ki bus par set karo
+      const busUuid = d.vehicle?.uuid ?? selVehicle;
+      if (busUuid) {
+        await assignVehicleCrewApi(busUuid, { conductorUuid: selConductor || null });
+      } else if (selConductor) {
+        toast.error("Conductor ke liye pehle bus select karo");
+        return;
+      }
+      toast.success("Bus + Driver + Conductor assign ho gaye");
+      await load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Crew update failed");
+    } finally {
+      setSavingCrew(false);
+    }
+  };
 
   const handleSaveMeta = async () => {
     if (!name.trim()) { toast.error("Route name is required"); return; }
@@ -203,11 +267,58 @@ export function RouteDetail({ uuid }: { uuid: string }) {
         </div>
         <div className="text-xs text-muted-foreground">
           Bus: <strong className="font-mono">{route.vehicle?.registrationNumber ?? "unassigned"}</strong> • Driver: <strong>{route.driver?.name ?? "unassigned"}</strong>
-          <span className="block text-[11px]">Crew assignment needs vehicle/driver pickers (backend crew endpoint is live — UI picker coming next).</span>
         </div>
         <Button size="sm" onClick={() => void handleSaveMeta()} disabled={savingMeta} className="h-8 text-xs gap-1 w-fit">
           <Save className="h-3.5 w-3.5" /> {savingMeta ? "Saving…" : "Save details"}
         </Button>
+      </Card>
+
+      <Card className="p-4 border-border/70 space-y-3">
+        <h3 className="text-sm font-bold">Crew — Bus + Driver + Conductor</h3>
+        {!canManage ? (
+          <p className="text-xs text-muted-foreground">
+            Bus: <strong className="font-mono">{route.vehicle?.registrationNumber ?? "—"}</strong> • Driver: <strong>{route.driver?.name ?? "—"}</strong>
+          </p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div>
+              <label className="text-xs font-medium">Bus</label>
+              <Select value={selVehicle || "none"} onValueChange={(v) => setSelVehicle(v === "none" ? "" : v)}>
+                <SelectTrigger className="mt-1 h-9 text-xs"><SelectValue placeholder="Select bus" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No bus</SelectItem>
+                  {vehicles.map((v: any) => <SelectItem key={v.uuid} value={v.uuid}>{v.registrationNumber} · {v.capacity} seats</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-xs font-medium">Driver</label>
+              <Select value={selDriver || "none"} onValueChange={(v) => setSelDriver(v === "none" ? "" : v)}>
+                <SelectTrigger className="mt-1 h-9 text-xs"><SelectValue placeholder="Select driver" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No driver</SelectItem>
+                  {drivers.map((d: any) => <SelectItem key={d.uuid} value={d.uuid}>{d.name}{d.employeeId ? ` · ${d.employeeId}` : ""}{d.phone ? ` · ${d.phone}` : ""}{d.assignedVehicle ? ` · ${d.assignedVehicle.registrationNumber}` : ""}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-xs font-medium">Conductor</label>
+              <Select value={selConductor || "none"} onValueChange={(v) => setSelConductor(v === "none" ? "" : v)}>
+                <SelectTrigger className="mt-1 h-9 text-xs"><SelectValue placeholder="Select conductor" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No conductor</SelectItem>
+                  {helpers.map((h: any) => <SelectItem key={h.uuid} value={h.uuid}>{h.name} · {h.role}{h.phone ? ` · ${h.phone}` : ""}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-end">
+              <Button size="sm" variant="gradient" className="h-9 text-xs" disabled={savingCrew} onClick={() => void handleSaveCrew()}>
+                {savingCrew ? "Saving…" : "Assign Crew"}
+              </Button>
+            </div>
+          </div>
+        )}
+        <p className="text-[11px] text-muted-foreground">Conductor bus par save hota hai — route ki bus select hone par wahi conductor yaha dikhega aur manifest/parent portal me aayega.</p>
       </Card>
 
       <Card className="p-4 border-border/70 space-y-3">
@@ -257,7 +368,7 @@ export function RouteDetail({ uuid }: { uuid: string }) {
                 </div>
                 {editing?.uuid === s.uuid && (
                   <div className="ml-8 p-3 rounded-lg border bg-muted/20 space-y-2 mt-1">
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
                       <div><label className="text-xs font-medium">Name *</label><Input value={eName} onChange={(e) => setEName(e.target.value)} className="mt-1" /></div>
                       <div><label className="text-xs font-medium">Distance (km)</label><Input type="number" step="0.1" value={eDist} onChange={(e) => setEDist(e.target.value)} className="mt-1" /></div>
                       <div><label className="text-xs font-medium">Arrival</label><Input type="time" value={eArrival} onChange={(e) => setEArrival(e.target.value)} className="mt-1" /></div>

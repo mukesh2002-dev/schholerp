@@ -57,7 +57,7 @@ export interface TransportRoute {
   endTime?: string | null;
   totalKm?: number | null;
   status: string;
-  vehicle?: { uuid: string; registrationNumber: string } | null;
+  vehicle?: { uuid: string; registrationNumber: string; conductor?: { uuid: string; name: string; phone?: string | null } | null } | null;
   driver?: { uuid: string; name: string } | null;
   stops?: TransportStop[];
 }
@@ -413,7 +413,7 @@ export async function fetchFeeSlabs(params: { campusId?: string | null; academic
   return Array.isArray(res.data) ? res.data : [];
 }
 
-export async function upsertFeeSlabsApi(payload: { campusUuid?: string; academicYear: string; slabs: { zone: string; label?: string; minDistance: number; maxDistance: number; feePerMonth: number }[] }, campusId?: string | null): Promise<TransportFeeSlab[]> {
+export async function upsertFeeSlabsApi(payload: { campusUuid?: string; academicYear?: string; slabs: { zone: string; label?: string; minDistance: number; maxDistance: number; feePerMonth: number }[] }, campusId?: string | null): Promise<TransportFeeSlab[]> {
   const res = await apiFetch<{ data: TransportFeeSlab[] }>(`/transport/fee-slabs`, { method: "PUT", body: JSON.stringify(payload) }, { campusId: campusId ?? undefined });
   return Array.isArray(res.data) ? res.data : [];
 }
@@ -478,4 +478,93 @@ export async function fetchUtilizationReport(campusId?: string | null): Promise<
 export async function fetchRevenueReport(params: { campusId?: string | null; academicYear?: string; month?: number; year?: number } = {}): Promise<any> {
   const res = await apiFetch<{ data: any }>(`/transport/reports/revenue${q({ academicYear: params.academicYear, month: params.month, year: params.year })}`, {}, { campusId: params.campusId ?? undefined });
   return res.data;
+}
+
+// ── Independent transport fee: bills, collection, receipts, ledger, reports ──
+export interface TransportBill {
+  uuid: string; academicYear: string; month: number; year: number; zoneCode: string;
+  amountDue: number; lateFee: number; discountAmount: number; waiverAmount: number;
+  amountPaid: number; balance: number; status: string; effectiveStatus: string; dueDate?: string | null;
+  student?: { uuid: string; name: string; admissionNo: string };
+  assignment?: { uuid: string; status: string };
+}
+
+export async function fetchTransportBills(params: { campusId?: string | null; month?: number; year?: number; status?: string; studentUuid?: string; zoneCode?: string; page?: number; limit?: number } = {}): Promise<{ data: TransportBill[]; total: number; pending?: number }> {
+  const res = await apiFetch<{ data: TransportBill[]; meta?: { total: number; pendingTransportFee?: number } }>(
+    `/transport/fees${q({ month: params.month, year: params.year, status: params.status, studentUuid: params.studentUuid, zoneCode: params.zoneCode, page: params.page, limit: params.limit })}`,
+    {},
+    { campusId: params.campusId ?? undefined }
+  );
+  const list = Array.isArray(res.data) ? res.data : [];
+  return { data: list, total: (res as any).meta?.total ?? list.length, pending: (res as any).meta?.pendingTransportFee };
+}
+
+export async function fetchTransportBill(uuid: string): Promise<any> {
+  const res = await apiFetch<{ data: any }>(`/transport/fees/${uuid}`);
+  return res.data;
+}
+
+export async function collectTransportPaymentApi(billUuid: string, payload: { amount: number; paymentMode?: string; transactionRef?: string; paymentDate?: string; remarks?: string }): Promise<{ receipt: any; bill: TransportBill }> {
+  const res = await apiFetch<{ data: { receipt: any; bill: TransportBill } }>(`/transport/fees/${billUuid}/payment`, { method: "POST", body: JSON.stringify(payload) });
+  return res.data;
+}
+
+export async function fetchBillPayments(billUuid: string): Promise<any[]> {
+  const res = await apiFetch<{ data: any[] }>(`/transport/fees/${billUuid}/payments`);
+  return Array.isArray(res.data) ? res.data : [];
+}
+
+export async function fetchTransportPayments(params: { campusId?: string | null; studentUuid?: string; paymentMode?: string; from?: string; to?: string; page?: number; limit?: number } = {}): Promise<{ data: any[]; total: number }> {
+  const res = await apiFetch<{ data: any[]; meta?: { total: number } }>(
+    `/transport/fee-payments${q({ studentUuid: params.studentUuid, paymentMode: params.paymentMode, from: params.from, to: params.to, page: params.page, limit: params.limit })}`,
+    {},
+    { campusId: params.campusId ?? undefined }
+  );
+  const list = Array.isArray(res.data) ? res.data : [];
+  return { data: list, total: (res as any).meta?.total ?? list.length };
+}
+
+export async function fetchTransportReceipt(paymentUuid: string): Promise<any> {
+  const res = await apiFetch<{ data: any }>(`/transport/fee-payments/${paymentUuid}/receipt`);
+  return res.data;
+}
+
+export async function fetchBillReceipt(billUuid: string): Promise<any> {
+  const res = await apiFetch<{ data: any }>(`/transport/fees/${billUuid}/receipt`);
+  return res.data;
+}
+
+export async function grantConcessionApi(billUuid: string, payload: { type: string; amount?: number; percent?: number; reason: string }): Promise<any> {
+  const res = await apiFetch<{ data: any }>(`/transport/fees/${billUuid}/concession`, { method: "POST", body: JSON.stringify(payload) });
+  return res.data;
+}
+
+export async function fetchTransportLedger(studentUuid: string): Promise<any> {
+  const res = await apiFetch<{ data: any }>(`/transport/fee-ledger/${studentUuid}`);
+  return res.data;
+}
+
+export async function fetchFeeCollectionReport(params: { campusId?: string | null; from?: string; to?: string; paymentMode?: string; groupBy?: string } = {}): Promise<any> {
+  const res = await apiFetch<{ data: any }>(`/transport/fee-reports/collection${q({ from: params.from, to: params.to, paymentMode: params.paymentMode, groupBy: params.groupBy })}`, {}, { campusId: params.campusId ?? undefined });
+  return res.data;
+}
+
+export async function fetchFeePendingReport(params: { campusId?: string | null; zoneCode?: string; routeUuid?: string; page?: number; limit?: number } = {}): Promise<{ data: TransportBill[]; total: number; outstanding?: number }> {
+  const res = await apiFetch<{ data: TransportBill[]; meta?: { total: number; outstanding?: number } }>(
+    `/transport/fee-reports/pending${q({ zoneCode: params.zoneCode, routeUuid: params.routeUuid, page: params.page, limit: params.limit })}`,
+    {},
+    { campusId: params.campusId ?? undefined }
+  );
+  const list = Array.isArray(res.data) ? res.data : [];
+  return { data: list, total: (res as any).meta?.total ?? list.length, outstanding: (res as any).meta?.outstanding };
+}
+
+export async function fetchFeeOverdueReport(params: { campusId?: string | null; page?: number; limit?: number } = {}): Promise<{ data: TransportBill[]; total: number; outstanding?: number }> {
+  const res = await apiFetch<{ data: TransportBill[]; meta?: { total: number; outstanding?: number } }>(
+    `/transport/fee-reports/overdue${q({ page: params.page, limit: params.limit })}`,
+    {},
+    { campusId: params.campusId ?? undefined }
+  );
+  const list = Array.isArray(res.data) ? res.data : [];
+  return { data: list, total: (res as any).meta?.total ?? list.length, outstanding: (res as any).meta?.outstanding };
 }

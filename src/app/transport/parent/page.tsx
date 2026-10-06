@@ -1,17 +1,26 @@
 "use client";
 
+import { useState } from "react";
 import { SectionGuard } from "@/components/layout/section-guard";
 import { TransportPageShell } from "@/components/layout/transport-subnav";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useERP } from "@/components/providers/erp-provider";
 import { useCampusData } from "@/lib/hooks/use-campus-data";
+import { toast } from "sonner";
 import { Bus, User, Clock, Receipt, Check, X } from "lucide-react";
-import { fetchParentTransport } from "@/lib/api/transport";
+import { fetchParentTransport, collectTransportPaymentApi } from "@/lib/api/transport";
 
 export default function ParentTransportPage() {
   const { activeBranchId } = useERP();
-  const { data: info, isLoading, error } = useCampusData({
+  const [payingUuid, setPayingUuid] = useState("");
+  const [payMode, setPayMode] = useState("UPI");
+  const [payTxn, setPayTxn] = useState("");
+  const [busy, setBusy] = useState(false);
+  const { data: info, isLoading, error, refresh } = useCampusData({
     fetcher: () => fetchParentTransport(),
     campusId: activeBranchId,
     fallback: null,
@@ -19,6 +28,29 @@ export default function ParentTransportPage() {
   });
 
   const t = (info as any)?.transport ?? null;
+  const startPay = async (billUuid: string, amountDue: number, amountPaid: number) => {
+    const balance = Math.round((amountDue - amountPaid) * 100) / 100;
+    if (balance <= 0) {
+      toast.error("Is bill ka koi balance nahi");
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await collectTransportPaymentApi(billUuid, {
+        amount: balance,
+        paymentMode: payMode,
+        transactionRef: payTxn || undefined,
+      });
+      toast.success(`Paid ₹${balance} — Receipt ${res.receipt.receiptNumber}`);
+      setPayTxn("");
+      setPayingUuid("");
+      refresh();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Payment failed");
+    } finally {
+      setBusy(false);
+    }
+  };
   const child = (info as any)?.child ?? null;
   const history: any[] = (info as any)?.boardingHistory ?? [];
   const fee = (info as any)?.fee ?? null;
@@ -85,12 +117,36 @@ export default function ParentTransportPage() {
                 {(fee?.records ?? []).length === 0 ? (
                   <p className="text-xs text-muted-foreground">No billing records yet.</p>
                 ) : (
-                  <div className="flex flex-wrap gap-1.5">
-                    {(fee.records as any[]).map((r: any) => (
-                      <Badge key={r.uuid} variant={r.status === "PAID" ? "default" : "outline"} className="text-[10px]">
-                        {r.month}/{r.year} · ₹{r.amountPaid}/{r.amountDue} · {r.status}{r.invoice ? ` · ${r.invoice.invoiceNumber}` : ""}
-                      </Badge>
-                    ))}
+                  <div className="space-y-1.5">
+                    {(fee.records as any[]).map((r: any) => {
+                      const bal = Math.round((r.amountDue - r.amountPaid) * 100) / 100;
+                      return (
+                        <div key={r.uuid} className="flex flex-wrap items-center gap-2 p-2 rounded-lg border bg-muted/20">
+                          <Badge variant={r.status === "PAID" ? "default" : "outline"} className="text-[10px]">
+                            {r.month}/{r.year} · ₹{r.amountPaid}/{r.amountDue} · {r.status}{r.invoice ? ` · ${r.invoice.invoiceNumber}` : ""}
+                          </Badge>
+                          {bal > 0 && r.status !== "WAIVED" && (
+                            payingUuid === r.uuid ? (
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <Select value={payMode} onValueChange={setPayMode}>
+                                  <SelectTrigger className="w-28 h-7 text-[11px]"><SelectValue /></SelectTrigger>
+                                  <SelectContent>
+                                    {["UPI", "ONLINE", "CARD", "BANK_TRANSFER"].map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                                  </SelectContent>
+                                </Select>
+                                <Input value={payTxn} onChange={(e) => setPayTxn(e.target.value)} placeholder="Txn ID" className="w-32 h-7 text-[11px]" />
+                                <Button size="sm" className="h-7 text-[11px]" disabled={busy} onClick={() => void startPay(r.uuid, r.amountDue, r.amountPaid)}>
+                                  {busy ? "…" : `Pay ₹${bal}`}
+                                </Button>
+                                <Button size="sm" variant="ghost" className="h-7 text-[11px]" onClick={() => setPayingUuid("")}>Cancel</Button>
+                              </div>
+                            ) : (
+                              <Button size="sm" variant="gradient" className="h-7 text-[11px]" onClick={() => setPayingUuid(r.uuid)}>PAY TRANSPORT FEE ₹{bal}</Button>
+                            )
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </CardContent>
