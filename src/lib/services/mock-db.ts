@@ -3159,6 +3159,17 @@ class MockDatabaseService {
     }
   }
 
+  /** Persisted session or null when the user has never signed in on this device. */
+  public getStoredSession(): UserSession | null {
+    if (!this.isBrowser()) return null;
+    try {
+      const stored = localStorage.getItem(SESSION_STORAGE_KEY);
+      return stored ? (JSON.parse(stored) as UserSession) : null;
+    } catch {
+      return null;
+    }
+  }
+
   public saveSession(session: UserSession): void {
     if (this.isBrowser()) {
       localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));

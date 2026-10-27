@@ -9,6 +9,11 @@ const ITEMS = [
   { href: "/transport/fleet", label: "Fleet (Vehicles)" },
   { href: "/transport/drivers", label: "Drivers" },
   { href: "/transport/routes", label: "Routes & Stops" },
+  { href: "/transport/crew", label: "Crew" },
+  { href: "/transport/attendance", label: "Attendance" },
+  { href: "/transport/students", label: "Students" },
+  { href: "/transport/fees", label: "Fee Collection" },
+  { href: "/transport/parent", label: "Parent View" },
 ];
 
 export function TransportSubnav() {

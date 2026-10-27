@@ -84,6 +84,9 @@ export function ERPProvider({ children }: { children: React.ReactNode }) {
 
     async function hydrate() {
       if (!getRefreshToken() && !getAccessToken()) {
+        // No persisted credentials — also drop a stale gate cookie so the
+        // middleware does not bounce /login back to / in a redirect loop.
+        clearTokens();
         setIsAuthLoading(false);
         return;
       }
@@ -116,12 +119,33 @@ export function ERPProvider({ children }: { children: React.ReactNode }) {
         } finally {
           if (!cancelled) setBranchesLoading(false);
         }
-      } catch {
-        // refresh already cleared tokens inside apiFetch; make sure they are.
-        if (!cancelled) {
+      } catch (err) {
+        if (cancelled) return;
+        const status = err instanceof ApiError ? err.status : 0;
+        if (status === 401 || status === 403) {
+          // Definitive auth failure — refresh token revoked/expired.
           clearTokens();
           setIsAuthenticated(false);
+          return;
         }
+        // Backend unreachable or 5xx: a transient outage (server restart,
+        // network blip) must NEVER sign the user out on page refresh. Keep the
+        // tokens and restore the last cached session so the workspace renders.
+        const cached = mockDb.getStoredSession();
+        if (!cached) {
+          setIsAuthenticated(false);
+          return;
+        }
+        setSession(cached);
+        setActiveBranchIdState(cached.branchId || "all");
+        setIsAuthenticated(true);
+        try {
+          const rawBranches = localStorage.getItem("school_erp_branches_v1");
+          if (rawBranches) setBranches(JSON.parse(rawBranches));
+        } catch {
+          // ignore malformed cache
+        }
+        setBranchesError("Offline — showing your last saved session. Some data may be stale.");
       } finally {
         if (!cancelled) setIsAuthLoading(false);
       }
