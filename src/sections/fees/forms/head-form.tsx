@@ -9,9 +9,12 @@ import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Save, ArrowLeft } from "lucide-react";
-import { fetchFeeHeads, createFeeHeadApi, updateFeeHeadApi } from "@/lib/api/fees";
+import { fetchFeeHeads, fetchFeeCategories, createFeeHeadApi, updateFeeHeadApi, type BackendFeeCategory } from "@/lib/api/fees";
 
-const CATEGORIES = ["ADMISSION", "TUITION", "ACADEMIC", "EXAMINATION", "TRANSPORT", "HOSTEL", "ACTIVITY", "LIBRARY", "LABORATORY", "SPORTS", "OTHER"];
+const FALLBACK_CATEGORIES: BackendFeeCategory[] = [
+  "ADMISSION", "TUITION", "ACADEMIC", "EXAMINATION", "TRANSPORT",
+  "HOSTEL", "ACTIVITY", "LIBRARY", "LABORATORY", "SPORTS", "OTHER",
+].map((id) => ({ id, name: id.charAt(0) + id.slice(1).toLowerCase() }));
 
 export function HeadForm({ uuid }: { uuid?: string }) {
   const router = useRouter();
@@ -22,8 +25,22 @@ export function HeadForm({ uuid }: { uuid?: string }) {
   const [isMandatory, setIsMandatory] = useState(true);
   const [isRecurring, setIsRecurring] = useState(true);
   const [color, setColor] = useState("#3b82f6");
+  const [categories, setCategories] = useState<BackendFeeCategory[]>(FALLBACK_CATEGORIES);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(isEdit);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const list = await fetchFeeCategories();
+        if (!cancelled && list.length > 0) setCategories(list);
+      } catch {
+        // keep fallback list when the endpoint is unavailable
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     if (!uuid) return;
@@ -89,7 +106,7 @@ export function HeadForm({ uuid }: { uuid?: string }) {
             <label className="text-xs font-medium">Category *</label>
             <Select value={category} onValueChange={setCategory}>
               <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-              <SelectContent>{CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+              <SelectContent>{categories.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
             </Select>
           </div>
           <div>

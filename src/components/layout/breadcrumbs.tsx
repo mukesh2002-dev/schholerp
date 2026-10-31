@@ -16,6 +16,7 @@ const routeLabels: Record<string, string> = {
   staff: "HR & Staff",
   workers: "Worker Management",
   fees: "Fees & Finance",
+  fines: "Fines & Waivers",
   attendance: "Attendance & Biometric",
   transport: "Transport & Fleet",
   timetable: "Timetable",

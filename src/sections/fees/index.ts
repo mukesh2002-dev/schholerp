@@ -8,6 +8,7 @@ export * from "./tabs/assignments-tab";
 export * from "./tabs/heads-tab";
 export * from "./tabs/ledger-tab";
 export * from "./tabs/defaulters-tab";
+export * from "./tabs/fines-tab";
 export * from "./tabs/refunds-tab";
 export * from "./tabs/payments-tab";
 export * from "./forms/structure-create-form";

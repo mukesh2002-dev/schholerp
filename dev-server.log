@@ -19,3 +19,199 @@
  ✓ Compiled in 107ms (531 modules)
  GET /sw.js 404 in 314ms
 [?25h
+
+> school-erp@1.0.0 dev
+> next dev -p 3001
+
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3001
+   - Network:      http://192.168.1.15:3001
+   - Experiments (use with caution):
+     · optimizePackageImports
+
+ ✓ Starting...
+ ✓ Ready in 2.8s
+ ○ Compiling /middleware ...
+ ✓ Compiled /middleware in 1389ms (115 modules)
+ ○ Compiling / ...
+ ✓ Compiled / in 20.4s (2597 modules)
+ GET / 200 in 23685ms
+ ✓ Compiled in 3.4s (1181 modules)
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 1140ms (2584 modules)
+ GET /sw.js 404 in 2137ms
+ ○ Compiling /login ...
+ ✓ Compiled /login in 2.1s (2613 modules)
+ GET /login 200 in 2324ms
+ GET / 200 in 185ms
+ GET / 200 in 68ms
+ ○ Compiling /fees ...
+ ✓ Compiled /fees in 4.8s (2753 modules)
+ GET /fees 200 in 5218ms
+ ○ Compiling /fees/structures ...
+ ✓ Compiled /fees/structures in 1257ms (2760 modules)
+ GET /fees/structures 200 in 1828ms
+ ○ Compiling /fees/structures/new ...
+ ✓ Compiled /fees/structures/new in 1671ms (2767 modules)
+ GET /fees/structures/new 200 in 2039ms
+ ○ Compiling /fees/heads ...
+ ✓ Compiled /fees/heads in 1275ms (2774 modules)
+ GET /fees/heads 200 in 1558ms
+ ○ Compiling /fees/heads/new ...
+ ✓ Compiled /fees/heads/new in 1276ms (2183 modules)
+ GET /fees/heads/new 200 in 1652ms
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 1004ms (911 modules)
+ GET /sw.js 404 in 2110ms
+ GET /sw.js 404 in 175ms
+ GET /sw.js 404 in 459ms
+ GET /fees/heads 200 in 145ms
+ GET /fees/structures 200 in 126ms
+ GET /fees/structures/new 200 in 184ms
+ GET /sw.js 404 in 452ms
+ ○ Compiling /fees/students ...
+ ✓ Compiled /fees/students in 9s (2188 modules)
+ GET /fees/students 200 in 11027ms
+ ✓ Compiled in 3s (1273 modules)
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 790ms (916 modules)
+ GET /sw.js 404 in 2165ms
+ GET /fees/structures 200 in 370ms
+ GET /fees/structures/new 200 in 198ms
+ GET /sw.js 404 in 509ms
+ ○ Compiling /fees/structures/[id] ...
+ ✓ Compiled /fees/structures/[id] in 5s (2190 modules)
+ GET /fees/structures/07730b81-7950-4497-9e2e-18a466022715 200 in 6589ms
+ GET /fees/heads/new 200 in 1550ms
+ ○ Compiling /login ...
+ ✓ Compiled /login in 2.3s (931 modules)
+ GET /login 200 in 2658ms
+ ○ Compiling / ...
+ ✓ Compiled / in 1903ms (1522 modules)
+ GET / 200 in 2585ms
+ GET / 200 in 59ms
+ ○ Compiling /fees ...
+ ✓ Compiled /fees in 1547ms (1524 modules)
+ GET /fees 200 in 2018ms
+ ○ Compiling /fees/structures ...
+ ✓ Compiled /fees/structures in 643ms (1524 modules)
+ GET /fees/structures 200 in 877ms
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 1052ms (1525 modules)
+ GET /sw.js 404 in 2129ms
+ GET /fees/structures/07730b81-7950-4497-9e2e-18a466022715 200 in 181ms
+ GET /sw.js 404 in 366ms
+ GET /login 200 in 201ms
+ GET /login 200 in 76ms
+ GET /login 200 in 67ms
+ GET /login 200 in 61ms
+ GET /fees/structures 200 in 207ms
+ ○ Compiling /fees/structures/new ...
+ ✓ Compiled /fees/structures/new in 2.1s (1519 modules)
+ GET /fees/structures/new 200 in 2545ms
+ GET /login 200 in 138ms
+ GET /login 200 in 86ms
+ GET /login 200 in 75ms
+ GET /login 200 in 64ms
+ GET /login 200 in 910ms
+ GET / 200 in 521ms
+ GET / 200 in 112ms
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 1756ms (1513 modules)
+ GET /sw.js 404 in 3136ms
+ GET /login 200 in 294ms
+ ○ Compiling /fees ...
+ ✓ Compiled /fees in 865ms (1520 modules)
+ GET /fees 200 in 1203ms
+ GET / 200 in 142ms
+ GET / 200 in 80ms
+ GET /fees 200 in 77ms
+ GET /fees/structures 200 in 149ms
+ GET /fees/structures 200 in 67ms
+ GET /fees/structures/new 200 in 201ms
+ GET /sw.js 404 in 873ms
+ GET /fees/structures/f87fb8e8-a397-47ba-8c9d-ab22228f31a1 200 in 227ms
+ GET /fees/structures 200 in 118ms
+ GET /fees/structures 200 in 115ms
+ GET /fees/structures 200 in 119ms
+ ○ Compiling /fees/assignments ...
+ ✓ Compiled /fees/assignments in 7s (2801 modules)
+ GET /fees/structures 200 in 1310ms
+ GET /fees/structures 200 in 6250ms
+ GET /fees/assignments 200 in 7667ms
+ GET /fees/structures 200 in 169ms
+ GET /fees/structures 200 in 151ms
+ GET /fees/structures/new 200 in 206ms
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 1266ms (1510 modules)
+ GET /sw.js 404 in 2408ms
+ ○ Compiling /fees/students ...
+ ✓ Compiled /fees/students in 3.1s (1509 modules)
+ GET /fees/students 200 in 3674ms
+ GET /fees/structures 200 in 177ms
+ GET /fees/structures/1c9199b7-c677-4f10-b763-37493cff838e 200 in 271ms
+ GET /fees/structures 200 in 983ms
+ ○ Compiling /login ...
+ ✓ Compiled /login in 633ms (926 modules)
+ GET /login 200 in 1397ms
+ ○ Compiling / ...
+ ✓ Compiled / in 766ms (1517 modules)
+ GET / 200 in 1716ms
+ GET / 200 in 175ms
+ ○ Compiling /fees ...
+ ✓ Compiled /fees in 855ms (1524 modules)
+ GET /fees 200 in 1299ms
+ GET /fees/structures 200 in 143ms
+ GET /fees/structures 200 in 78ms
+ GET /fees/structures/new 200 in 178ms
+ GET /fees/structures/1c9199b7-c677-4f10-b763-37493cff838e 200 in 202ms
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 2.3s (1505 modules)
+ GET /sw.js 404 in 3479ms
+ GET /fees/structures/e16be2fa-2e8a-48f4-9226-0578d18d7722 200 in 550ms
+ GET /sw.js 404 in 293ms
+ GET /sw.js 404 in 158ms
+ GET /sw.js 404 in 176ms
+ ✓ Compiled in 4.1s (2781 modules)
+ GET /fees/structures/1c9199b7-c677-4f10-b763-37493cff838e 200 in 212ms
+ GET /fees/structures/e16be2fa-2e8a-48f4-9226-0578d18d7722 200 in 53ms
+ ✓ Compiled in 1767ms (2781 modules)
+ GET /fees/structures/1c9199b7-c677-4f10-b763-37493cff838e 200 in 172ms
+ GET /fees/structures/e16be2fa-2e8a-48f4-9226-0578d18d7722 200 in 182ms
+ ✓ Compiled in 311ms (1277 modules)
+ GET /fees/structures/e16be2fa-2e8a-48f4-9226-0578d18d7722 200 in 83ms
+ GET /fees/structures/1c9199b7-c677-4f10-b763-37493cff838e 200 in 68ms
+ ✓ Compiled /_not-found in 383ms (1505 modules)
+ GET /sw.js 404 in 946ms
+ ✓ Compiled in 1357ms (2883 modules)
+ GET /fees/structures/e16be2fa-2e8a-48f4-9226-0578d18d7722 200 in 1084ms
+ GET /fees/structures/e16be2fa-2e8a-48f4-9226-0578d18d7722 200 in 39ms
+ GET /fees/structures/1c9199b7-c677-4f10-b763-37493cff838e 200 in 41ms
+ GET /fees/structures/1c9199b7-c677-4f10-b763-37493cff838e 200 in 41ms
+ ✓ Compiled in 1224ms (2788 modules)
+ GET /fees/structures/e16be2fa-2e8a-48f4-9226-0578d18d7722 200 in 193ms
+ GET /fees/structures/1c9199b7-c677-4f10-b763-37493cff838e 200 in 124ms
+ ✓ Compiled in 934ms (2788 modules)
+ GET /fees/structures/e16be2fa-2e8a-48f4-9226-0578d18d7722 200 in 264ms
+ GET /fees/structures/1c9199b7-c677-4f10-b763-37493cff838e 200 in 248ms
+ ✓ Compiled in 906ms (2788 modules)
+ GET /fees/structures/e16be2fa-2e8a-48f4-9226-0578d18d7722 200 in 171ms
+ GET /fees/structures/1c9199b7-c677-4f10-b763-37493cff838e 200 in 160ms
+ ✓ Compiled in 730ms (2790 modules)
+ GET /fees/structures/e16be2fa-2e8a-48f4-9226-0578d18d7722 200 in 156ms
+ GET /fees/structures/1c9199b7-c677-4f10-b763-37493cff838e 200 in 148ms
+ GET /sw.js 404 in 513ms
+[?25h
+
+> school-erp@1.0.0 dev
+> next dev -p 3001
+
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3001
+   - Network:      http://192.168.1.15:3001
+   - Experiments (use with caution):
+     · optimizePackageImports
+
+ ✓ Starting...
+ ✓ Ready in 4.9s
+[?25h

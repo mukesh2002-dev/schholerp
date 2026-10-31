@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useERP } from "@/components/providers/erp-provider";
 import { Button } from "@/components/ui/button";
@@ -60,6 +60,7 @@ export function CollectTab() {
   const [receipt, setReceipt] = useState<ReceiptData | null>(null);
   const [receiptOpen, setReceiptOpen] = useState(false);
   const [amountTouched, setAmountTouched] = useState(false);
+  const idempotencyKeyRef = useRef("");
 
   const runSearch = async (q: string) => {
     const text = q.trim();
@@ -140,7 +141,7 @@ export function CollectTab() {
         discountValue: discountValue ? Number(discountValue) : undefined,
         waivedFineAmount: waiveFine ? Number(waiveFine) : undefined,
         allowExcess,
-        idempotencyKey: `${studentId}-${periodType}-${months.sort().join(".")}-${paid}-${Date.now()}`,
+        idempotencyKey: idempotencyKeyRef.current || crypto.randomUUID(),
         campusId: branch,
       });
       const payment = data?.payment ?? data;
@@ -148,6 +149,7 @@ export function CollectTab() {
       setReceiptOpen(true);
       toast.success(`Collected ${formatCurrency(paid)}`, { description: `Receipt ${payment?.receiptNumber ?? ""}` });
       setCollectOpen(false);
+      idempotencyKeyRef.current = "";
       await pickStudent(selectedUuid); // refresh dues
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Collection failed");
@@ -158,7 +160,7 @@ export function CollectTab() {
 
   const student = profile?.student;
   const summary = profile?.summary;
-  const monthlyStatus: any[] = profile?.monthlyStatus ?? [];
+  const monthlyStatus = useMemo<any[]>(() => profile?.monthlyStatus ?? [], [profile?.monthlyStatus]);
   const invoices: any[] = profile?.invoices ?? [];
 
   // Real due = invoice-level due (summary.totalDue) OR plan-level monthly dues
@@ -173,6 +175,12 @@ export function CollectTab() {
     () => monthlyStatus.filter((m) => Number(m.due ?? 0) > 0).map((m) => m.monthNumber as number),
     [monthlyStatus]
   );
+
+  const openCollect = () => {
+    if (dueMonths.length > 0) setMonths(dueMonths);
+    idempotencyKeyRef.current = crypto.randomUUID();
+    setCollectOpen(true);
+  };
 
   return (
     <div className="space-y-4">
@@ -230,13 +238,13 @@ export function CollectTab() {
                 <Badge variant={effectiveDue > 0 ? "destructive" : "success"} className="text-xs font-mono">
                   Due {formatCurrency(effectiveDue)}
                 </Badge>
-                <Button size="sm" variant="gradient" className="h-8 text-xs gap-1" disabled={effectiveDue <= 0} onClick={() => { if (dueMonths.length > 0) setMonths(dueMonths); setCollectOpen(true); }}>
+                <Button size="sm" variant="gradient" className="h-8 text-xs gap-1" disabled={effectiveDue <= 0} onClick={openCollect}>
                   <CreditCard className="h-3.5 w-3.5" /> Collect
                 </Button>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
                 {[
-                  ["Billed", summary?.totalBilled],
+                  ["Billed", summary?.totalFee ?? summary?.totalBilled],
                   ["Paid", summary?.totalPaid],
                   ["Discount", summary?.totalDiscount],
                   ["Advance", summary?.advanceBalance],
@@ -281,6 +289,7 @@ export function CollectTab() {
                     <TableHead>Invoice</TableHead>
                     <TableHead>Period</TableHead>
                     <TableHead>Due Date</TableHead>
+                    <TableHead>Paid On</TableHead>
                     <TableHead className="text-right tabular-nums">Amount</TableHead>
                     <TableHead className="text-right tabular-nums">Paid</TableHead>
                     <TableHead>Status</TableHead>
@@ -292,6 +301,14 @@ export function CollectTab() {
                       <TableCell className="font-mono text-xs font-bold">{inv.invoiceNumber}</TableCell>
                       <TableCell className="text-xs">{inv.billingPeriod ?? "—"}</TableCell>
                       <TableCell className="text-xs">{inv.dueDate ? formatDate(inv.dueDate) : "—"}</TableCell>
+                      <TableCell className="text-xs">
+                        {(() => {
+                          const latest = (inv.payments ?? [])
+                            .filter((p: any) => p?.paidAt)
+                            .sort((a: any, b: any) => new Date(b.paidAt).getTime() - new Date(a.paidAt).getTime())[0];
+                          return latest ? formatDate(latest.paidAt) : "—";
+                        })()}
+                      </TableCell>
                       <TableCell className="text-right font-mono text-xs">{formatCurrency(inv.amount)}</TableCell>
                       <TableCell className="text-right font-mono text-xs text-emerald-600">{formatCurrency(inv.paidAmount ?? 0)}</TableCell>
                       <TableCell><Badge variant="outline" className="text-[10px]">{inv.status}</Badge></TableCell>
@@ -309,7 +326,7 @@ export function CollectTab() {
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Collect Fee</DialogTitle>
-            <DialogDescription>{student ? `${student.firstName} ${student.lastName ?? ""} • Due ${formatCurrency(summary?.totalDue ?? 0)}` : ""}</DialogDescription>
+            <DialogDescription>{student ? `${student.firstName} ${student.lastName ?? ""} • Due ${formatCurrency(effectiveDue)}` : ""}</DialogDescription>
           </DialogHeader>
           <div className="space-y-3 mt-2">
             <div className="grid grid-cols-2 gap-3">
@@ -397,6 +414,7 @@ export function CollectTab() {
         onOpenChange={setReceiptOpen}
         receipt={receipt}
         studentName={student ? `${student.firstName} ${student.lastName ?? ""}`.trim() : undefined}
+        student={student}
         onViewStudent={(sid) => { setReceiptOpen(false); router.push(`/fees/${sid}`); }}
       />
     </div>

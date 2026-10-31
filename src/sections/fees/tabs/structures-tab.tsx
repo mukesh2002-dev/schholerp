@@ -10,12 +10,17 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useCampusData } from "@/lib/hooks/use-campus-data";
 import { formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
-import { Plus, Trash2, Search, ArrowRight, Layers } from "lucide-react";
-import { fetchFeeStructures, deleteFeeStructureApi } from "@/lib/api/fees";
+import { Plus, Trash2, Search, ArrowRight, Layers, Archive } from "lucide-react";
+import {
+  fetchFeeStructures,
+  deleteFeeStructureApi,
+  changeFeeStructureLifecycleApi,
+} from "@/lib/api/fees";
 
 export function StructuresList() {
   const { activeBranchId } = useERP();
   const [q, setQ] = useState("");
+  const [showArchived, setShowArchived] = useState(false);
   const { data: structures, isLoading, refresh } = useCampusData({
     fetcher: (cid) => fetchFeeStructures({ campusId: cid }),
     campusId: activeBranchId,
@@ -23,25 +28,51 @@ export function StructuresList() {
     queryKeyPrefix: "fee-structures",
   });
 
-  const filtered = structures.filter((s: any) => !q.trim() || s.name.toLowerCase().includes(q.toLowerCase()));
+  const filtered = structures
+    .filter((s: any) => showArchived || s.lifecycleStatus !== "ARCHIVED")
+    .filter((s: any) => !q.trim() || s.name.toLowerCase().includes(q.toLowerCase()));
+
+  const handleArchive = async (uuid: string, sname: string) => {
+    if (!window.confirm(`Archive structure "${sname}"? It will stop being used for new assignments and invoices.`)) return;
+    try {
+      await changeFeeStructureLifecycleApi(uuid, "ARCHIVED");
+      toast.success("Structure archived");
+      void refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Archive failed");
+    }
+  };
 
   const handleDelete = async (uuid: string, sname: string) => {
-    if (!window.confirm(`Delete structure "${sname}"? Blocked if invoices exist.`)) return;
+    if (!window.confirm(`Delete structure "${sname}"? Blocked if it has assignments or invoices.`)) return;
     try {
       await deleteFeeStructureApi(uuid);
       toast.success("Structure deleted");
       void refresh();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Delete failed");
+      const message = err instanceof Error ? err.message : "Delete failed";
+      if (message.toLowerCase().includes("archive it instead")) {
+        if (window.confirm(`${message}\n\nArchive "${sname}" now?`)) {
+          await handleArchive(uuid, sname);
+        }
+        return;
+      }
+      toast.error(message);
     }
   };
 
   return (
     <div className="space-y-3">
       <div className="flex gap-2 justify-between flex-wrap">
-        <div className="relative w-64">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search structures" className="pl-9 h-9 text-xs" />
+        <div className="flex items-center gap-3">
+          <div className="relative w-64">
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search structures" className="pl-9 h-9 text-xs" />
+          </div>
+          <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
+            <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} className="h-3.5 w-3.5 rounded border" />
+            Show archived
+          </label>
         </div>
         <Button asChild size="sm" className="gap-1 h-9 text-xs">
           <Link href="/fees/structures/new"><Plus className="h-4 w-4" /> New Structure</Link>
@@ -87,7 +118,12 @@ export function StructuresList() {
                   <Button asChild variant="outline" size="sm" className="flex-1 h-7 text-xs gap-1">
                     <Link href={`/fees/structures/${s.uuid}`}>Open <ArrowRight className="h-3 w-3" /></Link>
                   </Button>
-                  <Button variant="ghost" size="sm" className="h-7 text-xs text-destructive" onClick={() => void handleDelete(s.uuid, s.name)}><Trash2 className="h-3 w-3" /></Button>
+                  {s.lifecycleStatus !== "ARCHIVED" && (
+                    <Button variant="ghost" size="sm" className="h-7 text-xs" title="Archive structure" onClick={() => void handleArchive(s.uuid, s.name)}>
+                      <Archive className="h-3 w-3" />
+                    </Button>
+                  )}
+                  <Button variant="ghost" size="sm" className="h-7 text-xs text-destructive" title="Delete structure" onClick={() => void handleDelete(s.uuid, s.name)}><Trash2 className="h-3 w-3" /></Button>
                 </div>
               </CardContent>
             </Card>
