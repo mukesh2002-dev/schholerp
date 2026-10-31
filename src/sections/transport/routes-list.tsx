@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { useCampusData } from "@/lib/hooks/use-campus-data";
 import { toast } from "sonner";
-import { Plus, Bus, Search, MapPin, Users } from "lucide-react";
+import { Plus, Bus, Search, MapPin, Users, CalendarCheck } from "lucide-react";
 import { fetchRoutes } from "@/lib/api/transport";
 
 export function RoutesList() {
@@ -88,7 +88,10 @@ export function RoutesList() {
                     ))}
                     {(r.stops ?? []).length > 6 && <div className="text-[11px] text-muted-foreground">+{(r.stops ?? []).length - 6} more stops</div>}
                     <div className="text-[11px] text-muted-foreground flex items-center gap-1"><MapPin className="h-3 w-3" /> {(r.stops ?? []).length} stops</div>
-                    <Button asChild variant="outline" size="sm" className="h-7 text-xs mt-1 w-fit"><Link href={`/transport/routes/${r.uuid}`}>Manage stops →</Link></Button>
+                    <div className="flex flex-wrap gap-1.5 mt-1">
+                      <Button asChild variant="outline" size="sm" className="h-7 text-xs"><Link href={`/transport/routes/${r.uuid}`}>Manage stops →</Link></Button>
+                      <Button asChild variant="outline" size="sm" className="h-7 text-xs gap-1"><Link href={`/transport/attendance?route=${r.uuid}`}><CalendarCheck className="h-3 w-3" /> Attendance</Link></Button>
+                    </div>
                   </div>
                 )}
               </CardContent>

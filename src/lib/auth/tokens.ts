@@ -52,7 +52,10 @@ export function clearTokens(): void {
 
 function setSessionCookie(): void {
   try {
-    document.cookie = `${SESSION_COOKIE}=1; path=/; SameSite=Lax`;
+    // 7 days = backend refresh-token lifetime. Using Max-Age (instead of a
+    // session cookie) keeps the user signed in across browser restarts too.
+    const secure = typeof window !== "undefined" && window.location.protocol === "https:" ? "; Secure" : "";
+    document.cookie = `${SESSION_COOKIE}=1; path=/; max-age=${7 * 24 * 3600}; SameSite=Lax${secure}`;
   } catch {
     // ignore (SSR / privacy mode)
   }

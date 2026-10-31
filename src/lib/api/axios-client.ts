@@ -138,7 +138,7 @@ apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
 // ── Refresh single-flight ────────────────────────────────────────────
 let refreshInFlight: Promise<string | null> | null = null;
 
-async function refreshAccessToken(): Promise<string | null> {
+async function performRefresh(): Promise<string | null> {
   const refreshToken = getRefreshToken();
   if (!refreshToken) return null;
   try {
@@ -157,12 +157,37 @@ async function refreshAccessToken(): Promise<string | null> {
     setTokens(nextAccess, nextRefresh);
     return nextAccess;
   } catch (e: unknown) {
+    const status = (e as AxiosError)?.response?.status;
+    // Another tab may have rotated the token while this request was in flight.
+    // In that case storage already holds the newer pair — keep it and use it.
+    const currentRefresh = getRefreshToken();
+    if (currentRefresh && currentRefresh !== refreshToken) {
+      return getAccessToken();
+    }
     // network error on refresh: keep tokens so a later retry can succeed
     // but if 401/403, clearTokens so we don't loop
-    const status = (e as AxiosError)?.response?.status;
     if (status === 401 || status === 403) clearTokens();
     return null;
   }
+}
+
+async function refreshAccessToken(): Promise<string | null> {
+  const tokenBefore = getRefreshToken();
+  if (!tokenBefore) return null;
+
+  // Cross-tab single-flight: Web Locks serialize rotation across tabs so only
+  // one tab spends the refresh token; the others pick up the rotated pair.
+  const locks = typeof navigator !== "undefined" ? navigator.locks : undefined;
+  if (!locks || typeof locks.request !== "function") {
+    return performRefresh();
+  }
+  return locks.request("school_erp_token_refresh", async () => {
+    const current = getRefreshToken();
+    if (current && current !== tokenBefore) {
+      return getAccessToken();
+    }
+    return performRefresh();
+  });
 }
 
 function toApiError(error: unknown): ApiError {

@@ -18,7 +18,7 @@ export function AdmissionFunnel() {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="text-base font-bold text-foreground">
-                2026-27 Admission Pipeline
+                2026-27 Admission 
               </CardTitle>
               <CardDescription>Inquiry to Enrollment conversion funnel</CardDescription>
             </div>
