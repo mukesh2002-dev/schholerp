@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useERP } from "@/components/providers/erp-provider";
 import { Button } from "@/components/ui/button";
@@ -66,11 +66,13 @@ export function StructureCreateForm() {
     queryKeyPrefix: "academic-years",
   });
 
-  // Start with one empty row once heads are loaded
-  useMemo(() => {
-    if (items.length === 0 && heads.length > 0) setItems([emptyItem(heads[0].uuid)]);
+  const schoolHeads = heads.filter((h) => h.category !== "TRANSPORT");
+
+  // Start with one empty row once school fee heads are loaded
+  useEffect(() => {
+    if (items.length === 0 && schoolHeads.length > 0) setItems([emptyItem(schoolHeads[0].uuid)]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [heads.length]);
+  }, [schoolHeads.length]);
 
   const patchItem = (idx: number, patch: Partial<ItemDraft>) =>
     setItems((p) => p.map((x, i) => (i === idx ? { ...x, ...patch } : x)));
@@ -82,6 +84,8 @@ export function StructureCreateForm() {
 
   const handleSave = async () => {
     if (!name.trim()) { toast.error("Name is required"); return; }
+    if (!classId) { toast.error("Class is required"); return; }
+    if (!yearId) { toast.error("Academic year is required"); return; }
     const list = items.filter((x) => x.feeHeadId && Number(x.amount) > 0);
     if (list.length === 0) { toast.error("Add at least one fee head with amount"); return; }
     setSaving(true);
@@ -121,17 +125,17 @@ export function StructureCreateForm() {
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
-            <label className="text-xs font-medium">Class</label>
+            <label className="text-xs font-medium">Class *</label>
             <Select value={classId} onValueChange={setClassId}>
-              <SelectTrigger className="mt-1"><SelectValue placeholder="All classes" /></SelectTrigger>
-              <SelectContent><SelectItem value="">All classes</SelectItem>{classes.map((c: any) => <SelectItem key={c.uuid ?? c.id} value={c.uuid ?? c.id}>{c.name}</SelectItem>)}</SelectContent>
+              <SelectTrigger className="mt-1"><SelectValue placeholder="Select class" /></SelectTrigger>
+              <SelectContent>{classes.map((c: any) => <SelectItem key={c.uuid ?? c.id} value={c.uuid ?? c.id}>{c.name}</SelectItem>)}</SelectContent>
             </Select>
           </div>
           <div>
-            <label className="text-xs font-medium">Academic Year</label>
+            <label className="text-xs font-medium">Academic Year *</label>
             <Select value={yearId} onValueChange={setYearId}>
               <SelectTrigger className="mt-1"><SelectValue placeholder="Select year" /></SelectTrigger>
-              <SelectContent><SelectItem value="">None</SelectItem>{years.map((y) => <SelectItem key={y.uuid} value={y.uuid}>{y.name}</SelectItem>)}</SelectContent>
+              <SelectContent>{years.map((y) => <SelectItem key={y.uuid} value={y.uuid}>{y.name}</SelectItem>)}</SelectContent>
             </Select>
           </div>
           <div>
@@ -144,19 +148,19 @@ export function StructureCreateForm() {
       <Card className="p-4 border-border/70 space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-bold">Fee Heads *</h3>
-          <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={() => setItems((p) => [...p, emptyItem(heads[0]?.uuid ?? "")])} disabled={heads.length === 0}>
-            <Plus className="h-3 w-3" /> Add Head {heads.length === 0 && "(create heads first)"}
+          <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={() => setItems((p) => [...p, emptyItem(schoolHeads[0]?.uuid ?? "")])} disabled={schoolHeads.length === 0}>
+            <Plus className="h-3 w-3" /> Add Head {schoolHeads.length === 0 && "- create heads first"}
           </Button>
         </div>
-        {heads.length === 0 && (
-          <p className="text-xs text-amber-600">No fee heads yet — <Link href="/fees/heads/new" className="underline">create a head first</Link>.</p>
+        {schoolHeads.length === 0 && (
+          <p className="text-xs text-amber-600">No school fee heads yet - <Link href="/fees/heads/new" className="underline">create a head first</Link>. Transport heads are managed in the Transport module.</p>
         )}
         {items.map((it, idx) => (
           <div key={idx} className="p-3 rounded-lg border space-y-2 bg-muted/30">
             <div className="flex gap-2">
               <Select value={it.feeHeadId} onValueChange={(v) => patchItem(idx, { feeHeadId: v })}>
                 <SelectTrigger className="flex-1"><SelectValue placeholder="Select head" /></SelectTrigger>
-                <SelectContent>{heads.map((h) => <SelectItem key={h.uuid} value={h.uuid}>{h.name} ({h.category})</SelectItem>)}</SelectContent>
+                <SelectContent>{schoolHeads.map((h) => <SelectItem key={h.uuid} value={h.uuid}>{h.name} ({h.category})</SelectItem>)}</SelectContent>
               </Select>
               <Input type="number" value={it.amount} onChange={(e) => patchItem(idx, { amount: e.target.value })} placeholder="₹ amount" className="w-32" />
               <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => setItems((p) => p.filter((_, i) => i !== idx))}><Trash2 className="h-4 w-4 text-destructive" /></Button>

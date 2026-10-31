@@ -139,7 +139,7 @@ export function InvoiceGenerate() {
       <Card className="border-border/70">
         <CardContent className="p-4 space-y-3">
           <h3 className="text-sm font-bold flex items-center gap-1.5"><Zap className="h-4 w-4" /> Monthly — one student</h3>
-          <p className="text-[11px] text-muted-foreground">Generates from the assignment's structure items applicable to that month (billing months, new-student-only, concession). Duplicate period → 409, never duplicates.</p>
+          <p className="text-[11px] text-muted-foreground">Generates from the assignment&apos;s structure items applicable to that month (billing months, new-student-only, concession). Duplicate period → 409, never duplicates.</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-medium">Student (UUID / admission no)</label>
@@ -218,8 +218,8 @@ export function InvoiceGenerate() {
 
       <Card className="border-border/70">
         <CardContent className="p-4 space-y-3">
-          <h3 className="text-sm font-bold flex items-center gap-1.5"><Plus className="h-4 w-4" /> Manual invoice (one-off)</h3>
-          <p className="text-[11px] text-muted-foreground">Outside the monthly engine — e.g. fine, special charge. Use cancel from the Invoices page if wrong.</p>
+          <h3 className="text-sm font-bold flex items-center gap-1.5"><Plus className="h-4 w-4" /> Manual / one-time invoice (Exam Fee, special charge)</h3>
+          <p className="text-[11px] text-muted-foreground">Outside the monthly engine — use this for occasional fees like Exam Fee, excursion, or a special charge. Fine-type charges are better added from the Fines tab. Use cancel from the Invoices page if wrong.</p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className="text-xs font-medium">Student (UUID / admission no) *</label>

@@ -1,7 +1,7 @@
 "use client";
 import { apiFetch } from "./client";
 
-export interface BackendFeeStructure { uuid: string; name: string; amount: string | number; frequency?: string; classId?: string | null }
+export interface BackendFeeStructure { uuid: string; name: string; amount: string | number; frequency?: string; classId?: string | null; lifecycleStatus?: string | null }
 export interface BackendInvoice { uuid: string; invoiceNumber: string; amount: string | number; paidAmount: string | number; status: string; dueDate?: string }
 export interface BackendPayment { uuid: string; receiptNumber: string; amount: string | number; paymentMethod?: string }
 
@@ -143,6 +143,17 @@ export interface BackendFeeHead {
   color?: string | null;
 }
 
+export interface BackendFeeCategory {
+  id: string;
+  name: string;
+  description?: string | null;
+}
+
+export async function fetchFeeCategories(): Promise<BackendFeeCategory[]> {
+  const res = await apiFetch<{ data: BackendFeeCategory[] }>(`/fees/categories`);
+  return Array.isArray(res.data) ? res.data : [];
+}
+
 export async function fetchFeeHeads(): Promise<BackendFeeHead[]> {
   const res = await apiFetch<{ data: BackendFeeHead[] }>(`/fees/heads`);
   return Array.isArray(res.data) ? res.data : [];
@@ -197,6 +208,10 @@ export interface BackendFeeStructureDetail extends BackendFeeStructure {
   academicYear?: { uuid: string; name: string } | null;
   campus?: { uuid: string; name: string; code?: string } | null;
   dueDay?: number | null;
+  lateFineType?: string | null;
+  lateFineAmount?: string | number | null;
+  gracePeriodDays?: number | null;
+  maxFine?: string | number | null;
   structureItems?: BackendStructureItem[];
 }
 
@@ -221,8 +236,34 @@ export async function updateFeeStructureItemApi(structureUuid: string, itemUuid:
   return res.data;
 }
 
+export async function addFeeStructureItemApi(structureUuid: string, payload: Record<string, unknown>): Promise<unknown> {
+  const res = await apiFetch<{ data: unknown }>(`/fees/structures/${structureUuid}/items`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  return res.data;
+}
+
+export async function deleteFeeStructureItemApi(structureUuid: string, itemUuid: string): Promise<unknown> {
+  const res = await apiFetch<{ data: unknown }>(`/fees/structures/${structureUuid}/items/${itemUuid}`, {
+    method: "DELETE",
+  });
+  return res.data;
+}
+
 export async function deleteFeeStructureApi(uuid: string): Promise<void> {
   await apiFetch(`/fees/structures/${uuid}`, { method: "DELETE" });
+}
+
+export async function changeFeeStructureLifecycleApi(
+  uuid: string,
+  status: "APPROVED" | "ACTIVE" | "ARCHIVED"
+): Promise<BackendFeeStructureDetail> {
+  const res = await apiFetch<{ data: BackendFeeStructureDetail }>(`/fees/structures/${uuid}/lifecycle`, {
+    method: "POST",
+    body: JSON.stringify({ status }),
+  });
+  return res.data;
 }
 
 export async function rolloverFeeStructureApi(payload: {
@@ -303,6 +344,14 @@ export async function bulkCreateAssignmentsApi(payload: {
     `/fees/assignments/bulk`,
     { method: "POST", body: JSON.stringify(payload) },
     { campusId: campusId ?? undefined }
+  );
+  return res.data;
+}
+
+export async function deleteAssignmentApi(uuid: string): Promise<{ success: boolean; message: string }> {
+  const res = await apiFetch<{ data: { success: boolean; message: string } }>(
+    `/fees/assignments/${uuid}`,
+    { method: "DELETE" }
   );
   return res.data;
 }

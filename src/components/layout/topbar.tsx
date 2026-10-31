@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { useERP } from "@/components/providers/erp-provider";
 import { useSettings } from "@/components/providers/settings-provider";
 import { BranchSelector } from "./branch-selector";
@@ -43,6 +45,21 @@ interface TopbarProps {
 export function Topbar({ sidebarCollapsed = false, onToggleSidebar }: TopbarProps) {
   const { session, setSearchOpen, triggerBiometricSync, logout } = useERP();
   const { stickyTopbar } = useSettings();
+  const router = useRouter();
+  const queryClient = useQueryClient();
+
+  const [refreshing, setRefreshing] = useState(false);
+  const handleRefresh = async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    try {
+      await queryClient.invalidateQueries();
+      router.refresh();
+      toast.success("Page data refreshed");
+    } finally {
+      setTimeout(() => setRefreshing(false), 600);
+    }
+  };
 
   const handleLogout = () => {
     logout();
@@ -133,6 +150,20 @@ export function Topbar({ sidebarCollapsed = false, onToggleSidebar }: TopbarProp
             aria-label="Global search"
           >
             <Search className="h-[18px] w-[18px]" />
+          </Button>
+
+          {/* Refresh current page data (available on every page) */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => void handleRefresh()}
+            disabled={refreshing}
+            className="h-10 sm:h-9 gap-1.5 px-2 sm:px-2.5"
+            title="Refresh page data"
+            aria-label="Refresh page data"
+          >
+            <RefreshCw className={cn("h-[18px] w-[18px]", refreshing && "animate-spin")} />
+            <span className="hidden sm:inline text-xs">Refresh</span>
           </Button>
 
           {/* Biometric Gateway Pulse Action (Hidden per user request, code retained) */}

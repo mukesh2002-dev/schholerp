@@ -100,7 +100,7 @@ export function InvoicesList() {
                 <TableCell className="text-right font-mono text-xs text-emerald-600">{formatCurrency(inv.paidAmount ?? 0)}</TableCell>
                 <TableCell><Badge variant="outline" className="text-[10px]">{inv.status}</Badge></TableCell>
                 <TableCell className="text-right">
-                  {!["paid", "cancelled"].includes(String(inv.status)) && cancelUuid !== inv.uuid && (
+                  {!["paid", "partially_paid", "cancelled"].includes(String(inv.status)) && cancelUuid !== inv.uuid && (
                     <Button variant="ghost" size="sm" className="h-7 text-[11px] gap-1 text-destructive" onClick={() => { setCancelUuid(inv.uuid); setCancelReason(""); }}>
                       <Ban className="h-3 w-3" /> Cancel
                     </Button>

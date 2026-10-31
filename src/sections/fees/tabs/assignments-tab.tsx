@@ -12,14 +12,13 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@
 import { useCampusData } from "@/lib/hooks/use-campus-data";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { toast } from "sonner";
-import { Plus, Ban } from "lucide-react";
-import { fetchAssignments, discontinueAssignmentApi } from "@/lib/api/fees";
+import { Plus, Ban, Trash2 } from "lucide-react";
+import { fetchAssignments, discontinueAssignmentApi, deleteAssignmentApi } from "@/lib/api/fees";
 
 const STATUS_OPTIONS = ["all", "PENDING", "PARTIALLY_PAID", "PAID", "OVERDUE"];
 
 export function AssignmentsList() {
   const { activeBranchId } = useERP();
-  const branch = activeBranchId !== "all" ? activeBranchId : undefined;
 
   const [status, setStatus] = useState("all");
   const [search, setSearch] = useState("");
@@ -41,6 +40,22 @@ export function AssignmentsList() {
       `${a.student?.firstName ?? ""} ${a.student?.lastName ?? ""} ${a.student?.admissionNo ?? ""} ${a.structure?.name ?? ""}`.toLowerCase().includes(q)
     );
   }, [assignments, search]);
+
+  const handleRemove = async (assignment: any) => {
+    const studentName = assignment.student
+      ? `${assignment.student.firstName} ${assignment.student.lastName ?? ""}`.trim()
+      : "this student";
+    if (!window.confirm(`Remove the fee assignment for ${studentName}? This only works when no invoice or refund exists.`)) {
+      return;
+    }
+    try {
+      await deleteAssignmentApi(assignment.uuid);
+      toast.success("Fee assignment removed");
+      void refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Remove failed");
+    }
+  };
 
   const handleDiscontinue = async () => {
     if (!disc || !discReason.trim()) { toast.error("Reason is required"); return; }
@@ -105,10 +120,17 @@ export function AssignmentsList() {
                 <TableCell className="text-xs">{a.dueDate ? formatDate(a.dueDate) : "—"}</TableCell>
                 <TableCell><Badge variant="outline" className="text-[10px]">{a.discontinuedAt ? "DISCONTINUED" : a.status}</Badge></TableCell>
                 <TableCell className="text-right">
-                  {!a.discontinuedAt && disc?.uuid !== a.uuid && (
-                    <Button variant="ghost" size="sm" className="h-7 text-[11px] gap-1 text-destructive" onClick={() => { setDisc(a); setDiscReason(""); setWaive(false); }}>
-                      <Ban className="h-3 w-3" /> Discontinue
-                    </Button>
+                  {disc?.uuid !== a.uuid && (
+                    <div className="flex items-center justify-end gap-1">
+                      {!a.discontinuedAt && (
+                        <Button variant="ghost" size="sm" className="h-7 text-[11px] gap-1 text-destructive" onClick={() => { setDisc(a); setDiscReason(""); setWaive(false); }}>
+                          <Ban className="h-3 w-3" /> Discontinue
+                        </Button>
+                      )}
+                      <Button variant="ghost" size="sm" className="h-7 text-[11px] gap-1 text-muted-foreground hover:text-destructive" onClick={() => void handleRemove(a)}>
+                        <Trash2 className="h-3 w-3" /> Remove
+                      </Button>
+                    </div>
                   )}
                 </TableCell>
               </TableRow>

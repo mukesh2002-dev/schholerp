@@ -45,3 +45,31 @@ export const SCHOOL_DATA: SchoolData = {
   locale: "en-IN",
   logoPath: "/logo.png",
 };
+
+/**
+ * Receipt-only branding.
+ *
+ * Kept separate from `SCHOOL_DATA` so the printed receipt can use its own
+ * logo and name — change `logoPath` and `schoolName` here independently
+ * without touching the app sidebar / login / browser tab branding.
+ */
+export interface ReceiptBranding {
+  /** School name printed on the receipt. */
+  schoolName: string;
+  /** Logo printed on the receipt (file lives in `public/`, e.g. "/logo.png"). */
+  logoPath: string;
+  /** Small line under the school name (optional). */
+  tagline?: string;
+  /** Address line(s) printed under the school name (optional). */
+  address?: string;
+  /** Phone / email line printed under the address (optional). */
+  contact?: string;
+}
+
+export const RECEIPT_BRANDING: ReceiptBranding = {
+  schoolName: "Apex Global Campus",
+  logoPath: "/logo.png",
+  tagline: "School Fee Collection",
+  address: "",
+  contact: "",
+};
